@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import redisClient from '../utils/redis';
 import REFERRAL from '../models/referral.model';
 import mongoose from 'mongoose';
-import {isEmail} from 'validator';
+import {isEmail, isMobilePhone} from 'validator';
 import bcrypt from 'bcrypt';
 
 async function create_tokens(userId: string) {
@@ -161,6 +161,118 @@ export async function get_my_profile(req: Request, res: Response) {
     res
       .status(200)
       .json({message: 'Profile information retrieved', data: userInfo});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function edit_profile(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    const update = req.body;
+
+    if (update === undefined || Object.keys(update).length === 0) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    const fieldsFromUpdate = Object.keys(update);
+    const validFields = [
+      'username',
+      'phoneNumber',
+      'bio',
+      'avatar',
+      'notificationPreferences',
+    ];
+
+    const hasInvalidFields = fieldsFromUpdate.some(
+      field => validFields.includes(field) === false
+    );
+
+    if (hasInvalidFields) {
+      res
+        .status(400)
+        .json({message: 'Update failed as request contains invalid fields'});
+      return;
+    }
+
+    // enforce username uniqueness
+    if (Object.prototype.hasOwnProperty.call(update, 'username') !== false) {
+      const usernameExists = await USER.findOne({username: update.username});
+
+      if (usernameExists && usernameExists._id.toString() === userId) {
+        res.status(400).json({
+          message: `Please specify a new username, ${update.username} already belongs to you`,
+        });
+        return;
+      }
+
+      if (usernameExists) {
+        res.status(400).json({
+          message: `The username ${update.username} is not available, please try another`,
+        });
+        return;
+      }
+    }
+
+    // validate the notification preferences
+    if (
+      Object.prototype.hasOwnProperty.call(update, 'notificationPreferences')
+    ) {
+      const validNotificationPreferences = ['pushNotification', 'email'];
+      const fieldsFromNotificationPreferences = Object.keys(
+        update.notificationPreferences
+      );
+
+      const hasInvalidNotificationPreferences =
+        fieldsFromNotificationPreferences.some(
+          field => validNotificationPreferences.includes(field) === false
+        );
+
+      if (hasInvalidNotificationPreferences) {
+        res.status(400).json({
+          message:
+            'Update failed as request contains invalid notification preferences',
+        });
+        return;
+      }
+    }
+
+    // check for presence of phone
+    if (Object.prototype.hasOwnProperty.call(update, 'phoneNumber')) {
+      if (isMobilePhone(update.phoneNumber, 'en-NG') === false) {
+        res.status(400).json({
+          message:
+            'Update failed, phone number must be a valid Nigerian phone number (+234, 08..., 07... etc.)',
+        });
+        return;
+      }
+
+      const userWithPhone = await USER.findOne({
+        phoneNumber: update.phoneNumber,
+      });
+
+      if (userWithPhone !== null) {
+        res.status(400).json({
+          message: `The phone number ${update.phoneNumber} is not available`,
+        });
+        return;
+      }
+
+      // toggle the phoneIsVerified field back to false
+      update['phoneNumberIsVerified'] = false;
+    }
+
+    const updateInfo = await USER.updateOne({_id: userId}, update);
+
+    if (updateInfo.modifiedCount === 0) {
+      res
+        .status(400)
+        .json({message: 'It appears this user account no longer exists'});
+      return;
+    }
+
+    res.status(200).json({message: 'Profile updated successfully'});
   } catch (error) {
     handle_error(error, res);
   }

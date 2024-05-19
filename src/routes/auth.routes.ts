@@ -1,5 +1,6 @@
 import {Router} from 'express';
 import {
+  edit_profile,
   get_my_profile,
   login,
   register_user,
@@ -12,5 +13,7 @@ router.post('/register/user', register_user);
 router.post('/login', login);
 
 router.get('/profile', is_logged_in, get_my_profile);
+
+router.patch('/profile', is_logged_in, edit_profile);
 
 export default router;

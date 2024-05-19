@@ -2,6 +2,20 @@ import mongoose from 'mongoose';
 import {isEmail, isMobilePhone} from 'validator';
 import bcrypt from 'bcrypt';
 
+const notificationPreferencesSchema = new mongoose.Schema(
+  {
+    pushNotification: {
+      type: Boolean,
+      default: true,
+    },
+    email: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  {_id: false}
+);
+
 const userSchema = new mongoose.Schema(
   {
     username: {
@@ -44,7 +58,8 @@ const userSchema = new mongoose.Schema(
       unique: true,
       validate: {
         validator: (phoneNumber: string) => isMobilePhone(phoneNumber, 'en-NG'),
-        message: 'Please specify a valid Nigerian phone number (+234)',
+        message:
+          'Please specify a valid Nigerian phone number (+234, 08..., 07... etc.)',
       },
     },
     phoneNumberIsVerified: {
@@ -78,6 +93,9 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: [0, 'Account balance cannot be less than 0'],
+    },
+    notificationPreferences: {
+      type: notificationPreferencesSchema,
     },
   },
   {timestamps: true}
