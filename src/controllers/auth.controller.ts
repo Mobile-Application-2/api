@@ -10,6 +10,7 @@ import {isEmail, isMobilePhone} from 'validator';
 import bcrypt from 'bcrypt';
 import {upload_file} from '../utils/cloudinary';
 import send_mail from '../utils/nodemailer';
+import {customJwtPayload} from '../interfaces/jwt-payload';
 
 async function create_tokens(userId: string) {
   const tokenId = uuidv4();
@@ -138,6 +139,53 @@ export async function login(req: Request, res: Response) {
 
     res.status(200).json({message: 'Login successful', data: tokens});
   } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function refresh_tokens(req: Request, res: Response) {
+  try {
+    const refreshToken = req.headers.authorization?.split(' ')[1];
+
+    if (refreshToken === undefined || refreshToken.length === 0) {
+      res.status(401).json({message: 'Invalid token'});
+      return;
+    }
+
+    // verify token integrity
+    const tokenInfo = jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET as string
+    ) as customJwtPayload;
+
+    // check that token has not been used before
+    const userId = await redisClient.get(tokenInfo.tokenId);
+
+    if (userId === null) {
+      res.status(401).json({message: 'Invalid token'});
+      return;
+    }
+
+    // check if the user is a creator
+    const userInfo = await USER.findOne({_id: userId});
+
+    if (userInfo === null) {
+      res.status(401).json({message: 'Access Denied'});
+      return;
+    }
+
+    // create new tokens
+    const tokens = await create_tokens(userId);
+
+    // delete redis entry
+    await redisClient.del(tokenInfo.tokenId);
+
+    res.status(200).json({
+      message: 'Token refreshed successfully',
+      tokens,
+    });
+  } catch (error) {
+    console.log(error);
     handle_error(error, res);
   }
 }
@@ -341,6 +389,61 @@ export async function verify_email_otp(req: Request, res: Response) {
     await redisClient.del(otp);
 
     res.status(200).json({message: 'OTP verified successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function change_password(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    const {oldPassword, newPassword} = req.body;
+
+    const user = await USER.findOne({_id: userId});
+
+    if (user === null) {
+      res
+        .status(400)
+        .json({message: 'It appears this user account no longer exists'});
+      return;
+    }
+
+    if (oldPassword === undefined || oldPassword.length === 0) {
+      res.status(400).json({message: 'Please enter your old password'});
+      return;
+    }
+
+    if (newPassword === undefined || newPassword.length === 0) {
+      res.status(400).json({message: 'Please enter your new password'});
+      return;
+    }
+
+    const hasCorrectOldPassword = bcrypt.compareSync(
+      oldPassword,
+      user.password
+    );
+
+    if (hasCorrectOldPassword === false) {
+      res.status(400).json({message: 'Incorrect old password'});
+      return;
+    }
+
+    const salt = bcrypt.genSaltSync(10);
+    const hashedPassword = bcrypt.hashSync(newPassword, salt);
+
+    const updateInfo = await USER.updateOne(
+      {_id: userId},
+      {password: hashedPassword}
+    );
+
+    if (updateInfo.modifiedCount === 0) {
+      res
+        .status(400)
+        .json({message: 'It appears this user account no longer exists'});
+      return;
+    }
+
+    res.status(200).json({message: 'Password updated successfully'});
   } catch (error) {
     handle_error(error, res);
   }
