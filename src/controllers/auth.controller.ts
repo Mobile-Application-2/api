@@ -11,6 +11,7 @@ import bcrypt from 'bcrypt';
 import {upload_file} from '../utils/cloudinary';
 import send_mail from '../utils/nodemailer';
 import {customJwtPayload} from '../interfaces/jwt-payload';
+import IResetPassword from '../interfaces/reset-password';
 
 async function create_tokens(userId: string) {
   const tokenId = uuidv4();
@@ -433,6 +434,97 @@ export async function change_password(req: Request, res: Response) {
 
     const updateInfo = await USER.updateOne(
       {_id: userId},
+      {password: hashedPassword}
+    );
+
+    if (updateInfo.modifiedCount === 0) {
+      res
+        .status(400)
+        .json({message: 'It appears this user account no longer exists'});
+      return;
+    }
+
+    res.status(200).json({message: 'Password updated successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function send_reset_password_email(req: Request, res: Response) {
+  try {
+    const {email} = req.body;
+
+    if (email === undefined || email.length === 0 || isEmail(email) === false) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    const userExists = await USER.findOne({email});
+
+    if (userExists === null) {
+      res.status(200).json({
+        message: `An email will be sent to ${email}, if it is a registered account`,
+      });
+      return;
+    }
+
+    // the * 10 ^ 8 feels useless but it's important as it makes sure the number will not start with 0
+    const token = (Math.random() * Math.pow(10, 8))
+      .toString()
+      .replace('.', '')
+      .slice(0, 6);
+
+    await redisClient.set(token, email, {EX: 60 * 5});
+
+    const payload: IResetPassword = {
+      token,
+      email,
+      ip: req.ip,
+    };
+
+    await send_mail(email, 'reset-password', 'Reset Your Password', payload);
+
+    res.status(200).json({
+      message: `An email will be sent to ${email}, if it is a registered account`,
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function reset_password(req: Request, res: Response) {
+  try {
+    const {email, token, newPassword} = req.body;
+
+    if (email === undefined || email.length === 0 || isEmail(email) === false) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    if (token === undefined || token.length === 0) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    if (newPassword === undefined || newPassword.length === 0) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    const tokenInfo = await redisClient.get(token);
+
+    if (tokenInfo !== email) {
+      res.status(400).json({message: 'Invalid token'});
+      return;
+    }
+
+    await redisClient.del(token);
+
+    const salt = bcrypt.genSaltSync(10);
+    const hashedPassword = bcrypt.hashSync(newPassword, salt);
+
+    const updateInfo = await USER.updateOne(
+      {email},
       {password: hashedPassword}
     );
 

@@ -6,7 +6,9 @@ import {
   login,
   refresh_tokens,
   register_user,
+  reset_password,
   send_email_otp,
+  send_reset_password_email,
   verify_email_otp,
 } from '../controllers/auth.controller';
 import {is_logged_in} from '../middlewares/auth.middleware';
@@ -28,5 +30,9 @@ router.post('/verify-email-otp', verify_email_otp);
 router.patch('/profile', is_logged_in, process_file, edit_profile);
 
 router.patch('/password', is_logged_in, change_password);
+
+router.patch('/send-reset-password-mail', send_reset_password_email);
+
+router.patch('/reset-password', reset_password);
 
 export default router;
