@@ -9,6 +9,7 @@ import mongoose from 'mongoose';
 import {isEmail, isMobilePhone} from 'validator';
 import bcrypt from 'bcrypt';
 import {upload_file} from '../utils/cloudinary';
+import send_mail from '../utils/nodemailer';
 
 async function create_tokens(userId: string) {
   const tokenId = uuidv4();
@@ -279,6 +280,67 @@ export async function edit_profile(req: Request, res: Response) {
     }
 
     res.status(200).json({message: 'Profile updated successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function send_email_otp(req: Request, res: Response) {
+  try {
+    const {email} = req.body;
+
+    if (email === undefined || email.length === 0 || isEmail(email) === false) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    // the * 10 ^ 8 feels useless but it's important as it makes sure the number will not start with 0
+    const token = (Math.random() * Math.pow(10, 8))
+      .toString()
+      .replace('.', '')
+      .slice(0, 6);
+
+    await redisClient.set(token, email, {EX: 60 * 5});
+
+    await send_mail(email, 'email-verification', 'Verify Email Address', {
+      email,
+      token,
+    });
+
+    res.status(200).json({message: "OTP is on it's way"});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function verify_email_otp(req: Request, res: Response) {
+  try {
+    const {otp, email} = req.body;
+
+    if (otp === undefined || otp.length !== 6) {
+      res
+        .status(400)
+        .json({message: 'Please enter the OTP sent to your email'});
+      return;
+    }
+
+    if (email === undefined || email.length === 0 || isEmail(email) === false) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    const response = await redisClient.get(otp);
+
+    if (response !== email) {
+      res.status(400).json({message: 'Invalid OTP'});
+      return;
+    }
+
+    await USER.updateOne({email}, {emailIsVerified: true});
+
+    await redisClient.del(otp);
+
+    res.status(200).json({message: 'OTP verified successfully'});
   } catch (error) {
     handle_error(error, res);
   }
