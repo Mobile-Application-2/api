@@ -6,6 +6,7 @@ import {
   register_user,
 } from '../controllers/auth.controller';
 import {is_logged_in} from '../middlewares/auth.middleware';
+import {process_file} from '../middlewares/file-upload.middleware';
 const router = Router();
 
 router.post('/register/user', register_user);
@@ -14,6 +15,6 @@ router.post('/login', login);
 
 router.get('/profile', is_logged_in, get_my_profile);
 
-router.patch('/profile', is_logged_in, edit_profile);
+router.patch('/profile', is_logged_in, process_file, edit_profile);
 
 export default router;

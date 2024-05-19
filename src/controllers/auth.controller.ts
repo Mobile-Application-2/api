@@ -8,6 +8,7 @@ import REFERRAL from '../models/referral.model';
 import mongoose from 'mongoose';
 import {isEmail, isMobilePhone} from 'validator';
 import bcrypt from 'bcrypt';
+import {upload_file} from '../utils/cloudinary';
 
 async function create_tokens(userId: string) {
   const tokenId = uuidv4();
@@ -261,6 +262,11 @@ export async function edit_profile(req: Request, res: Response) {
 
       // toggle the phoneIsVerified field back to false
       update['phoneNumberIsVerified'] = false;
+    }
+
+    // process avatar upload to cloud storage
+    if (Object.prototype.hasOwnProperty.call(update, 'avatar')) {
+      req.body['avatar'] = await upload_file(req.body['avatar']);
     }
 
     const updateInfo = await USER.updateOne({_id: userId}, update);

@@ -20,11 +20,23 @@ import mongoose from 'mongoose';
 import generalRoutes from './routes/general.routes';
 import redisClient from './utils/redis';
 import responseBool from './middlewares/response-bool.middleware';
+import fileUpload from 'express-fileupload';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(compression());
+app.use(
+  fileUpload({
+    abortOnLimit: true,
+    safeFileNames: true,
+    preserveExtension: true,
+    responseOnLimit: 'Max file size is 25mb',
+    limits: {
+      fileSize: 25 * 1024 * 1024, // 25mb
+    },
+  })
+);
 
 // overwrites the returned JSON to include boolean status
 app.use(responseBool);
