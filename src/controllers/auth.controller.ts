@@ -6,6 +6,8 @@ import jwt from 'jsonwebtoken';
 import redisClient from '../utils/redis';
 import REFERRAL from '../models/referral.model';
 import mongoose from 'mongoose';
+import {isEmail} from 'validator';
+import bcrypt from 'bcrypt';
 
 async function create_tokens(userId: string) {
   const tokenId = uuidv4();
@@ -97,6 +99,68 @@ export async function register_user(req: Request, res: Response) {
         await session.endSession();
       }
     });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function login(req: Request, res: Response) {
+  try {
+    const {email, password} = req.body;
+
+    if (email === undefined || email.length === 0 || isEmail(email) === false) {
+      res.status(401).json({message: 'Invalid credentials'});
+      return;
+    }
+
+    if (password === undefined || password.length === 0) {
+      res.status(401).json({message: 'Invalid credentials'});
+      return;
+    }
+
+    const user = await USER.findOne({email});
+
+    if (user === null) {
+      res.status(401).json({message: 'Invalid credentials'});
+      return;
+    }
+
+    const passwordMatches = bcrypt.compareSync(password, user.password);
+
+    if (passwordMatches === false) {
+      res.status(401).json({message: 'Invalid credentials'});
+      return;
+    }
+
+    const tokens = await create_tokens(user._id.toString());
+
+    res.status(200).json({message: 'Login successful', data: tokens});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function get_my_profile(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+
+    const userInfo = await USER.findOne(
+      {_id: userId},
+      {password: 0, updatedAt: 0}
+    );
+
+    // user's auth status should be invalidated, something is wrong
+    if (userInfo === null) {
+      res.status(400).json({
+        message:
+          'Something went wrong while fetching your profile, please log back into your account to continue',
+      });
+      return;
+    }
+
+    res
+      .status(200)
+      .json({message: 'Profile information retrieved', data: userInfo});
   } catch (error) {
     handle_error(error, res);
   }
