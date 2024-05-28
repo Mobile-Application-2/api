@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ticket Received</title>
+    <title>You are invited to join Skyboard</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -23,6 +23,15 @@
             text-align: center;
             margin-bottom: 20px;
         }
+        .button {
+            display: inline-block;
+            background-color: #3498db;
+            color: #fff;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
         .footer {
             text-align: center;
             margin-top: 30px;
@@ -34,16 +43,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <h2>New Ticket Created</h2>
+            <h2>Skyboard Invite</h2>
         </div>
-        <p>Skyboard has received a new ticket, check it out</p>
-        <h3>Ticket Details</h3>
-        <ul>
-            <li><strong>Ticket Id:</strong> {{ticketId}}</li>
-            <li><strong>Creator's mail:</strong> {{email}}</li>
-            <li><strong>Creator's name:</strong> {{fullName}}</li>
-            <li><strong>Message:</strong> {{message}}</li>
-        </ul>
+        <p>Hello {{refereeEmail}},</p>
+        <p>You have been invited to join Skyboard by {{referrer}}. Click the button below to create your account:</p>
+        <a href="{{referalLink}}" class="button">Join Skyboard</a>
+        <p>If the button above does not work, you can also copy and paste the following link into your browser:</p>
+        <p>{{referalLink}}</p>
         <div class="footer">
             <p>Thank you for using our service!</p>
             <p>&copy; 2024 Skyboard Games. All rights reserved.</p>

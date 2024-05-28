@@ -62,3 +62,36 @@ export async function create_a_ticket(req: Request, res: Response) {
     handle_error(error, res);
   }
 }
+
+export async function refer_a_friend(req: Request, res: Response) {
+  try {
+    const {email} = req.body;
+    const {userId} = req;
+
+    const userInfo = await USER.findOne({_id: userId});
+
+    if (!userInfo) {
+      res.status(404).json({
+        message:
+          "There is a problem with your account's status. Please contact support or try again later",
+      });
+      return;
+    }
+
+    // send the referral email to the friend
+    await send_mail(
+      email,
+      'referral',
+      `${email} is inviting you to join skyboard`,
+      {
+        referrer: userInfo.username,
+        refereeEmail: email,
+        referalLink: `${process.env.FRONTEND_URL}/signup?ref=${userInfo._id}`,
+      }
+    );
+
+    res.status(200).json({message: 'Referral sent successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
