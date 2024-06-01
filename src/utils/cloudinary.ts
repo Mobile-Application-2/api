@@ -6,10 +6,11 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const folderName = process.env.CLOUDINARY_FOLDER;
-
 // define, upload, get and delete functions here
-export async function upload_file(file: Buffer): Promise<string> {
+export async function upload_file(
+  file: Buffer,
+  folderName: string
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {unique_filename: true, folder: folderName},

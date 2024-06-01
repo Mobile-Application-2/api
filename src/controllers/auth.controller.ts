@@ -316,7 +316,7 @@ export async function edit_profile(req: Request, res: Response) {
 
     // process avatar upload to cloud storage
     if (Object.prototype.hasOwnProperty.call(update, 'avatar')) {
-      req.body['avatar'] = await upload_file(req.body['avatar']);
+      req.body['avatar'] = await upload_file(req.body['avatar'], 'profile');
     }
 
     const updateInfo = await USER.updateOne({_id: userId}, update);

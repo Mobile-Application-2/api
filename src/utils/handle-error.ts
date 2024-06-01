@@ -1,5 +1,6 @@
 import type {Response} from 'express';
 import * as Sentry from '@sentry/node';
+import {Socket} from 'socket.io';
 
 export function handle_error(error: any, res: Response): void {
   // process error from mongodb schema validation
@@ -56,4 +57,9 @@ export function handle_error(error: any, res: Response): void {
 
   console.log(error);
   res.status(500).json({message: 'Internal Server Error'});
+}
+
+export function handle_messaging_error(error: any, socket: Socket) {
+  console.log(error);
+  socket.emit('error', error.message);
 }

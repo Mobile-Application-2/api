@@ -21,6 +21,15 @@ import generalRoutes from './routes/general.routes';
 import redisClient from './utils/redis';
 import responseBool from './middlewares/response-bool.middleware';
 import fileUpload from 'express-fileupload';
+import {Server} from 'socket.io';
+import {createServer} from 'node:http';
+import {is_authorized_socket} from './middlewares/auth.middleware';
+import {
+  handle_message_read,
+  handle_message_received,
+  handle_socket_disconnection,
+  send_message,
+} from './controllers/messaging.controller';
 
 const app = express();
 app.use(cors());
@@ -56,6 +65,38 @@ async function main() {
   await redisClient.connect();
   console.log('Connected to Redis');
 
+  console.log('Creating Web Socket Server...');
+  const httpServer = createServer(app);
+  const io = new Server(httpServer);
+  console.log(`Created Web Socket Server on port ${PORT}`);
+
+  // holds an object with functions for each type of event
+  const eventsAndHandlers = {
+    disconnect: handle_socket_disconnection,
+    new_message: send_message,
+    message_received: handle_message_received,
+    message_read: handle_message_read,
+    game_message: () => {},
+  };
+
+  io.on('connection', async socket => {
+    if ((await is_authorized_socket(socket)) === false) {
+      socket.emit('access_denied', 'Access Token is either Expired or Invalid');
+      socket.disconnect(true);
+      return;
+    }
+
+    const events = Object.keys(
+      eventsAndHandlers
+    ) as (keyof typeof eventsAndHandlers)[];
+
+    events.forEach(event => {
+      socket.on(event, (args: any) =>
+        eventsAndHandlers[event](socket, io, args)
+      );
+    });
+  });
+
   app.use('', generalRoutes);
 
   app.get('*', (_, res) => {
@@ -65,7 +106,7 @@ async function main() {
   // The error handler must be registered before any other error middleware and after all controllers
   Sentry.setupExpressErrorHandler(app);
 
-  app.listen(PORT, () => console.log('App is now running'));
+  httpServer.listen(PORT, () => console.log('App is now running'));
 }
 
 main().catch(console.error);
