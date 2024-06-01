@@ -7,6 +7,7 @@ import USER from '../models/user.model';
 import MESSAGEROOMS from '../models/message-rooms.model';
 import MESSAGE from '../models/messages.model';
 import {processAndUpload} from '../utils/media-processing';
+import {IGameInstructions} from '../interfaces/game-instructions';
 
 const ObjectId = mongoose.Types.ObjectId;
 
@@ -340,6 +341,48 @@ export async function handle_message_read(
     }
 
     senderSocket.emit('message_read', updatedMessageInfo);
+  } catch (error) {
+    handle_messaging_error(error, socket);
+  }
+}
+
+// NOTE: this will need major improvements
+export async function handle_game_instruction(
+  socket: Socket,
+  server: Server,
+  args: IGameInstructions
+) {
+  try {
+    const {recipientId, instruction} = args;
+    const senderId = await redisClient.get(socket.id);
+
+    if (senderId === null) {
+      socket.emit('sender_id_not_found', 'Reconnect to re-save the user Id');
+      return;
+    }
+
+    // TODO: check for lobby logic etc here later
+
+    // find recipient socket
+    const recipientSocketId = await redisClient.get(recipientId + '_messaging');
+
+    // TODO: if socket is not online add to queue, for now just return
+    if (recipientSocketId === null) {
+      return;
+    }
+
+    const allActiveSockets = await server.fetchSockets();
+
+    const recipientSocket = allActiveSockets.find(
+      socket => socket.id === recipientSocketId
+    );
+
+    // TODO: recipient is not online, add to queue, for now just return
+    if (typeof recipientSocket === 'undefined') {
+      return;
+    }
+
+    recipientSocket.emit('incoming_game_instruction', instruction);
   } catch (error) {
     handle_messaging_error(error, socket);
   }
