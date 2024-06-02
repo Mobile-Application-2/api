@@ -25,7 +25,6 @@ import {Server} from 'socket.io';
 import {createServer} from 'node:http';
 import {is_authorized_socket} from './middlewares/auth.middleware';
 import {
-  handle_game_instruction,
   handle_message_read,
   handle_message_received,
   handle_socket_disconnection,
@@ -77,7 +76,7 @@ async function main() {
     new_message: send_message,
     message_received: handle_message_received,
     message_read: handle_message_read,
-    game_instruction: handle_game_instruction,
+    game_instruction: () => {}, // TODO: consider a microservice for this
   };
 
   io.on('connection', async socket => {

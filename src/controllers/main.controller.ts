@@ -3,6 +3,9 @@ import USER from '../models/user.model';
 import {handle_error} from '../utils/handle-error';
 import {Request, Response} from 'express';
 import send_mail from '../utils/nodemailer';
+import NOTIFICATION from '../models/notification.model';
+import isEmail from 'validator/lib/isEmail';
+import {isValidObjectId} from 'mongoose';
 
 export async function search_users(req: Request, res: Response) {
   try {
@@ -18,7 +21,8 @@ export async function search_users(req: Request, res: Response) {
       {
         username: {$regex: searchQuery, $options: 'i'},
       },
-      {username: 1, avatar: 1, bio: 1}
+      {username: 1, avatar: 1, bio: 1},
+      {limit: 50}
     );
 
     res.status(200).json({message: 'Success', data: users});
@@ -68,6 +72,11 @@ export async function refer_a_friend(req: Request, res: Response) {
     const {email} = req.body;
     const {userId} = req;
 
+    if (!email || isEmail(email) === false) {
+      res.status(400).json({message: 'Please provide a valid email address'});
+      return;
+    }
+
     const userInfo = await USER.findOne({_id: userId});
 
     if (!userInfo) {
@@ -91,6 +100,67 @@ export async function refer_a_friend(req: Request, res: Response) {
     );
 
     res.status(200).json({message: 'Referral sent successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function get_notifications(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+
+    const notifications = await NOTIFICATION.find({userId});
+
+    const notificationIds = notifications.map(notification => notification._id);
+
+    // mark all notifications as read
+    await NOTIFICATION.updateMany({_id: {$in: notificationIds}}, {read: true});
+
+    res.status(200).json({message: 'Success', data: notifications});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function delete_notification(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    const {id: notificationId} = req.params;
+
+    if (!isValidObjectId(notificationId)) {
+      res.status(400).json({message: 'Invalid notification id'});
+      return;
+    }
+
+    const notification = await NOTIFICATION.findOne({_id: notificationId});
+
+    if (!notification) {
+      res.status(404).json({message: 'Notification not found'});
+      return;
+    }
+
+    if (!notification.userId.equals(userId)) {
+      res
+        .status(403)
+        .json({message: 'You are not authorized to delete this notification'});
+      return;
+    }
+
+    await notification.deleteOne({_id: notificationId});
+
+    res.status(200).json({message: 'Notification deleted successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function delete_all_notifications(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+
+    await NOTIFICATION.deleteMany({userId});
+
+    res.status(200).json({message: 'All notifications deleted successfully'});
   } catch (error) {
     handle_error(error, res);
   }

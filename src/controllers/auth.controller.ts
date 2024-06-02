@@ -12,6 +12,7 @@ import {upload_file} from '../utils/cloudinary';
 import send_mail from '../utils/nodemailer';
 import {customJwtPayload} from '../interfaces/jwt-payload';
 import IResetPassword from '../interfaces/reset-password';
+import NOTIFICATION from '../models/notification.model';
 
 async function create_tokens(userId: string) {
   const tokenId = uuidv4();
@@ -86,6 +87,19 @@ export async function register_user(req: Request, res: Response) {
         if (referralCode) {
           await REFERRAL.create(
             [{referred: insertInfo[0]._id, referrer: referralCode}],
+            {session}
+          );
+
+          // inform the referrer that someone signed up with thier code
+          await NOTIFICATION.create(
+            [
+              {
+                title: 'Referral Notification',
+                body: `${userInfo.username} just joined skyboard using your referral code/link`,
+                image: process.env.SKYBOARD_LOGO as string,
+                userId: referralCode,
+              },
+            ],
             {session}
           );
         }
