@@ -7,6 +7,7 @@ import {
   search_users,
   delete_notification,
   delete_all_notifications,
+  get_transactions,
 } from '../controllers/main.controller';
 const router = Router();
 
@@ -14,7 +15,7 @@ router.get('/search', is_logged_in, search_users);
 
 router.get('/notifications', is_logged_in, get_notifications);
 
-// TODO: router.get('/transactions', is_logged_in, get_transactions);
+router.get('/transactions', is_logged_in, get_transactions);
 
 router.post('/contact', is_logged_in, create_a_ticket);
 

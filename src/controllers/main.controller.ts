@@ -6,6 +6,7 @@ import send_mail from '../utils/nodemailer';
 import NOTIFICATION from '../models/notification.model';
 import isEmail from 'validator/lib/isEmail';
 import {isValidObjectId} from 'mongoose';
+import TRANSACTION from '../models/transaction.model';
 
 export async function search_users(req: Request, res: Response) {
   try {
@@ -108,8 +109,23 @@ export async function refer_a_friend(req: Request, res: Response) {
 export async function get_notifications(req: Request, res: Response) {
   try {
     const {userId} = req;
+    const {pageNo} = req.query;
 
-    const notifications = await NOTIFICATION.find({userId});
+    const MAX_RESULTS = 250;
+    let currentPage;
+
+    if (typeof pageNo !== 'string' || isNaN(+pageNo) || +pageNo <= 0) {
+      currentPage = 1;
+    } else {
+      currentPage = Math.floor(+pageNo);
+    }
+
+    const skip = (currentPage - 1) * MAX_RESULTS;
+
+    const notifications = await NOTIFICATION.find({userId})
+      .sort({createdAt: -1})
+      .skip(skip)
+      .limit(MAX_RESULTS);
 
     const notificationIds = notifications.map(notification => notification._id);
 
@@ -161,6 +177,34 @@ export async function delete_all_notifications(req: Request, res: Response) {
     await NOTIFICATION.deleteMany({userId});
 
     res.status(200).json({message: 'All notifications deleted successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function get_transactions(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    const {pageNo} = req.query;
+
+    const MAX_RESULTS = 250;
+    let currentPage;
+
+    if (typeof pageNo !== 'string' || isNaN(+pageNo) || +pageNo <= 0) {
+      currentPage = 1;
+    } else {
+      currentPage = Math.floor(+pageNo);
+    }
+
+    const skip = (currentPage - 1) * MAX_RESULTS;
+
+    const transactions = await TRANSACTION.find({userId})
+      .sort({createdAt: -1})
+      .skip(skip)
+      .limit(MAX_RESULTS);
+
+    // not returing the total number of transactions so you can use infinite scroll
+    res.status(200).json({message: 'Success', data: transactions});
   } catch (error) {
     handle_error(error, res);
   }
