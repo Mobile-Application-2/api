@@ -14,6 +14,8 @@ router.get('/search', is_logged_in, search_users);
 
 router.get('/notifications', is_logged_in, get_notifications);
 
+// TODO: router.get('/transactions', is_logged_in, get_transactions);
+
 router.post('/contact', is_logged_in, create_a_ticket);
 
 router.post('/refer', is_logged_in, refer_a_friend);

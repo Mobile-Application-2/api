@@ -55,6 +55,12 @@ export function handle_error(error: any, res: Response): void {
     );
   }
 
+  // likely paystack error
+  if (error.name === 'AxiosError' && error.response?.data) {
+    res.status(400).json({message: error.response.data.message});
+    return;
+  }
+
   console.log(error);
   res.status(500).json({message: 'Internal Server Error'});
 }
