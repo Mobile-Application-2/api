@@ -269,7 +269,7 @@ export async function handle_deposit_success(transactionInfo: any) {
       // update the user's wallet balance
       await USER.updateOne(
         {_id: transactionInfo.userId},
-        {$inc: {wallet: transactionInfo.amount}},
+        {$inc: {walletBalance: transactionInfo.amount}},
         {session}
       );
 
