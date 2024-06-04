@@ -226,6 +226,8 @@ export async function handle_webhook(req: Request, res: Response) {
         return;
       }
 
+      console.log(event);
+
       if (transactionInfo.type === 'deposit') {
         await handle_deposit_success(transactionInfo);
       } else if (event === 'transfer.success') {
@@ -487,6 +489,9 @@ export async function initialize_withdraw(req: Request, res: Response) {
 
 export async function handle_withdraw_success(data: ITransferSuccess) {
   // check that the ref matches a transaction then mark as completed
+  console.log(data);
+  console.log('success');
+
   const {reference} = data;
 
   const transactionInfo = await TRANSACTION.findOne({ref: reference});
@@ -542,6 +547,9 @@ export async function handle_withdraw_success(data: ITransferSuccess) {
 
 export async function handle_withdraw_failure(data: ITransferFailed) {
   // check that the ref matches a transaction then mark as failed, and refund the user the amount
+  console.log(data);
+  console.log('failure');
+
   const {reference} = data;
 
   const transactionInfo = await TRANSACTION.findOne({ref: reference});
