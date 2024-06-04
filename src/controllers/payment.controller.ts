@@ -318,7 +318,7 @@ export async function initialize_withdraw(req: Request, res: Response) {
     }
 
     if (typeof accountName === 'undefined' || accountName.length === 0) {
-      res.status(400).json({message: 'Please specify a valid name'});
+      res.status(400).json({message: 'Please specify a valid account name'});
       return;
     }
 
@@ -431,7 +431,7 @@ export async function initialize_withdraw(req: Request, res: Response) {
               userId,
               amount,
               fee: charge,
-              total: amount,
+              total,
               type: 'withdrawal',
               description,
             },
