@@ -5,6 +5,7 @@ import {
   get_user_bank_details,
   handle_callback,
   initialize_deposit,
+  handle_webhook,
 } from '../controllers/payment.controller';
 import {is_logged_in} from '../middlewares/auth.middleware';
 const router = Router();
@@ -21,7 +22,7 @@ router.get(
 
 router.get('/charge/:amount', is_logged_in, get_transfer_charge);
 
-// router.post('/webhook', handle_webhook);
+router.post('/webhook', handle_webhook);
 
 // router.post('/withdraw', is_logged_in, is_creator, withdraw);
 

@@ -10,6 +10,14 @@ import USER from '../models/user.model';
 import {v4 as uuidv4} from 'uuid';
 import TRANSACTION from '../models/transaction.model';
 import TRANSACTIONTTL from '../models/transaction-ttl.model';
+import crypto from 'node:crypto';
+import * as Sentry from '@sentry/node';
+import mongoose from 'mongoose';
+
+const PAYSTACK_SECRET_KEY =
+  process.env.NODE_ENV === 'production'
+    ? process.env.PAYSTACK_SECRET_KEY
+    : process.env.PAYSTACK_SECRET_KEY_DEV;
 
 export function handle_callback(_: Request, res: Response) {
   res.status(200).json({message: 'Transaction completed successfully'});
@@ -155,4 +163,123 @@ export async function initialize_deposit(req: Request, res: Response) {
   } catch (error) {
     handle_error(error, res);
   }
+}
+
+export async function handle_webhook(req: Request, res: Response) {
+  try {
+    // check that webhook originated from paystack
+    const hash = crypto
+      .createHmac('sha512', PAYSTACK_SECRET_KEY as string)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+
+    if (hash !== req.headers['x-paystack-signature']) {
+      Sentry.addBreadcrumb({
+        category: 'webhook',
+        data: {
+          requestIP: req.ip,
+        },
+        level: 'warning',
+        message:
+          "There was an attempt to verify a payment request that didn't come from paystack",
+      });
+
+      Sentry.captureMessage(
+        'A forged request to verify a transfer was safely averted',
+        'warning'
+      );
+
+      res.status(200).end();
+      return;
+    }
+
+    const {event, data} = req.body;
+
+    if (event === 'charge.success') {
+      const {reference} = data;
+
+      // check if this belongs to a ticket or and account upgrade
+      const transactionInfo = await TRANSACTION.findOne({ref: reference});
+
+      if (transactionInfo === null) {
+        Sentry.addBreadcrumb({
+          category: 'webhook',
+          data: {
+            transactionRef: reference,
+          },
+          level: 'warning',
+          message:
+            "There was an attempt to verify a payment that doesn't exist in the DB",
+        });
+
+        Sentry.captureMessage(
+          "A transaction webhook for ticket purchase came in with a reference that didn't match documents in the DB",
+          'warning'
+        );
+        res.status(200).end();
+        return;
+      }
+
+      if (transactionInfo.type === 'deposit') {
+        await handle_deposit_success(transactionInfo);
+      }
+    }
+
+    res.status(200).end();
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function handle_deposit_success(transactionInfo: any) {
+  // if the transaction is already completed or failed, capture in sentry and return
+  if (transactionInfo.status !== 'pending') {
+    Sentry.addBreadcrumb({
+      category: 'transaction',
+      data: {
+        transactionRef: transactionInfo.ref,
+      },
+      message: `Transaction already ${transactionInfo.status}`,
+    });
+
+    Sentry.captureMessage(
+      `A transaction webhook for a deposit came in for a transaction that has already ${transactionInfo.status}`,
+      'warning'
+    );
+
+    return;
+  }
+
+  const session = await mongoose.startSession({
+    defaultTransactionOptions: {
+      readConcern: {level: 'majority'},
+      writeConcern: {w: 'majority'},
+    },
+  });
+
+  await session.withTransaction(async session => {
+    try {
+      // update the transaction status to success
+      await TRANSACTION.updateOne(
+        {ref: transactionInfo.ref},
+        {status: 'completed'},
+        {session}
+      );
+
+      // update the user's wallet balance
+      await USER.updateOne(
+        {_id: transactionInfo.userId},
+        {$inc: {wallet: transactionInfo.amount}},
+        {session}
+      );
+
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+  });
 }
