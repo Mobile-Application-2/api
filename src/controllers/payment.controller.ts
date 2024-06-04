@@ -13,6 +13,12 @@ import TRANSACTIONTTL from '../models/transaction-ttl.model';
 import crypto from 'node:crypto';
 import * as Sentry from '@sentry/node';
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
+import ITransferRecipient from '../interfaces/transfer-recipient';
+import ITransferQueued from '../interfaces/transfer';
+import ITransferSuccess from '../interfaces/transfer-success';
+import ITransferFailed from '../interfaces/transfer-failed';
+import NOTIFICATION from '../models/notification.model';
 
 const PAYSTACK_SECRET_KEY =
   process.env.NODE_ENV === 'production'
@@ -181,7 +187,7 @@ export async function handle_webhook(req: Request, res: Response) {
         },
         level: 'warning',
         message:
-          "There was an attempt to verify a payment request that didn't come from paystack",
+          "There was an attempt to verify a transaction request that didn't come from paystack",
       });
 
       Sentry.captureMessage(
@@ -213,7 +219,7 @@ export async function handle_webhook(req: Request, res: Response) {
         });
 
         Sentry.captureMessage(
-          "A transaction webhook for ticket purchase came in with a reference that didn't match documents in the DB",
+          "A transaction webhook came in with a reference that didn't match documents in the DB",
           'warning'
         );
         res.status(200).end();
@@ -222,6 +228,10 @@ export async function handle_webhook(req: Request, res: Response) {
 
       if (transactionInfo.type === 'deposit') {
         await handle_deposit_success(transactionInfo);
+      } else if (event === 'transfer.success') {
+        await handle_withdraw_success(data);
+      } else if (event === 'transfer.failed' || event === 'transfer.reversed') {
+        await handle_withdraw_failure(data);
       }
     }
 
@@ -270,6 +280,343 @@ export async function handle_deposit_success(transactionInfo: any) {
       await USER.updateOne(
         {_id: transactionInfo.userId},
         {$inc: {walletBalance: transactionInfo.amount}},
+        {session}
+      );
+
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+  });
+}
+
+export async function initialize_withdraw(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    let {amount} = req.body;
+    const {bankCode, accountNumber, accountName, description, password} =
+      req.body;
+
+    amount = +amount;
+    if (isNaN(amount)) {
+      res.status(400).json({message: 'Please specify a valid amount'});
+      return;
+    }
+
+    if (amount < 500) {
+      res.status(400).json({message: 'Minimum withdrawal amount is 500 naira'});
+      return;
+    }
+
+    if (typeof password === 'undefined' || password.length === 0) {
+      res.status(401).json({message: 'Please specify a password'});
+      return;
+    }
+
+    if (typeof accountName === 'undefined' || accountName.length === 0) {
+      res.status(400).json({message: 'Please specify a valid name'});
+      return;
+    }
+
+    if (typeof accountNumber === 'undefined' || accountNumber.length !== 10) {
+      res.status(400).json({message: 'Please specify a valid account number'});
+      return;
+    }
+
+    if (typeof bankCode === 'undefined' || bankCode.length === 0) {
+      res.status(400).json({message: 'Invalid bank code'});
+      return;
+    }
+
+    const userInfo = await USER.findOne({_id: userId});
+
+    if (!userInfo) {
+      res.status(404).json({
+        message:
+          'There were some issues with your account, please sign in again',
+      });
+      return;
+    }
+
+    // check that password is correct
+    const isPasswordCorrect = bcrypt.compareSync(password, userInfo.password);
+
+    if (!isPasswordCorrect) {
+      res.status(400).json({message: 'Incorrect password'});
+      return;
+    }
+
+    // recalculate the charge
+    const charge = calculate_charge(amount);
+
+    // check that the user has enough balance
+    const total = amount + charge;
+    if (userInfo.walletBalance < total) {
+      res.status(400).json({message: 'Insufficient funds'});
+      return;
+    }
+
+    const session = await TRANSACTION.startSession({
+      defaultTransactionOptions: {
+        readConcern: {level: 'majority'},
+        writeConcern: {w: 'majority'},
+      },
+    });
+
+    await session.withTransaction(async session => {
+      try {
+        // subtract the amount from the user's wallet
+        const resp = await USER.updateOne(
+          {_id: userId},
+          {$inc: {walletBalance: -total}},
+          {session}
+        );
+
+        if (resp.modifiedCount === 0) {
+          Sentry.addBreadcrumb({
+            category: 'transaction',
+            data: {
+              userId,
+              amount,
+              charge,
+            },
+            message: 'Failed to update wallet balance',
+          });
+
+          throw new Error('Failed to update wallet balance');
+        }
+
+        // create a transaction record with pending status
+        const ref = uuidv4();
+
+        // generate transfer receipt from paystack
+        const recipientType = 'nuban';
+        const currency = 'NGN';
+
+        const paystackResp = await fetch(
+          `${process.env.PAYSTACK_BASE_API}/transferrecipient`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              type: recipientType,
+              name: accountName,
+              account_number: accountNumber,
+              bank_code: bankCode,
+              currency,
+            }),
+          }
+        );
+
+        const data = (await paystackResp.json()) as ITransferRecipient;
+
+        if (data.status === false) {
+          res.status(400).json({message: data.message});
+          return;
+        }
+
+        // TODO: store the charge as profit
+
+        await TRANSACTION.create(
+          [
+            {
+              ref,
+              userId,
+              amount,
+              fee: charge,
+              total: amount,
+              type: 'withdrawal',
+              description,
+            },
+          ],
+          {session}
+        );
+
+        const recipient_code = data.data.recipient_code;
+
+        // create a tranfer reference
+        const referenceResp = await fetch(
+          `${process.env.PAYSTACK_BASE_API}/transfer`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              source: 'balance',
+              amount: amount,
+              reference: ref,
+              recipient: recipient_code,
+              reason: description || 'Skyboard Withdrawal',
+            }),
+          }
+        );
+
+        const referenceData = (await referenceResp.json()) as ITransferQueued;
+
+        if (referenceData.status === false) {
+          res.status(400).json({message: referenceData.message});
+          return;
+        }
+
+        // not adding a TTL because withdrawals can take very long to process, failure will be handled by the webhook
+
+        await session.commitTransaction();
+
+        res.status(200).json({message: 'Withdrawal initialized', data: {ref}});
+      } catch (error) {
+        await session.abortTransaction();
+
+        throw error;
+      } finally {
+        await session.endSession();
+      }
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function handle_withdraw_success(data: ITransferSuccess) {
+  // check that the ref matches a transaction then mark as completed
+  const {reference} = data;
+
+  const transactionInfo = await TRANSACTION.findOne({ref: reference});
+
+  if (transactionInfo === null) {
+    Sentry.addBreadcrumb({
+      category: 'webhook',
+      data: {
+        transactionRef: reference,
+      },
+      level: 'warning',
+      message:
+        "There was an attempt to mark a withdrawal as completed, that doesn't exist in the DB",
+    });
+
+    Sentry.captureMessage(
+      "A transaction webhook for withdrawal came in with a reference that didn't match documents in the DB",
+      'warning'
+    );
+
+    return;
+  }
+
+  if (transactionInfo.status !== 'pending') {
+    Sentry.addBreadcrumb({
+      category: 'transaction',
+      data: {
+        transactionRef: reference,
+      },
+      message: `Transaction already ${transactionInfo.status}`,
+    });
+
+    Sentry.captureMessage(
+      `A transaction webhook for a withdrawal came in for a transaction that has already been ${transactionInfo.status}`,
+      'warning'
+    );
+
+    return;
+  }
+
+  await TRANSACTION.updateOne({ref: reference}, {status: 'completed'});
+
+  // send a notification to the user
+  await NOTIFICATION.create({
+    userId: transactionInfo.userId,
+    image: process.env.SKYBOARD_LOGO,
+    title: 'Withdrawal Completed',
+    body: `Your withdrawal of ${(transactionInfo.amount / 100).toFixed(
+      2
+    )} naira has been completed`,
+  });
+}
+
+export async function handle_withdraw_failure(data: ITransferFailed) {
+  // check that the ref matches a transaction then mark as failed, and refund the user the amount
+  const {reference} = data;
+
+  const transactionInfo = await TRANSACTION.findOne({ref: reference});
+
+  if (transactionInfo === null) {
+    Sentry.addBreadcrumb({
+      category: 'webhook',
+      data: {
+        transactionRef: reference,
+      },
+      level: 'warning',
+      message:
+        "There was an attempt to mark a withdrawal as failed, that doesn't exist in the DB",
+    });
+
+    Sentry.captureMessage(
+      "A transaction webhook for withdrawal came in with a reference that didn't match documents in the DB",
+      'warning'
+    );
+
+    return;
+  }
+
+  if (transactionInfo.status !== 'pending') {
+    Sentry.addBreadcrumb({
+      category: 'transaction',
+      data: {
+        transactionRef: reference,
+      },
+      message: `Transaction already ${transactionInfo.status}`,
+    });
+
+    Sentry.captureMessage(
+      `A transaction webhook for a withdrawal came in for a transaction that has already been ${transactionInfo.status}`,
+      'warning'
+    );
+
+    return;
+  }
+
+  const session = await mongoose.startSession({
+    defaultTransactionOptions: {
+      readConcern: {level: 'majority'},
+      writeConcern: {w: 'majority'},
+    },
+  });
+
+  await session.withTransaction(async session => {
+    try {
+      // update the transaction status to failed
+      await TRANSACTION.updateOne(
+        {ref: reference},
+        {status: 'failed'},
+        {session}
+      );
+
+      // refund the user the amount
+      await USER.updateOne(
+        {_id: transactionInfo.userId},
+        {$inc: {walletBalance: transactionInfo.total}},
+        {session}
+      );
+
+      // send a notification to the user
+      await NOTIFICATION.create(
+        [
+          {
+            userId: transactionInfo.userId,
+            image: process.env.SKYBOARD_LOGO,
+            title: 'Withdrawal Failed',
+            body: `Your withdrawal of ${(transactionInfo.amount / 100).toFixed(
+              2
+            )} naira has failed, you have been refunded`,
+          },
+        ],
         {session}
       );
 

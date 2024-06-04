@@ -53,6 +53,9 @@ const transactionSchema = new mongoose.Schema(
       },
       default: 'pending',
     },
+    description: {
+      type: String,
+    },
   },
   {timestamps: true}
 );
