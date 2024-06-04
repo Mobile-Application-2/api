@@ -100,7 +100,7 @@ async function main() {
 
   app.use('', generalRoutes);
 
-  app.get('*', (_, res) => {
+  app.all('*', (_, res) => {
     res.status(404).json({message: 'Route not found'});
   });
 
