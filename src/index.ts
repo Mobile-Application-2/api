@@ -104,6 +104,8 @@ async function main() {
     });
   });
 
+  app.use('/api', generalRoutes);
+
   // Dynamic route to serve HTML files
   app.get('/:filename', (req: Request, res: Response) => {
     const filename = req.params.filename;
@@ -115,8 +117,6 @@ async function main() {
       }
     });
   });
-
-  app.use('/api', generalRoutes);
 
   app.all('*', (_, res) => {
     res.status(404).json({message: 'Route not found'});
