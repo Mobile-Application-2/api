@@ -174,6 +174,8 @@ export async function initialize_deposit(req: Request, res: Response) {
 
 export async function handle_webhook(req: Request, res: Response) {
   try {
+    console.log(req.body);
+
     // check that webhook originated from paystack
     const hash = crypto
       .createHmac('sha512', PAYSTACK_SECRET_KEY as string)
@@ -202,6 +204,8 @@ export async function handle_webhook(req: Request, res: Response) {
 
     const {event, data} = req.body;
 
+    console.log(event, data);
+
     if (event === 'charge.success') {
       const {reference} = data;
 
@@ -227,6 +231,7 @@ export async function handle_webhook(req: Request, res: Response) {
         return;
       }
 
+      console.log(transactionInfo);
       if (transactionInfo.type === 'deposit') {
         await handle_deposit_success(transactionInfo);
       } else if (event === 'transfer.success') {
