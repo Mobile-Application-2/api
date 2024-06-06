@@ -1,0 +1,1240 @@
+@import url('https://fonts.googleapis.com/css?family=Quantico&display=swap');
+ @import url('https://fonts.googleapis.com/css?family=Poppins&display=swap');
+*{
+					
+			box-sizing: border-box;
+		}
+        *body {  overflow-y:visible; /* Hide horizontal scrollbar*/}*/
+		 	.col-1 {width: 8.33%;}
+            .col-2 {width: 16.66%;}
+            .col-3 {width: 25%;}
+            .col-4 {width: 33.33%;}
+            .col-5 {width: 41.66%;}
+            .col-6 {width: 50%;}
+            .col-7 {width: 58.33%;}
+            .col-8 {width: 66.66%;}
+            .col-9 {width: 75%;}
+            .col-10 {width: 83.33%;}
+            .col-11 {width: 91.6%}
+            .col-12 {width: 100%;}
+
+
+             @media only screen and (max-width:991px){
+            .col-md-1 {width: 8.33%;}
+            .col-md-2 {width: 16.66%;}
+            .col-md-3 {width: 25%;}
+            .col-md-4 {width: 33.33%;}
+            .col-md-5 {width: 41.66%;}
+            .col-md-6 {width: 50%;}
+            .col-md-7 {width: 58.33%;}
+            .col-md-8 {width: 66.66%;}
+            .col-md-9 {width: 75%;}
+            .col-md-10 {width: 83.33%;}
+            .col-md-11 {width: 91.6%}
+            .col-md-12 {width: 100%;}        
+        }
+
+            header{                
+                background-image: url(../images/Bg.png);        
+            }
+
+/* nav bar start */
+.navbar-nav{
+    color: #FFF;
+    font-family: Poppins;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 200;
+}
+.navbar-brand .logo{
+    width: 15%;
+}
+.side-logo{
+    width:20%;
+}
+.caption{
+    display: block;
+    color: #F7FAFF;
+    font-size: 15px;
+    font-family: quantico;
+    font-style: normal;
+}
+
+.get{
+    background-color: #BD3193;
+    font-family: poppins;
+    font-size: 13px;
+    font-style: normal;
+}
+.arrow{
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+.sidebar{
+    background-color: rgb(19, 8, 40);
+    backdrop-filter: blur(10px);
+}
+.get{
+    float: right;
+    color: #FFF;
+    background-color: #BD3193;      
+    text-decoration: none;
+    display: flex;
+    width: 135px;
+    height: 40px;
+    padding: 15px 18px 15px 20px;
+    justify-content: center;
+    align-items: center;
+}
+/* nav bar ends */
+           .star{
+                width: 20px;
+                height: 24px;
+            }
+            
+            .green{
+                width: 180px;
+                height: 120px;
+            }
+
+
+            /*start of featured games bg */
+            
+            .item1{
+              /*border: 1px solid blue;*/
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 100%;
+              margin-left: 80px;
+            }
+            .parent1{
+               width: 40%;
+               height: 80%;
+
+            }
+            .welcometoskyboard{
+            height: 27px;
+            width: 100%;
+            }
+            .curious{
+                color: #9FCB3A;
+                text-align: left;
+                font-family: Poppins;
+                font-size: 10px;
+                font-style: normal;
+                font-weight: 100;
+                line-height: normal;
+
+            }
+            .featured{
+                display: flex;
+                width: 100%;
+                flex-direction: column;
+                
+            }
+            .featuredtext{
+                color: #FFF;
+                font-family: Quantico;
+                font-size: 40px;
+                font-style: normal;
+                font-weight: 700;
+                line-height: normal;
+                text-align: left; 
+            }
+            .gaming{
+                background: linear-gradient(95deg, #BD3193 51.17%, #9FCB3A 66.14%);
+                background-clip: text;
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                font-family: Quantico;
+                font-size: 40px;
+                font-style: normal;
+                font-weight: 700;
+                line-height: normal; 
+            }
+            .unique{
+                /*border: 1px solid yellow;*/
+                width: 100%;
+                height:170px;
+            }
+            .uniquetext{
+                color: rgba(255, 255, 255, 0.70);
+                font-family: Poppins;
+                font-size: 13px;
+                font-style: normal;
+                font-weight: 300;
+                line-height: normal; 
+                text-align: left;
+            }
+            .parent2{
+               /*border: 1px solid red;*/
+               padding: 10px;
+               width: 40%;
+               height: 50vh;
+               display: flex;
+               align-items: center;
+            }
+            .games{
+                /*border: 1px solid blue;*/
+                height: 90%;
+                width: 50%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                position: relative;
+                top: 0;
+                left: 0;
+             
+            }
+            .backdrop{
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                position: absolute; 
+                top: 0; 
+                left: 0; 
+            }
+            
+            .chess{
+                 z-index: 1;
+                max-width: 45%;
+                height: 60%;
+                position: absolute;
+                top: 60px;
+                left: 70px;
+                transform: rotate(-14.043deg);
+            }
+            .pool{
+                z-index: 1;
+                max-width: 45%;
+                height: 60%;
+                position: absolute;
+                top: 30px;
+                left: 40px;
+                transform: rotate(-14.048deg); 
+            }
+
+            /*end of featured games bg*/
+
+
+            /*start of celebrity games bg*/
+
+            .celebrityspotlights{
+                float: left;
+
+                height: 800px;
+                background-color: #FFF;;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-direction: column;
+            }
+            .celebrity{
+
+                height: 150px;
+                width: 100%;
+                float: left;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                
+            }
+            .celebritytext{
+                color: #000;
+                font-family: Quantico;
+                font-size: 40px;
+                font-style: normal;
+                font-weight: 700;
+                line-height: normal; 
+            }
+            .spotlights{
+                background: linear-gradient(0deg, #BD3193 0%, #BD3193 100%);
+                background-clip: text;
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                font-family: Quantico;
+                font-size: 40px;
+                font-style: normal;
+                font-weight: 700;
+                line-height: normal; 
+            }
+            .bggg{
+
+                float: left;
+                height: 600px;
+                width: 70%;
+            }
+            .d1{
+
+                height: 45%;
+                width: 45%;
+                float: left;
+                margin: 20px;
+                display: flex;
+                flex-direction: row ;
+            }
+            .crown{
+
+                height: 20%;
+                width: 10%;
+            }
+            .crown1{
+                height: 80%;
+                width: 90%;
+            }
+            .image2{
+
+                width: 90%;
+                height: 100%;
+            }
+            .image22{
+                height: 100%;
+                width: 100%;
+            }
+            .d2{
+
+                height: 45%;
+                width: 45%;
+                float: left;
+                margin: 20px;
+                display: flex;
+                flex-direction: row ;
+                align-items: flex-end;
+            }
+            .crown3{
+
+                height: 15%;
+                width: 10%;
+            }
+
+            /*end of celebrity games bg*/
+
+
+
+                
+
+    /*start of how it works bg*/
+    .howdiv{
+        /*border: 2px solid green;*/
+        float: left;
+       
+        height: 900px; 
+        flex-direction: row;
+        background-color: #130828;
+    }
+    .heading{
+        /*border: 9px solid yellow;*/
+        height: 80px;
+        width: 100%;
+        float: left;
+        flex-direction: row;
+            
+    }
+    .startyour{
+        /*border: 1px solid blue;*/
+        height: 40px;
+        width: 100%;
+        display: flex;
+        float: left;
+        align-items: center;
+        justify-content: center;
+    }
+    .startyourtext{
+        color: #9FCB3A;
+        text-align: center;
+        font-family: Poppins;
+        font-size: 13px;
+        font-style: normal;
+        font-weight: 300;
+        line-height: normal; 
+    }
+    .howitworks{
+        /*border: 1px solid green;*/
+        height: 40px;
+        width: 100%;
+        display: flex;
+        float: left;
+        align-items: center;
+        justify-content: center;
+
+    }
+    .howitworkstext{
+        color: #FFF;
+        text-align: center;
+        font-family: Quantico;
+        font-size: 30px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: normal; 
+    }
+    .works{
+        background: linear-gradient(89deg, #BD3193 60.93%, #9FCB3A 78.37%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-family: Quantico;
+        font-size: 30px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: normal; 
+    }
+    .steps{
+        /*border: 1px solid yellow;*/
+        height: 800px;
+        width: 100%;
+        float: left;
+        display: flex;  
+        align-items: center;
+        justify-content: center;
+    }
+    .babysteps{
+        /*border: 1px solid darkred;*/
+        height: 700px;
+        width: 70%;
+    }
+     .bgsignup{
+        /*border: 1px solid white;*/
+        height: 170px;
+        width: 45%;
+        display: inline-flex;
+        justify-content: flex-end;
+        float: left;
+    }
+    .roadmap_image {
+        width: 30%;
+        padding-bottom: 30px;
+    }
+    .colorBg{
+        /*border: 1px solid black;*/
+        height: 170px;
+        width: 10%;
+        display: flex;
+        justify-content: center;
+        float: left;
+    }
+    .color{
+        /*border: 1px solid white;*/
+        height: 100%;
+        width: 5%;
+        float: left;
+        background-color: #BD3193;
+        border-radius: 10px
+    }
+    .number1{
+        /*border: 1px solid white;*/
+        height: 170px;
+        width: 45%;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px; 
+        float: left;
+    }
+    .number1circle{
+        /*border: 1px solid yellow;*/
+        height: 50px;
+        width: 50px;
+        position: relative;
+        text-align: center;
+    }
+    .numberBg{
+        width: 100%;
+        height: 100%;
+        flex-shrink: 0;
+    }
+    .no1{
+        position: absolute;
+        color: white;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    .signup{
+        /*border: 1px solid green;*/
+        color: #FFF;
+        text-align: center;
+        font-family: Quantico;
+        font-size: 20px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal; 
+    }
+    .roadmap_text{
+        width: 80%;
+        color: rgba(255, 255, 255, 0.70);
+        font-family: Poppins;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal; 
+    }
+    .number2{
+        /*border: 1px solid white;*/
+        height: 170px;
+        width: 45%;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 5px; 
+        float: left;
+    }
+
+    .color2{
+        /*border: 1px solid white;*/
+        height: 100%;
+        width: 5%;
+        float: left;
+        background-color: white;
+        border-radius: 10px
+    }
+    .amico{
+        /*border: 1px solid white;*/
+        height: 170px;
+        width: 45%;
+        float: left;
+    }
+
+    .competition{
+        /*border: 1px solid white;*/
+        height: 170px;
+        width: 45%;
+        display: inline-flex;
+        justify-content: flex-end;
+        float: left;
+    }
+
+    .number3{
+        /*border: 1px solid white;*/
+        height: 170px;
+        width: 45%;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px; 
+        float: left;
+    }
+        .number4{
+        /*border: 1px solid white;*/
+        height: 190px;
+        width: 45%;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 5px; 
+        float: left;
+    }
+    .winners{
+        /*border: 1px solid white;*/
+        height: 170px;
+        width: 45%;
+        float: left;
+    }
+
+    
+     .compete2{
+        /*border: 1px solid blue;*/
+        width: 100%;
+        color: rgba(255, 255, 255, 0.70);
+        font-family: Poppins;
+        display: inline-flex;
+        justify-content: flex-end;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal; 
+    }
+    /*end of how it works bg*/
+
+        /*start of tutorials and guides*/
+    .tutorialsbg{
+        background-color: #fff;
+        float: left;
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+    }
+    .tutorials{
+        height: 150px;
+        width: 100%;
+        float: left;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        
+    }
+    .tutorialstext{
+        color: #BD3193;
+        font-family: Quantico;
+        font-size: 40px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: normal; 
+    }
+    .guides{
+        /*border: 1px solid black;*/
+        height: 70%;
+        width: 60%;
+        display: flex;
+        flex-direction: row;
+
+    }
+    .tutorial1{
+        height: auto;
+        width: 80%;
+        margin-bottom: 50px;
+
+    }
+    .tutorialBox{
+        width: 100%;
+
+    }
+    .tutorial1 img{
+        width: 100%;
+    }
+     .chesstextbg{
+        /*border: 1px solid black;*/
+        height: 10%;
+        width: 100%;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .beginners{
+        color: #000;
+        text-align: center;
+        font-family: Quantico;
+        font-size: 20px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal; 
+    }
+     .chesstextsm{
+        /*border: 1px solid black;*/
+        height: 20%;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+    .comprehensive{
+        color: rgba(0, 0, 0, 0.7);
+        text-align: center;
+        font-family: Poppins;
+        font-size: 11px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal; 
+    }
+     .info{
+        /*border: 1px solid black;*/
+        height: 10%;
+        width: 100%;
+
+    }
+
+    .snookertextbg{
+        /*border: 1px solid black;*/
+        height: 10%;
+        width: 100%;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .skills{
+        color: #000;
+        text-align: center;
+        font-family: Quantico;
+        font-size: 20px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal; 
+    }
+    .snookertextsm{
+        /*border: 1px solid black;*/
+        height: 20%;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+    .comprehensive{
+        color: rgba(0, 0, 0, 0.7);
+        text-align: center;
+        font-family: Poppins;
+        font-size: 11px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal; 
+    }
+    .tutorial3{
+        /*border: 1px solid black;*/
+        height: 90%;
+        width: 60%;
+        margin: 30px;
+        display: flex;
+        flex-direction: column;
+
+    }
+     .ludo{
+        /*border: 1px solid black;*/
+        height: 50%;
+        width: 100%;
+
+    }
+    .ludotextbg{
+        /*border: 1px solid black;*/
+        height: 10%;
+        width: 100%;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .mastering{
+        color: #000;
+        text-align: center;
+        font-family: Quantico;
+        font-size: 20px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal; 
+    }
+    .ludotextsm{
+        /*border: 1px solid black;*/
+        height: 20%;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+    .learn{
+        color: rgba(0, 0, 0, 0.7);
+        text-align: center;
+        font-family: Poppins;
+        font-size: 11px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal; 
+    }
+    /*end of tutorials and guides*/
+
+    /*start of upcoming events*/
+
+     .upcomingbg{
+        /*border: 1px solid green;*/
+        background-color: #fff;
+        float: left;
+        height: 800px;
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+    }
+    .upcoming{
+        padding-top: 40px;
+        width: 100%;
+        float: left;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        
+    }
+    .upcomingtext{
+        color: #000;
+        font-family: Quantico;
+        font-size: 40px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: normal; 
+    }
+    .eventstext{
+        color: #BD3193;
+        font-family: Quantico;
+        font-size: 40px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: normal; 
+    }
+    .upcomingsm{
+        /*border: 1px solid black;*/
+        height: 150px;
+        width: 100%;
+        float: left;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .upcomingsmtext{
+         color: rgba(0, 0, 0, 0.70);;
+        font-family: poppins;
+        font-size: 13px;
+        width: 80%;
+        text-align: center;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal; 
+    }
+    .events{
+        /*border: 1px solid black;*/
+        height: 70%;
+        width: 60%;
+        float: left;  
+    }
+    .game{
+        /*border: 1px solid black;*/
+        height: 45%;
+        width: 29%;
+        float: left;
+        margin: 15px;
+        position: relative;
+        top: 0;
+        left: 0;
+    }   
+    
+    .gamesimg{
+        height: 100%;
+        width: 100%;
+        position: absolute; 
+        top: 0; 
+        left: 0;     
+    }   
+    .blurimg{
+       /* z-index: 1;*/
+        width: 100%;
+        height: 25%;
+        position: absolute;
+        top: 187px;
+        
+    }
+    .moreinfo{
+        position: relative;
+        top: 220px;
+        left: 160px;
+
+    } 
+    .gambit{
+        /*border: 1px solid black;*/
+        height: 45%;
+        width: 29%;
+        float: left;      
+        overflow: hidden;
+        position: relative;
+        margin: 15px;
+    }
+    .gambitimg{
+        height: 100%;
+        width: 100%;
+        position: absolute; 
+        top: 0; 
+        left: 0;   
+    }
+    .solitaire{
+        /*border: 1px solid black;*/
+        height: 45%;
+        width: 29%;
+        float: left;
+        position: relative;
+        margin: 15px;
+    }
+    .solitaireimg{
+        height: 100%;
+        width: 100%;
+        position: absolute; 
+        top: 0; 
+        left: 0;   
+    }
+    /*end of upcoming events*/
+
+
+/* footer begins */
+footer{
+    background-image: url(../images/Bg.png);
+    background-size: cover;
+    color: white  
+}
+
+.logo{
+width: 25%;
+}
+.logo img{
+    width: 100%;
+}
+.logo-text{
+    color: white;
+    font-family: Quantico;
+    font-style: normal;
+    font-weight: 700;
+
+}
+
+.first-box {
+    color: rgba(255, 255, 255, 0.70);
+    font-style: normal;
+    font-weight: 300;
+    line-height: normal;
+    font-size: 13px;
+}
+.socials{
+    display: flex;
+    align-items: center;
+    gap: 54px;
+}
+
+.contact{
+display: inline-flex;
+width: 100%;
+padding: 24px 24px 24px 16px;
+align-items: center;
+gap: 16px;
+border: 1px solid #BD3193;
+background: rgba(255, 255, 255, 0.20);
+}
+.contact input{
+    background: rgba(255, 255, 255, 0);
+    border: 0;
+    width: 80%;
+}
+
+.subcribe-btn button{
+width:80%;
+background-color: #BD3193;
+border: none;
+margin:  10px 0;
+padding: 5px 0;
+display: flex;
+color: #FFF;
+justify-content: space-evenly;
+}
+
+
+.footer-list li {
+    list-style: none;
+    padding:5px 0;
+
+
+}
+
+ul li {
+    list-style: none;
+    color: rgba(255, 255, 255, 0.70);
+    font-weight: 400;
+    line-height: normal; 
+}
+.footer-list li a{    color: rgba(255, 255, 255, 0.70);
+    font-weight: 400;
+    line-height: normal;
+    text-decoration: none
+}
+.copy{
+    color: var(--White, #FFF);
+text-align: center;
+font-family: Quantico;
+font-weight: 400;
+font-size: 10px;
+
+}
+/* footer ends */
+
+@media (max-width: 991px){
+footer .row{
+    flex-direction: row;
+}
+footer .row .col{
+    width: 100%;
+}
+footer .row .col:first-child{
+    margin-left: 10%;
+}
+footer .row .col:last-child {
+   text-align: center;
+}
+.subcribe-btn button {
+    width: 100%;
+}
+
+
+.parent1 {
+    padding-right: 40px;
+    width: 100%;
+    height: auto;
+}
+
+    .navbar-brand{
+        width: 25%;
+    }
+
+    .navbar-brand .logo {
+        width: 50%;
+      }
+    .sidebar{
+    background-color: rgb(19, 8, 40);
+    backdrop-filter: blur(10px);
+}
+
+     .featuredtext{
+         font-size: 25px;
+     }
+     .gaming{
+         font-size: 25px;
+     }
+     .unique{
+         height: 290px;
+     }
+     .uniquetext{
+         font-size: 11px;
+     }
+     .games{
+         width: 100%;
+         height: 60%;
+     }
+     .celebritytext{
+         font-size: 35px;
+     }
+     .spotlights{
+         font-size: 35px;
+     }
+     .bggg{
+          height: 400px;
+         width: 100%;
+     }
+     .d1{
+         margin: 10px;
+     }
+     .d2{
+         margin: 10px;
+     }
+     .celebrityspotlights{
+         height: 450px;
+     }
+     .babysteps{
+     height: 800px;
+     width: 100%;
+     }
+     .numberBg{
+     width: 80%;
+     height: 80%;
+     flex-shrink: 0;
+     }
+     .no1{
+     position: absolute;
+     color: white;
+     top: 40%;
+     left: 50%;
+     transform: translate(-50%, -50%);
+     }
+     .signup{
+         font-size: 15px;
+     }
+     .visit br{
+         display: none;
+     }
+     .once br{
+         display: none;
+     }
+     .compete2 br{
+         display: none;
+         font-size: 8px;
+     }
+      .tutorials{
+         height: 100px;
+      }
+     .guides{
+         width: 80%;
+         display: flex;
+         flex-direction: column;
+         align-items: center;
+     }
+     .chesstextbg br{
+         display: none;
+     }
+      
+     .chesstextsm{
+         height: 25%;
+     }
+     .snookertextsm{
+         height: 25%;
+     }
+     .ludotextsm{
+         height: 25%;
+     }
+     .upcomingbg{
+         height: 1300px;
+     }
+      .events{
+         display: flex;
+        flex-wrap: wrap;
+         width: 90%;
+         height: 70%;
+         justify-content: center;
+        
+     }
+     .game{
+        
+         height: 20%;
+         width: 40%;
+         margin-bottom: 0px;
+         margin: 15px;
+         
+     }
+     .gambit{
+       
+         height: 20%;
+         width: 40%;
+         margin-bottom: -0px;
+         margin: 15px;
+        
+     }
+     .solitaire{
+        
+         height: 20%;
+         width: 40%;
+         margin-bottom: 0px;
+         margin: 15px;
+        
+     }
+     .blurimg{
+         width: 100%;
+         height: 25%;
+         position: absolute;
+         top: 133px;
+         
+     }
+     .moreinfo{
+         position: relative;
+         top: 155px;
+         left: 90px
+     } 
+     
+ }
+            
+
+
+
+     @media all  and (max-width: 700px){
+        .item1 {
+            width: 100%;
+            flex-direction:column;
+            margin: 0;
+        }
+        .parent2{
+            display: none;
+        }
+        .d1{
+            margin: 5px;
+        }
+        .d2{
+            margin: 5px;
+        }
+        .bgsignup{
+            height: 200px;
+        }
+        .colorBg{
+            height: 200px;
+        }
+        .signup{
+            font-size: 10px;
+        }
+        .number1{
+            height: 200px;
+        }
+        .number2{
+            height: 200px;
+        }
+        .number3{
+            height: 200px;
+        }
+        .number4{
+            height: 200px;
+        }
+        .amico{
+            height: 200px;
+        }
+        .competition{
+            height: 200px;
+        }
+        .winners{
+            height: 200px;
+        }
+          .moreinfo{
+            position: relative;
+            top: 155px;
+            left: 60px;
+        } 
+
+            .images\/crown,  .images\/crown1, .images\/crown2,  .images\/crown3{
+            width:10%;
+         }
+         
+         .roadmap_image {
+            width: 80%;
+            margin-top: 90px;
+            padding-bottom: 30px;
+        }
+        .howdiv {
+            height: 150vh;
+        }
+    footer .row{
+        flex-direction:column-reverse;
+        align-items: center;
+        text-align: center;
+        font-size:24px;
+        width: 80%;
+    }
+    .box-wrap{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 20px;
+        flex-direction: row-reverse;
+    }
+    
+    .box-wrap p{
+            text-align: left;
+            font-size: 10px;
+            font-weight: 300;
+    }
+}
+
+
+
+ /* popup form  starts*/
+ .popup {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+  }
+  
+  .popup-content {
+    background-color: #331235;
+    margin: 10% auto;
+    padding: 20px;
+    border: 1px solid #b628bf;
+    width: 80%;
+  }
+  
+  .close {
+    color: #9FCB3A;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+  }
+  
+  .close:hover,
+  .close:focus {
+    color: wheat;
+    text-decoration: none;
+    cursor: pointer;
+  }

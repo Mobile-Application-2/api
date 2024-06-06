@@ -1,0 +1,14 @@
+<svg width="108" height="108" viewBox="0 0 108 108" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="solar:play-broken" filter="url(#filter0_b_657_735)">
+<rect width="108" height="108" rx="50" fill="#BD3193" fill-opacity="0.3"/>
+<path id="Vector" d="M29 54.5V72.962C29 79.0833 35.6686 82.9495 41.0978 79.979L49.527 75.3628M29 43.9003V36.038C29 29.9167 35.6686 26.0505 41.0978 29.021L74.8147 47.4857C76.0786 48.1625 77.1359 49.1728 77.8732 50.4085C78.6105 51.6441 79 53.0585 79 54.5C79 55.9415 78.6105 57.3559 77.8732 58.5915C77.1359 59.8272 76.0786 60.8375 74.8147 61.5143L57.9562 70.7467" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+</g>
+<defs>
+<filter id="filter0_b_657_735" x="-16" y="-16" width="140" height="140" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feGaussianBlur in="BackgroundImageFix" stdDeviation="8"/>
+<feComposite in2="SourceAlpha" operator="in" result="effect1_backgroundBlur_657_735"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_backgroundBlur_657_735" result="shape"/>
+</filter>
+</defs>
+</svg>

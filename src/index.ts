@@ -14,7 +14,7 @@ Sentry.init({
   profilesSampleRate: 1.0,
 });
 
-import express from 'express';
+import express, {Request, Response} from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import mongoose from 'mongoose';
@@ -31,9 +31,14 @@ import {
   handle_socket_disconnection,
   send_message,
 } from './controllers/messaging.controller';
+import path from 'node:path';
 
 const app = express();
+
 // change back to strict
+const staticFolderPath = path.join(__dirname, 'static');
+
+app.use(express.static(staticFolderPath));
 app.use(cors({origin: '*'}));
 app.use(express.json());
 app.use(compression());
@@ -99,7 +104,19 @@ async function main() {
     });
   });
 
-  app.use('', generalRoutes);
+  // Dynamic route to serve HTML files
+  app.get('/:filename', (req: Request, res: Response) => {
+    const filename = req.params.filename;
+    const filePath = path.join(staticFolderPath, `${filename}.html`);
+
+    res.sendFile(filePath, err => {
+      if (err) {
+        res.status(404).send('File not found');
+      }
+    });
+  });
+
+  app.use('api', generalRoutes);
 
   app.all('*', (_, res) => {
     res.status(404).json({message: 'Route not found'});
