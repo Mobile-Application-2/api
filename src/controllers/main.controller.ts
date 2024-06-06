@@ -7,6 +7,7 @@ import NOTIFICATION from '../models/notification.model';
 import isEmail from 'validator/lib/isEmail';
 import {isValidObjectId} from 'mongoose';
 import TRANSACTION from '../models/transaction.model';
+import WAITLIST from '../models/waitlist.model';
 
 export async function search_users(req: Request, res: Response) {
   try {
@@ -205,6 +206,42 @@ export async function get_transactions(req: Request, res: Response) {
 
     // not returing the total number of transactions so you can use infinite scroll
     res.status(200).json({message: 'Success', data: transactions});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function join_waitlist(req: Request, res: Response) {
+  try {
+    const {email} = req.body;
+
+    if (!email || isEmail(email) === false) {
+      res.status(400).json({message: 'Please provide a valid email address'});
+      return;
+    }
+
+    // check if the email is already in the waitlist or already signed up
+    const userExists = await USER.findOne({email});
+
+    if (userExists) {
+      res.status(400).json({message: 'You are already signed up'});
+      return;
+    }
+
+    const alreadyInWaitlist = await WAITLIST.findOne({email});
+
+    if (alreadyInWaitlist) {
+      res.status(400).json({message: 'You are already in the waitlist'});
+      return;
+    }
+
+    await WAITLIST.create({email});
+
+    await send_mail(email, 'waitlist', 'You have been added to the waitlist', {
+      email,
+    });
+
+    res.status(201).json({message: 'You have been added to the waitlist'});
   } catch (error) {
     handle_error(error, res);
   }

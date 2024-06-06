@@ -8,6 +8,7 @@ import {
   delete_notification,
   delete_all_notifications,
   get_transactions,
+  join_waitlist,
 } from '../controllers/main.controller';
 const router = Router();
 
@@ -16,6 +17,8 @@ router.get('/search', is_logged_in, search_users);
 router.get('/notifications', is_logged_in, get_notifications);
 
 router.get('/transactions', is_logged_in, get_transactions);
+
+router.post('/waitlist', join_waitlist);
 
 router.post('/contact', is_logged_in, create_a_ticket);
 
