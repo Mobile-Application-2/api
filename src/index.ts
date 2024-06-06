@@ -116,7 +116,7 @@ async function main() {
     });
   });
 
-  app.use('api', generalRoutes);
+  app.use('/api', generalRoutes);
 
   app.all('*', (_, res) => {
     res.status(404).json({message: 'Route not found'});
