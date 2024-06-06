@@ -19,6 +19,7 @@ import ITransferQueued from '../interfaces/transfer';
 import ITransferSuccess from '../interfaces/transfer-success';
 import ITransferFailed from '../interfaces/transfer-failed';
 import NOTIFICATION from '../models/notification.model';
+import send_mail from '../utils/nodemailer';
 
 const PAYSTACK_SECRET_KEY =
   process.env.NODE_ENV === 'production'
@@ -277,11 +278,34 @@ export async function handle_deposit_success(transactionInfo: any) {
       );
 
       // update the user's wallet balance
-      await USER.updateOne(
+      const userInfo = await USER.findOneAndUpdate(
         {_id: transactionInfo.userId},
         {$inc: {walletBalance: transactionInfo.amount}},
         {session}
       );
+
+      // add a notification
+      await NOTIFICATION.create(
+        [
+          {
+            userId: transactionInfo.userId,
+            image: process.env.SKYBOARD_LOGO,
+            title: 'Deposit Successful',
+            body: `Your deposit of ${(transactionInfo.amount / 100).toFixed(
+              2
+            )} naira was successful`,
+          },
+        ],
+        {session}
+      );
+
+      // send a mail notification to the user
+      if (userInfo?.email) {
+        await send_mail(userInfo.email, 'deposit', 'Deposit Successful', {
+          amount: (transactionInfo.amount / 100).toFixed(2),
+          username: userInfo.username,
+        });
+      }
 
       await session.commitTransaction();
     } catch (error) {
