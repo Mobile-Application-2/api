@@ -493,6 +493,32 @@ export async function initialize_withdraw(req: Request, res: Response) {
 
         // not adding a TTL because withdrawals can take very long to process, failure will be handled by the webhook
 
+        // send notification to the user
+        await NOTIFICATION.create(
+          [
+            {
+              userId,
+              image: process.env.SKYBOARD_LOGO,
+              title: 'Withdrawal Initiated',
+              body: `Your withdrawal of ${(amount / 100).toFixed(
+                2
+              )} naira has been initiated`,
+            },
+          ],
+          {session}
+        );
+
+        await send_mail(
+          userInfo.email,
+          'withdrawal-initiated',
+          'Withdrawal Initiated',
+          {
+            amount: (amount / 100).toFixed(2),
+            username: userInfo.username,
+            ref,
+          }
+        );
+
         await session.commitTransaction();
 
         res.status(200).json({message: 'Withdrawal initialized', data: {ref}});
@@ -562,6 +588,22 @@ export async function handle_withdraw_success(data: ITransferSuccess) {
       2
     )} naira has been completed`,
   });
+
+  // send a mail notification to the user
+  const userInfo = await USER.findOne({_id: transactionInfo.userId});
+
+  if (userInfo?.email) {
+    await send_mail(
+      userInfo.email,
+      'withdrawal-completed',
+      'Withdrawal Completed',
+      {
+        amount: (transactionInfo.amount / 100).toFixed(2),
+        username: userInfo.username,
+        ref: transactionInfo.ref,
+      }
+    );
+  }
 }
 
 export async function handle_withdraw_failure(data: ITransferFailed) {
@@ -643,6 +685,22 @@ export async function handle_withdraw_failure(data: ITransferFailed) {
         ],
         {session}
       );
+
+      // send a mail notification to the user
+      const userInfo = await USER.findOne({_id: transactionInfo.userId});
+
+      if (userInfo?.email) {
+        await send_mail(
+          userInfo.email,
+          'withdrawal-failed',
+          'Withdrawal Failed',
+          {
+            amount: (transactionInfo.amount / 100).toFixed(2),
+            username: userInfo.username,
+            ref: transactionInfo.ref,
+          }
+        );
+      }
 
       await session.commitTransaction();
     } catch (error) {
