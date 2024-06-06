@@ -33,7 +33,8 @@ import {
 } from './controllers/messaging.controller';
 
 const app = express();
-app.use(cors());
+// change back to strict
+app.use(cors({origin: '*'}));
 app.use(express.json());
 app.use(compression());
 app.use(
