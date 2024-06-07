@@ -1,8 +1,13 @@
 // popup starts
 document.addEventListener("DOMContentLoaded", function () {
   var openPopupBtn = document.getElementById("openPopupBtn");
+  var openPopUpBtn1 = document.getElementById("openPopupBtn1");
   var closePopupBtn = document.getElementById("closePopupBtn");
   var popupForm = document.getElementById("popupForm");
+
+  openPopUpBtn1.addEventListener("click", function () {
+    popupForm.style.display = "block";
+  });
 
   openPopupBtn.addEventListener("click", function () {
     popupForm.style.display = "block";
