@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", function () {
 // popup ends
 
 // Submit WaitList form
-const apiUrl = "https://skyboard-api.onrender.com";
+const apiUrl = "https://skyboard-api.onrender.com/api";
 var waitListForm = document.getElementById("waitForm");
 var waitName = document.getElementById("waitName");
 var waitEmail = document.getElementById("waitEmail");
