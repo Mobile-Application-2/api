@@ -2,12 +2,16 @@ import {Router} from 'express';
 import authRoutes from './auth.routes';
 import mainRoutes from './main.routes';
 import paymentRoutes from './payment.routes';
+import {
+  rate_limit_auth,
+  rate_limit_payment,
+} from '../middlewares/ratelimiter.middleware';
 const router = Router();
 
 router.use('/', mainRoutes);
 
-router.use('/auth', authRoutes);
+router.use('/auth', rate_limit_auth, authRoutes);
 
-router.use('/payment', paymentRoutes);
+router.use('/payment', rate_limit_payment, paymentRoutes);
 
 export default router;

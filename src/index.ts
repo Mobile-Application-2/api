@@ -32,6 +32,7 @@ import {
   send_message,
 } from './controllers/messaging.controller';
 import path from 'node:path';
+import {rate_limit_api} from './middlewares/ratelimiter.middleware';
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.use(
     },
   })
 );
+app.use(rate_limit_api);
 
 // overwrites the returned JSON to include boolean status
 app.use(responseBool);

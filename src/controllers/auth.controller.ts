@@ -13,6 +13,7 @@ import send_mail from '../utils/nodemailer';
 import {customJwtPayload} from '../interfaces/jwt-payload';
 import IResetPassword from '../interfaces/reset-password';
 import NOTIFICATION from '../models/notification.model';
+import {send_OTP, verify_OTP} from '../utils/twilio';
 
 async function create_tokens(userId: string) {
   const tokenId = uuidv4();
@@ -357,6 +358,17 @@ export async function send_email_otp(req: Request, res: Response) {
       return;
     }
 
+    // check that email is registered with us
+    const emailExists = await USER.findOne({email});
+
+    if (emailExists === null) {
+      res.status(200).json({
+        message:
+          'An OTP will be sent if this email is registered with skyboard',
+      });
+      return;
+    }
+
     // the * 10 ^ 8 feels useless but it's important as it makes sure the number will not start with 0
     const token = (Math.random() * Math.pow(10, 8))
       .toString()
@@ -370,7 +382,9 @@ export async function send_email_otp(req: Request, res: Response) {
       token,
     });
 
-    res.status(200).json({message: "OTP is on it's way"});
+    res.status(200).json({
+      message: 'An OTP will be sent if this email is registered with skyboard',
+    });
   } catch (error) {
     handle_error(error, res);
   }
@@ -402,6 +416,84 @@ export async function verify_email_otp(req: Request, res: Response) {
     await USER.updateOne({email}, {emailIsVerified: true});
 
     await redisClient.del(otp);
+
+    res.status(200).json({message: 'OTP verified successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function send_sms_otp(req: Request, res: Response) {
+  try {
+    const {phone} = req.body;
+
+    if (
+      phone === undefined ||
+      phone.length === 0 ||
+      isMobilePhone(phone, 'en-NG') === false ||
+      phone.startsWith('+234') === false
+    ) {
+      res
+        .status(400)
+        .json({message: 'Please enter a valid Nigerian phone number (+234)'});
+      return;
+    }
+
+    // check that phone is a registered one
+    const phoneExists = await USER.findOne({phoneNumber: phone});
+
+    if (phoneExists === null) {
+      res.status(200).json({
+        message:
+          'An OTP will be sent if this phone number is registered with skyboard',
+      });
+      return;
+    }
+
+    await send_OTP(phone, 'sms');
+
+    res.status(200).json({
+      message:
+        'An OTP will be sent if this phone number is registered with skyboard',
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function verify_sms_otp(req: Request, res: Response) {
+  try {
+    const {otp, phone, purpose} = req.body;
+
+    if (otp === undefined || otp.length !== 4) {
+      res
+        .status(400)
+        .json({message: 'Please enter the OTP sent to your phone'});
+      return;
+    }
+
+    if (
+      phone === undefined ||
+      phone.length === 0 ||
+      isMobilePhone(phone, 'en-NG') === false ||
+      phone.startsWith('+234') === false
+    ) {
+      res
+        .status(400)
+        .json({message: 'Please enter a valid Nigerian phone number (+234)'});
+      return;
+    }
+
+    const response = await verify_OTP(phone, otp);
+
+    if (response.status !== 'approved') {
+      res.status(400).json({message: 'Invalid OTP'});
+      return;
+    }
+
+    if (purpose === 'registration') {
+      await USER.updateOne({phoneNumber: phone}, {phoneNumberIsVerified: true});
+    }
 
     res.status(200).json({message: 'OTP verified successfully'});
   } catch (error) {
