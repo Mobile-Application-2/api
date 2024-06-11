@@ -1,5 +1,6 @@
 import {Router} from 'express';
 import {
+  begin_2fa_process,
   change_password,
   edit_profile,
   get_my_profile,
@@ -45,5 +46,7 @@ router.patch('/password', is_logged_in, change_password);
 router.patch('/send-reset-password-mail', send_reset_password_email);
 
 router.patch('/reset-password', reset_password);
+
+router.patch('/2fa', is_logged_in, begin_2fa_process);
 
 export default router;

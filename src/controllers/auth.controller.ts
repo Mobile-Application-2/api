@@ -15,6 +15,18 @@ import IResetPassword from '../interfaces/reset-password';
 import NOTIFICATION from '../models/notification.model';
 import {send_OTP, verify_OTP} from '../utils/twilio';
 
+async function generate_otp_token(email: string) {
+  // the * 10 ^ 8 feels useless but it's important as it makes sure the number will not start with 0
+  const token = (Math.random() * Math.pow(10, 8))
+    .toString()
+    .replace('.', '')
+    .slice(0, 6);
+
+  await redisClient.set(token, email, {EX: 60 * 5});
+
+  return token;
+}
+
 async function create_tokens(userId: string) {
   const tokenId = uuidv4();
 
@@ -125,7 +137,7 @@ export async function register_user(req: Request, res: Response) {
 
 export async function login(req: Request, res: Response) {
   try {
-    const {email, password} = req.body;
+    const {email, password, otp} = req.body;
 
     if (email === undefined || email.length === 0 || isEmail(email) === false) {
       res.status(401).json({message: 'Invalid credentials'});
@@ -149,6 +161,50 @@ export async function login(req: Request, res: Response) {
     if (passwordMatches === false) {
       res.status(401).json({message: 'Invalid credentials'});
       return;
+    }
+
+    if (user.twoFactorAuthenticationEnabled) {
+      const medium = user.twoFactorAuthenticationProvider;
+
+      // send them the otp
+      if (otp === undefined) {
+        if (medium === 'phone') {
+          await send_OTP(user.phoneNumber, 'sms');
+        } else if (medium === 'email') {
+          const token = await generate_otp_token(user.email);
+
+          await send_mail(
+            user.email,
+            'email-verification',
+            'Verify Your 2FA Method',
+            {email: user.email, token}
+          );
+        }
+
+        res.status(202).json({
+          message: `Please proceed with 2FA, a code has been sent to your ${medium}`,
+        });
+        return;
+      }
+
+      // verify the otp
+      if (medium === 'phone') {
+        const response = await verify_OTP(user.phoneNumber, otp);
+
+        if (response.status !== 'approved') {
+          res.status(401).json({message: 'Invalid OTP'});
+          return;
+        }
+      } else if (medium === 'email') {
+        const response = await redisClient.get(otp);
+
+        if (response !== user.email) {
+          res.status(401).json({message: 'Invalid OTP'});
+          return;
+        }
+
+        await redisClient.del(otp);
+      }
     }
 
     const tokens = await create_tokens(user._id.toString());
@@ -392,7 +448,7 @@ export async function send_email_otp(req: Request, res: Response) {
 
 export async function verify_email_otp(req: Request, res: Response) {
   try {
-    const {otp, email} = req.body;
+    const {otp, email, purpose} = req.body;
 
     if (otp === undefined || otp.length !== 6) {
       res
@@ -413,7 +469,15 @@ export async function verify_email_otp(req: Request, res: Response) {
       return;
     }
 
-    await USER.updateOne({email}, {emailIsVerified: true});
+    // no matter the purpose, we will always verify the email
+    const update: any = {emailIsVerified: true};
+
+    if (purpose === '2fa-setup') {
+      update['twoFactorAuthenticationEnabled'] = true;
+      update['twoFactorAuthenticationProvider'] = 'email';
+    }
+
+    await USER.updateOne({email}, update);
 
     await redisClient.del(otp);
 
@@ -491,9 +555,14 @@ export async function verify_sms_otp(req: Request, res: Response) {
       return;
     }
 
-    if (purpose === 'registration') {
-      await USER.updateOne({phoneNumber: phone}, {phoneNumberIsVerified: true});
+    const update: any = {phoneNumberIsVerified: true};
+
+    if (purpose === '2fa-setup') {
+      update['twoFactorAuthenticationEnabled'] = true;
+      update['twoFactorAuthenticationProvider'] = 'phone';
     }
+
+    await USER.updateOne({phoneNumber: phone}, update);
 
     res.status(200).json({message: 'OTP verified successfully'});
   } catch (error) {
@@ -574,13 +643,7 @@ export async function send_reset_password_email(req: Request, res: Response) {
       return;
     }
 
-    // the * 10 ^ 8 feels useless but it's important as it makes sure the number will not start with 0
-    const token = (Math.random() * Math.pow(10, 8))
-      .toString()
-      .replace('.', '')
-      .slice(0, 6);
-
-    await redisClient.set(token, email, {EX: 60 * 5});
+    const token = await generate_otp_token(email);
 
     const payload: IResetPassword = {
       token,
@@ -642,6 +705,75 @@ export async function reset_password(req: Request, res: Response) {
     }
 
     res.status(200).json({message: 'Password updated successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function begin_2fa_process(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    const {method} = req.body;
+
+    const allowedMethods = ['phone', 'email'];
+    if (!allowedMethods.includes(method)) {
+      res
+        .status(400)
+        .json({message: 'Please select a valid 2FA method (sms or email)'});
+      return;
+    }
+
+    const userInfo = await USER.findOne({_id: userId});
+
+    if (userInfo === null) {
+      res.status(400).json({
+        message: 'Something went wrong try logging back into you account again',
+      });
+      return;
+    }
+
+    console.log(
+      userInfo.twoFactorAuthenticationEnabled,
+      method,
+      userInfo.twoFactorAuthenticationProvider
+    );
+
+    if (
+      userInfo.twoFactorAuthenticationEnabled &&
+      userInfo.twoFactorAuthenticationProvider === method
+    ) {
+      res
+        .status(400)
+        .json({message: `You already have 2FA enabled via ${method}`});
+      return;
+    }
+
+    // send either email or sms depending on method, then use the purpose to update the model
+    let successMessage = '';
+
+    if (method === 'sms') {
+      await send_OTP(userInfo.phoneNumber, 'sms');
+
+      const obfuscatedPhone =
+        userInfo.phoneNumber.slice(0, 4) +
+        '****' +
+        userInfo.phoneNumber.slice(-2);
+      successMessage = `An OTP will be sent to your phone number (${obfuscatedPhone})`;
+    } else if (method === 'email') {
+      const token = await generate_otp_token(userInfo.email);
+
+      await send_mail(
+        userInfo.email,
+        'email-verification',
+        'Verify Your 2FA Method',
+        {email: userInfo.email, token}
+      );
+
+      const obfuscatedEmail = userInfo.email.slice(0, 5) + '****';
+      successMessage = `An OTP will be sent to your email address beginning with (${obfuscatedEmail})`;
+    }
+
+    res.status(200).json({message: successMessage});
   } catch (error) {
     handle_error(error, res);
   }

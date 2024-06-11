@@ -82,8 +82,8 @@ const userSchema = new mongoose.Schema(
       type: String,
       lowercase: true,
       enum: {
-        values: ['phone', 'email', 'other'],
-        message: 'Please select a valid 2FA method',
+        values: ['phone', 'email'],
+        message: 'Please select a valid 2FA method', // NOTE: can add auth apps later
       },
     },
     avatar: {
