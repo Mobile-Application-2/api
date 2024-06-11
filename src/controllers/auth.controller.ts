@@ -8,7 +8,7 @@ import REFERRAL from '../models/referral.model';
 import mongoose from 'mongoose';
 import {isEmail, isMobilePhone} from 'validator';
 import bcrypt from 'bcrypt';
-import {upload_file} from '../utils/cloudinary';
+import {delete_file, upload_file} from '../utils/cloudinary';
 import send_mail from '../utils/nodemailer';
 import {customJwtPayload} from '../interfaces/jwt-payload';
 import IResetPassword from '../interfaces/reset-password';
@@ -387,6 +387,21 @@ export async function edit_profile(req: Request, res: Response) {
 
     // process avatar upload to cloud storage
     if (Object.prototype.hasOwnProperty.call(update, 'avatar')) {
+      // delete old avatar
+      const userInfo = await USER.findOne({_id: userId});
+
+      if (userInfo === null) {
+        res.status(400).json({
+          message: 'Something went wrong while updating your profile',
+        });
+        return;
+      }
+
+      // NOTE: might need to handle default avatar exception
+      if (userInfo.avatar) {
+        await delete_file(userInfo.avatar, 'profile');
+      }
+
       req.body['avatar'] = await upload_file(req.body['avatar'], 'profile');
     }
 

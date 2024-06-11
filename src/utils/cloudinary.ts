@@ -32,3 +32,11 @@ export async function upload_file(
     uploadStream.end(file);
   });
 }
+
+export async function delete_file(publicId: string, folder: string) {
+  const resourceName = publicId.replace(/.*\//, '').split('.')[0];
+  const folderName = folder ? `${folder}/` : '';
+  const resourceNameWithFolder = `${folderName}${resourceName}`;
+
+  await cloudinary.api.delete_resources([resourceNameWithFolder]);
+}

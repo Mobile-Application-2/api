@@ -39,7 +39,7 @@ router.post('/send-sms-otp', rate_limit_verification, send_sms_otp);
 // todo include purpose as a req paramater
 router.post('/verify-sms-otp', rate_limit_verification, verify_sms_otp);
 
-router.patch('/profile', is_logged_in, process_file, edit_profile);
+router.patch('/profile', is_logged_in, process_file('avatar'), edit_profile);
 
 router.patch('/password', is_logged_in, change_password);
 
