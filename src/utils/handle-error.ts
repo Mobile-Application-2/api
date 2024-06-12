@@ -61,6 +61,11 @@ export function handle_error(error: any, res: Response): void {
     return;
   }
 
+  if (error.name === 'FORMATTED_ERROR') {
+    res.status(400).json({message: error.message});
+    return;
+  }
+
   console.log(error);
   res.status(500).json({message: 'Internal Server Error'});
 }

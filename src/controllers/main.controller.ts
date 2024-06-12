@@ -420,7 +420,7 @@ export async function create_a_lobby(req: Request, res: Response) {
         );
 
         // create a new lobby
-        const lobbyCode = generate_lobby_code();
+        const lobbyCode = await generate_lobby_code();
 
         const lobbyInfo = await LOBBY.create(
           [

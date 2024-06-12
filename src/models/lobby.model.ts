@@ -36,6 +36,10 @@ const lobbySchema = new mongoose.Schema(
       default: 0,
       min: [0, 'Number of games played must be at least 0'],
     },
+    active: {
+      type: Boolean,
+      default: true,
+    },
   },
   {timestamps: true}
 );
