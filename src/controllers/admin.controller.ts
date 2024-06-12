@@ -39,7 +39,7 @@ export async function create_game(req: Request, res: Response) {
 export async function update_game(req: Request, res: Response) {
   try {
     const update = req.body;
-    const {id: gameId} = req.params;
+    const {gameId} = req.params;
 
     if (!isValidObjectId(gameId)) {
       res.status(400).json({message: 'Invalid game id'});

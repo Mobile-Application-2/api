@@ -9,20 +9,37 @@ import {
   delete_all_notifications,
   get_transactions,
   join_waitlist,
+  get_games,
+  get_game,
+  rate_a_game,
+  create_a_lobby,
 } from '../controllers/main.controller';
 const router = Router();
 
+// TODO: update to show fave game and no of wins
 router.get('/search', is_logged_in, search_users);
 
 router.get('/notifications', is_logged_in, get_notifications);
 
 router.get('/transactions', is_logged_in, get_transactions);
 
+router.get('/games', is_logged_in, get_games);
+
+router.get('/game/:gameId', is_logged_in, get_game);
+
 router.post('/waitlist', join_waitlist);
 
 router.post('/contact', is_logged_in, create_a_ticket);
 
 router.post('/refer', is_logged_in, refer_a_friend);
+
+router.post('/rating', is_logged_in, rate_a_game);
+
+router.post('/create-lobby', is_logged_in, create_a_lobby);
+
+// router.post('/join-lobbby', is_logged_in, join_lobby); // once the person joins, confirm thier wallet balance and add to escrow
+
+// router.patch('/announce-game-event', is_logged_in, announce_game_event); // for winners, you can store in new collection
 
 router.delete('/notification/:id', is_logged_in, delete_notification);
 
