@@ -463,3 +463,106 @@ export async function create_a_lobby(req: Request, res: Response) {
     handle_error(error, res);
   }
 }
+
+export async function join_lobby(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    const {lobbyCode} = req.body;
+
+    // check user's balance
+    const userInfo = await USER.findOne({_id: userId});
+
+    if (!userInfo) {
+      res.status(404).json({
+        message: 'There was a problem with your account, try to login again',
+      });
+      return;
+    }
+
+    // check lobby code
+    if (typeof lobbyCode !== 'string' || lobbyCode.trim() === '') {
+      res.status(400).json({message: 'Invalid lobby code'});
+      return;
+    }
+
+    type updatedGameId = {_id: mongoose.Types.ObjectId; maxPlayers: number};
+    const lobbyInfo = await LOBBY.findOne({
+      code: lobbyCode,
+      active: true,
+    }).populate<{gameId: updatedGameId}>('gameId', 'maxPlayers');
+
+    if (!lobbyInfo) {
+      res.status(404).json({message: 'No active lobby found with that code'});
+      return;
+    }
+
+    // check if user is already in the lobby
+    if (
+      lobbyInfo.participants.map(x => x.toString()).includes(userId as string)
+    ) {
+      res.status(400).json({message: 'You are already in this lobby'});
+      return;
+    }
+
+    // check if max players have been reached
+    if (lobbyInfo.participants.length >= lobbyInfo.gameId.maxPlayers) {
+      res.status(400).json({message: 'This lobby is full'});
+      return;
+    }
+
+    if (userInfo.walletBalance < lobbyInfo.wagerAmount) {
+      res.status(400).json({
+        message: `Insufficient balance, a minimum of ${(
+          lobbyInfo.wagerAmount / 100
+        ).toFixed(2)} naira is required`,
+      });
+      return;
+    }
+
+    const session = await mongoose.startSession({
+      defaultTransactionOptions: {
+        writeConcern: {w: 'majority'},
+        readConcern: {level: 'majority'},
+      },
+    });
+
+    await session.withTransaction(async session => {
+      try {
+        // deduct the wager amount from the user's wallet
+        await USER.updateOne(
+          {_id: userId},
+          {$inc: {walletBalance: -lobbyInfo.wagerAmount}},
+          {session}
+        );
+
+        // update the lobby
+        await LOBBY.updateOne(
+          {code: lobbyCode, active: true},
+          {$push: {participants: userId}},
+          {session}
+        );
+
+        // update escrow
+        await ESCROW.updateOne(
+          {lobbyId: lobbyInfo._id},
+          {$inc: {totalAmount: lobbyInfo.wagerAmount}},
+          {session}
+        );
+
+        await session.commitTransaction();
+
+        res
+          .status(200)
+          .json({message: 'You have joined the lobby', data: lobbyCode});
+      } catch (error) {
+        await session.abortTransaction();
+        throw error;
+      } finally {
+        await session.endSession();
+      }
+    });
+    res.end();
+  } catch (error) {
+    handle_error(error, res);
+  }
+}

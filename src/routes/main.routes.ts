@@ -13,6 +13,7 @@ import {
   get_game,
   rate_a_game,
   create_a_lobby,
+  join_lobby,
 } from '../controllers/main.controller';
 const router = Router();
 
@@ -37,7 +38,7 @@ router.post('/rating', is_logged_in, rate_a_game);
 
 router.post('/create-lobby', is_logged_in, create_a_lobby);
 
-// router.post('/join-lobbby', is_logged_in, join_lobby); // once the person joins, confirm thier wallet balance and add to escrow
+router.post('/join-lobby', is_logged_in, join_lobby);
 
 // router.patch('/announce-game-event', is_logged_in, announce_game_event); // for winners, you can store in new collection
 

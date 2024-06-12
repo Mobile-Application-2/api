@@ -20,6 +20,11 @@ const gameSchema = new mongoose.Schema(
       min: [0, 'Average rating must be at least 0'],
       max: [5, 'Average rating must be at most 5'],
     },
+    maxPlayers: {
+      type: Number,
+      required: [true, 'Max players is required'],
+      min: [2, 'Max players must be at least 2'],
+    },
   },
   {timestamps: true}
 );
