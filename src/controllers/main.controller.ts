@@ -13,6 +13,7 @@ import GAMERATING from '../models/game-rating.model';
 import {generate_lobby_code} from '../utils/generate-lobby-code';
 import LOBBY from '../models/lobby.model';
 import ESCROW from '../models/escrow.model';
+import {send_SMS} from '../utils/twilio';
 
 export async function search_users(req: Request, res: Response) {
   try {
@@ -74,7 +75,7 @@ export async function create_a_ticket(req: Request, res: Response) {
   }
 }
 
-export async function refer_a_friend(req: Request, res: Response) {
+export async function refer_a_friend_email(req: Request, res: Response) {
   try {
     const {email} = req.body;
     const {userId} = req;
@@ -94,6 +95,15 @@ export async function refer_a_friend(req: Request, res: Response) {
       return;
     }
 
+    const emailIsAlreadyInUse = await USER.findOne({
+      email,
+    });
+
+    if (emailIsAlreadyInUse) {
+      res.status(400).json({message: 'This email is already signed up'});
+      return;
+    }
+
     // send the referral email to the friend
     await send_mail(
       email,
@@ -103,7 +113,51 @@ export async function refer_a_friend(req: Request, res: Response) {
         referrer: userInfo.username,
         refereeEmail: email,
         referalLink: `${process.env.FRONTEND_URL}/signup?ref=${userInfo._id}`,
+        referalCode: userInfo._id,
       }
+    );
+
+    res.status(200).json({message: 'Referral sent successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function refer_a_friend_sms(req: Request, res: Response) {
+  try {
+    const {phone} = req.body;
+    const {userId} = req;
+
+    if (!phone) {
+      res.status(400).json({
+        message: 'Please provide a valid phone number in international format',
+      });
+      return;
+    }
+
+    const userInfo = await USER.findOne({_id: userId});
+
+    if (!userInfo) {
+      res.status(404).json({
+        message:
+          "There is a problem with your account's status. Please contact support or try again later",
+      });
+      return;
+    }
+
+    const phoneIsAlreadyInUse = await USER.findOne({
+      phone,
+    });
+
+    if (phoneIsAlreadyInUse) {
+      res.status(400).json({message: 'This phone number is already signed up'});
+      return;
+    }
+
+    // send the referral sms to the friend
+    await send_SMS(
+      phone,
+      `${userInfo.username} is inviting you to join skyboard, use the following code ${userInfo._id}`
     );
 
     res.status(200).json({message: 'Referral sent successfully'});

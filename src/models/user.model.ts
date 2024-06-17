@@ -57,9 +57,8 @@ const userSchema = new mongoose.Schema(
       trim: true,
       unique: true,
       validate: {
-        validator: (phoneNumber: string) => isMobilePhone(phoneNumber, 'en-NG'),
-        message:
-          'Please specify a valid Nigerian phone number (+234, 08..., 07... etc.)',
+        validator: (phoneNumber: string) => isMobilePhone(phoneNumber),
+        message: 'Please specify a valid phone number in international format',
       },
     },
     phoneNumberIsVerified: {

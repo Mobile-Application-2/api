@@ -66,6 +66,15 @@ export function handle_error(error: any, res: Response): void {
     return;
   }
 
+  if (
+    error.status === 400 &&
+    error?.moreInfo &&
+    /twilio/.test(error.moreInfo)
+  ) {
+    res.status(400).json({message: error.message});
+    return;
+  }
+
   console.log(error);
   res.status(500).json({message: 'Internal Server Error'});
 }

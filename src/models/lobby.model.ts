@@ -5,7 +5,6 @@ const lobbySchema = new mongoose.Schema(
     code: {
       type: String,
       required: [true, 'Code is required'],
-      unique: true,
     },
     creatorId: {
       type: mongoose.Schema.Types.ObjectId,

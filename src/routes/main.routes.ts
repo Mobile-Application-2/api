@@ -3,7 +3,8 @@ import {is_logged_in} from '../middlewares/auth.middleware';
 import {
   create_a_ticket,
   get_notifications,
-  refer_a_friend,
+  refer_a_friend_email,
+  refer_a_friend_sms,
   search_users,
   delete_notification,
   delete_all_notifications,
@@ -32,7 +33,9 @@ router.post('/waitlist', join_waitlist);
 
 router.post('/contact', is_logged_in, create_a_ticket);
 
-router.post('/refer', is_logged_in, refer_a_friend);
+router.post('/refer/email', is_logged_in, refer_a_friend_email);
+
+router.post('/refer/sms', is_logged_in, refer_a_friend_sms);
 
 router.post('/rating', is_logged_in, rate_a_game);
 
@@ -40,7 +43,7 @@ router.post('/create-lobby', is_logged_in, create_a_lobby);
 
 router.post('/join-lobby', is_logged_in, join_lobby);
 
-// router.patch('/announce-game-event', is_logged_in, announce_game_event); // for winners, you can store in new collection
+// router.patch('/announce-game-event', is_logged_in, announce_game_event); // move money to winner's account, give money back for draw or cancellations for exiting lobby handle all those cases.
 
 router.delete('/notification/:id', is_logged_in, delete_notification);
 
