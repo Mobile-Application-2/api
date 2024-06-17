@@ -5,7 +5,7 @@ import {Request, Response} from 'express';
 import send_mail from '../utils/nodemailer';
 import NOTIFICATION from '../models/notification.model';
 import isEmail from 'validator/lib/isEmail';
-import mongoose, {isValidObjectId} from 'mongoose';
+import mongoose, {PipelineStage, isValidObjectId} from 'mongoose';
 import TRANSACTION from '../models/transaction.model';
 import WAITLIST from '../models/waitlist.model';
 import GAME from '../models/game.model';
@@ -13,6 +13,8 @@ import GAMERATING from '../models/game-rating.model';
 import {generate_lobby_code} from '../utils/generate-lobby-code';
 import LOBBY from '../models/lobby.model';
 import ESCROW from '../models/escrow.model';
+import REFERRAL from '../models/referral.model';
+const ObjectId = mongoose.Types.ObjectId;
 
 export async function search_users(req: Request, res: Response) {
   try {
@@ -572,6 +574,51 @@ export async function join_lobby(req: Request, res: Response) {
       }
     });
     res.end();
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function see_who_i_referred(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {referrer: new ObjectId(userId)},
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'referred',
+          foreignField: '_id',
+          as: 'referredUser',
+          pipeline: [
+            {
+              $project: {
+                username: 1,
+                phoneNumber: 1,
+                avatar: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          referredUser: {$arrayElemAt: ['$referredUser', 0]},
+        },
+      },
+      {
+        $replaceRoot: {
+          newRoot: '$referredUser',
+        },
+      },
+    ];
+
+    const referrals = await REFERRAL.aggregate(pipeline);
+
+    res.status(200).json({message: 'Success', data: referrals});
   } catch (error) {
     handle_error(error, res);
   }

@@ -14,6 +14,7 @@ import {
   rate_a_game,
   create_a_lobby,
   join_lobby,
+  see_who_i_referred,
 } from '../controllers/main.controller';
 const router = Router();
 
@@ -28,11 +29,13 @@ router.get('/games', is_logged_in, get_games); // TODO: update to show no of pla
 
 router.get('/game/:gameId', is_logged_in, get_game);
 
+router.get('/referrals', is_logged_in, see_who_i_referred);
+
 router.post('/waitlist', join_waitlist);
 
 router.post('/contact', is_logged_in, create_a_ticket);
 
-router.post('/refer/email', is_logged_in, refer_a_friend);
+router.post('/refer', is_logged_in, refer_a_friend);
 
 router.post('/rating', is_logged_in, rate_a_game);
 
