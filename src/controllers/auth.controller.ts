@@ -27,13 +27,13 @@ async function generate_otp_token(email: string) {
   return token;
 }
 
-async function create_tokens(userId: string) {
+async function create_tokens(userId: string, isCelebrity = false) {
   const tokenId = uuidv4();
 
   await redisClient.set(tokenId, userId, {EX: 60 * 60 * 24 * 60}); // 60 days
 
   const accessToken = jwt.sign(
-    {userId},
+    {userId, isCelebrity},
     process.env.ACCESS_TOKEN_SECRET as string,
     {expiresIn: '15m'}
   );
@@ -135,6 +135,56 @@ export async function register_user(req: Request, res: Response) {
   }
 }
 
+export async function register_celebrity(req: Request, res: Response) {
+  try {
+    const userInfo = req.body;
+
+    if (typeof userInfo !== 'object' || Object.keys(userInfo).length === 0) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    const allowedFields = [
+      'email',
+      'password',
+      'phoneNumber',
+      'socialMediaPlatform',
+      'socialMediaHandle',
+    ];
+
+    const fieldsFromRequest = Object.keys(userInfo);
+
+    const hasOnlyAllowedFields = fieldsFromRequest.every(field =>
+      allowedFields.includes(field)
+    );
+
+    const hasAllAllowedFields = allowedFields.every(field =>
+      fieldsFromRequest.includes(field)
+    );
+
+    if (!hasAllAllowedFields || !hasOnlyAllowedFields) {
+      res.status(400).json({
+        message:
+          'Invalid request, ensure all and only required fields are specified',
+      });
+      return;
+    }
+
+    // update to account for username and isCelebrity
+    userInfo['username'] = userInfo['socialMediaHandle'];
+    userInfo['isCelebrity'] = true;
+
+    // insert the user
+    const insertInfo = await USER.create(userInfo);
+
+    const tokens = await create_tokens(insertInfo._id.toString(), true);
+
+    res.status(201).json({message: 'Registration successful', data: tokens});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
 export async function login(req: Request, res: Response) {
   try {
     const {email, password, otp} = req.body;
@@ -209,7 +259,7 @@ export async function login(req: Request, res: Response) {
 
     const tokens = await create_tokens(user._id.toString());
 
-    res.status(200).json({message: 'Login successful', data: tokens});
+    res.status(200).json({message: 'Login successful', data: {tokens, user}});
   } catch (error) {
     handle_error(error, res);
   }

@@ -40,7 +40,6 @@ const userSchema = new mongoose.Schema(
     },
     dob: {
       type: Date,
-      required: [true, 'Please specify a date of birth'],
     },
     password: {
       type: String,
@@ -95,6 +94,18 @@ const userSchema = new mongoose.Schema(
     },
     notificationPreferences: {
       type: notificationPreferencesSchema,
+    },
+    isCelebrity: {
+      type: Boolean,
+      default: false,
+    },
+    socialMediaHandle: {
+      type: String,
+      trim: true,
+    },
+    socialMediaPlatform: {
+      type: String,
+      trim: true,
     },
   },
   {timestamps: true}

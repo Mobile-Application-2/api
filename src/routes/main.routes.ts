@@ -3,8 +3,7 @@ import {is_logged_in} from '../middlewares/auth.middleware';
 import {
   create_a_ticket,
   get_notifications,
-  refer_a_friend_email,
-  refer_a_friend_sms,
+  refer_a_friend,
   search_users,
   delete_notification,
   delete_all_notifications,
@@ -25,7 +24,7 @@ router.get('/notifications', is_logged_in, get_notifications);
 
 router.get('/transactions', is_logged_in, get_transactions);
 
-router.get('/games', is_logged_in, get_games);
+router.get('/games', is_logged_in, get_games); // TODO: update to show no of players
 
 router.get('/game/:gameId', is_logged_in, get_game);
 
@@ -33,9 +32,7 @@ router.post('/waitlist', join_waitlist);
 
 router.post('/contact', is_logged_in, create_a_ticket);
 
-router.post('/refer/email', is_logged_in, refer_a_friend_email);
-
-router.post('/refer/sms', is_logged_in, refer_a_friend_sms);
+router.post('/refer/email', is_logged_in, refer_a_friend);
 
 router.post('/rating', is_logged_in, rate_a_game);
 

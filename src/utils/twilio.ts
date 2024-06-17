@@ -39,11 +39,3 @@ export const send_OTP = async function (to: string, channel: string) {
     })
     .then(response => response);
 };
-
-export const send_SMS = async function (to: string, body: string) {
-  return await client.messages.create({
-    body,
-    to,
-    from: process.env.TWILIO_PHONE_NUMBER,
-  });
-};

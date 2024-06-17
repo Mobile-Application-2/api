@@ -6,6 +6,7 @@ import {
   get_my_profile,
   login,
   refresh_tokens,
+  register_celebrity,
   register_user,
   reset_password,
   send_email_otp,
@@ -22,6 +23,8 @@ const router = Router();
 router.get('/profile', is_logged_in, get_my_profile);
 
 router.post('/register/user', register_user);
+
+router.post('/register/celebrity', register_celebrity);
 
 router.post('/login', login);
 
