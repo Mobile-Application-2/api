@@ -1,0 +1,57 @@
+services:
+  game-service:
+    image: wizjs/skyboard-game-service
+    build: ./game-service
+    environment:
+      - NODE_ENV=development
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq
+    ports:
+      - "5657:5657"
+    depends_on:
+      - redis
+      - rabbitmq
+    volumes:
+      - ./game-service/src:/game-service/src
+
+  main-service:
+    image: wizjs/skyboard-main-service
+    build: ./main-service
+    environment:
+      - NODE_ENV=development
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://rabbitmq
+    ports:
+      - "5656:5656"
+    depends_on:
+      - redis
+      - rabbitmq
+    volumes:
+      - ./main-service/src:/main-service/src
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis:/data
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"  
+    depends_on:
+      - game-service
+      - main-service
+    volumes:
+      - ./config:/etc/nginx
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+
