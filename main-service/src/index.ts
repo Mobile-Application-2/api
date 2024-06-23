@@ -39,6 +39,9 @@ const app = express();
 // change back to strict
 const staticFolderPath = path.join(__dirname, 'static');
 
+// my nginx server
+app.set('trust proxy', 1);
+
 app.use(express.static(staticFolderPath));
 app.use(cors({origin: '*'}));
 app.use(express.json());
