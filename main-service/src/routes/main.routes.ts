@@ -43,8 +43,6 @@ router.post('/create-lobby', is_logged_in, create_a_lobby);
 
 router.post('/join-lobby', is_logged_in, join_lobby);
 
-// router.patch('/announce-game-event', is_logged_in, announce_game_event); // move money to winner's account, give money back for draw or cancellations for exiting lobby handle all those cases.
-
 router.delete('/notification/:id', is_logged_in, delete_notification);
 
 router.delete('/notifications', is_logged_in, delete_all_notifications);

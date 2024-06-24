@@ -19,6 +19,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/amqplib": "^0.10.5",
     "@types/bcrypt": "^5.0.2",
     "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",
@@ -37,6 +38,7 @@
     "@sentry/cli": "^2.31.2",
     "@sentry/node": "^8.2.1",
     "@sentry/profiling-node": "^8.2.1",
+    "amqplib": "^0.10.4",
     "axios": "^1.7.2",
     "bcrypt": "^5.1.1",
     "cloudinary": "^2.2.0",
