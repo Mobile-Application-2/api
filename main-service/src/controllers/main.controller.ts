@@ -462,7 +462,7 @@ export async function create_a_lobby(req: Request, res: Response) {
 
         res.status(201).json({
           message: 'Lobby created successfully',
-          data: lobbyInfo[0].code,
+          data: {code: lobbyCode, _id: lobbyInfo[0]._id},
         });
       } catch (error) {
         await session.abortTransaction();
@@ -563,9 +563,10 @@ export async function join_lobby(req: Request, res: Response) {
 
         await session.commitTransaction();
 
-        res
-          .status(200)
-          .json({message: 'You have joined the lobby', data: lobbyCode});
+        res.status(200).json({
+          message: 'You have joined the lobby',
+          data: {code: lobbyCode, _id: lobbyInfo._id},
+        });
       } catch (error) {
         await session.abortTransaction();
         throw error;
