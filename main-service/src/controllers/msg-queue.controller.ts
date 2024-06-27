@@ -5,66 +5,8 @@ import LOBBY from '../models/lobby.model';
 import USER from '../models/user.model';
 import {IGameWon} from '../interfaces/queue';
 import ESCROW from '../models/escrow.model';
-
-export async function handle_game_started(
-  message: amqplib.ConsumeMessage | null,
-  channel: amqplib.Channel
-) {
-  try {
-    if (message) {
-      // parse message and process
-      const lobbyId = message.content.toString();
-
-      if (!isValidObjectId(lobbyId)) {
-        Sentry.addBreadcrumb({
-          category: 'game',
-          data: {
-            lobbyId,
-          },
-          message: 'Invalid lobbyId provided',
-        });
-
-        Sentry.captureMessage(
-          'A handle game started message came in with an invalid lobbyId',
-          'warning'
-        );
-
-        channel.ack(message);
-        return;
-      }
-
-      const lobbyInfo = await LOBBY.findOne({_id: lobbyId});
-
-      if (lobbyInfo === null) {
-        Sentry.addBreadcrumb({
-          category: 'game',
-          data: {
-            lobbyId,
-          },
-          message: 'Invalid lobbyId provided',
-        });
-
-        Sentry.captureMessage(
-          'A handle game started message came in with an invalid lobbyId',
-          'warning'
-        );
-
-        channel.ack(message);
-        return;
-      }
-
-      await LOBBY.updateOne({_id: lobbyId}, {$inc: {noOfGamesPlayed: 1}});
-      channel.ack(message);
-    }
-  } catch (error) {
-    Sentry.captureException(error, {
-      level: 'error',
-      tags: {source: 'handle_game_info function'},
-    });
-
-    if (message) channel.ack(message);
-  }
-}
+import TRANSACTION from '../models/transaction.model';
+import {v4 as uuidV4} from 'uuid';
 
 export async function handle_game_won(
   message: amqplib.ConsumeMessage | null,
@@ -117,9 +59,13 @@ export async function handle_game_won(
         return;
       }
 
-      const escrowInfo = await ESCROW.findOne({lobbyId});
+      const lastestEscrowInfo = await ESCROW.findOne(
+        {lobbyId},
+        {},
+        {sort: {createdAt: -1}}
+      );
 
-      if (escrowInfo === null) {
+      if (lastestEscrowInfo === null) {
         Sentry.addBreadcrumb({
           category: 'game',
           data: {
@@ -131,6 +77,45 @@ export async function handle_game_won(
         Sentry.captureMessage(
           "A handle game won message came in with a lobbyId that doesn't match any escrow document so payment could not be processed",
           'error'
+        );
+
+        channel.ack(message);
+        return;
+      }
+
+      if (lastestEscrowInfo.paidOut) {
+        Sentry.addBreadcrumb({
+          category: 'game',
+          data: {
+            lobbyId,
+          },
+          message: 'Winner reported twice',
+        });
+
+        Sentry.captureMessage('A winner was reported twice', 'warning');
+        channel.ack(message);
+        return;
+      }
+
+      // ensure the game confirms an escrow payment has been made and a new round was started before crediting winner
+      // i.e number of escrows === noOfGamesPlayed
+      const escrowCount = await ESCROW.countDocuments({lobbyId});
+
+      if (escrowCount === 0 || escrowCount !== lobbyInfo.noOfGamesPlayed) {
+        Sentry.addBreadcrumb({
+          category: 'game',
+          data: {
+            lobbyId,
+            escrowCount,
+            noOfGamesPlayed: lobbyInfo.noOfGamesPlayed,
+          },
+          message:
+            'Attempted to report a winner when there was a discrepancy between the escrowCount and noOfGamesPlayed',
+        });
+
+        Sentry.captureMessage(
+          'Attempted to report a winner when there was a discrepancy between the escrowCount and noOfGamesPlayed',
+          'warning'
         );
 
         channel.ack(message);
@@ -149,7 +134,24 @@ export async function handle_game_won(
           // update the winner with the amount from the escrow
           await USER.updateOne(
             {_id: winnerId},
-            {$inc: {walletBalance: escrowInfo.totalAmount}},
+            {$inc: {walletBalance: lastestEscrowInfo.totalAmount}},
+            {session}
+          );
+
+          // create new transactions
+          await TRANSACTION.create(
+            [
+              {
+                amount: lastestEscrowInfo.totalAmount,
+                description: 'Earnings from game',
+                fee: 0,
+                ref: uuidV4(),
+                status: 'completed',
+                total: lastestEscrowInfo.totalAmount,
+                type: 'deposit',
+                userId: winnerId,
+              },
+            ],
             {session}
           );
 
@@ -159,6 +161,14 @@ export async function handle_game_won(
             {session}
           );
 
+          // mark escrow as paid
+          await ESCROW.updateOne(
+            {_id: lastestEscrowInfo._id},
+            {$set: {paidOut: true}},
+            {session}
+          );
+
+          // TODO: send the winner a notification
           await session.commitTransaction();
           channel.ack(message);
         } catch (error) {

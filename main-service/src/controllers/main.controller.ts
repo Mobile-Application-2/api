@@ -14,7 +14,9 @@ import {generate_lobby_code} from '../utils/generate-lobby-code';
 import LOBBY from '../models/lobby.model';
 import ESCROW from '../models/escrow.model';
 import REFERRAL from '../models/referral.model';
+import * as Sentry from '@sentry/node';
 const ObjectId = mongoose.Types.ObjectId;
+import {v4 as uuidV4} from 'uuid';
 
 export async function search_users(req: Request, res: Response) {
   try {
@@ -400,6 +402,11 @@ export async function create_a_lobby(req: Request, res: Response) {
       return;
     }
 
+    if (!Number.isInteger(wagerAmount)) {
+      res.status(400).json({message: 'Wager amount must be a whole number'});
+      return;
+    }
+
     // check user's balance
     const userInfo = await USER.findOne({_id: userId});
 
@@ -431,6 +438,23 @@ export async function create_a_lobby(req: Request, res: Response) {
           {session}
         );
 
+        // create a new transaction entry
+        await TRANSACTION.create(
+          [
+            {
+              amount: wagerAmount,
+              description: 'Moved money to escrow',
+              fee: 0,
+              ref: uuidV4(),
+              status: 'completed',
+              total: wagerAmount,
+              type: 'withdrawal',
+              userId: userId,
+            },
+          ],
+          {session}
+        );
+
         // create a new lobby
         const lobbyCode = await generate_lobby_code();
 
@@ -453,6 +477,7 @@ export async function create_a_lobby(req: Request, res: Response) {
             {
               lobbyId: lobbyInfo[0]._id,
               totalAmount: wagerAmount,
+              playersThatHavePaid: [userId],
             },
           ],
           {session}
@@ -547,6 +572,23 @@ export async function join_lobby(req: Request, res: Response) {
           {session}
         );
 
+        // create a new transaction entry
+        await TRANSACTION.create(
+          [
+            {
+              amount: lobbyInfo.wagerAmount,
+              description: 'Moved money to escrow',
+              fee: 0,
+              ref: uuidV4(),
+              status: 'completed',
+              total: lobbyInfo.wagerAmount,
+              type: 'withdrawal',
+              userId: userId,
+            },
+          ],
+          {session}
+        );
+
         // update the lobby
         await LOBBY.updateOne(
           {code: lobbyCode, active: true},
@@ -555,10 +597,13 @@ export async function join_lobby(req: Request, res: Response) {
         );
 
         // update escrow
-        await ESCROW.updateOne(
+        await ESCROW.findOneAndUpdate(
           {lobbyId: lobbyInfo._id},
-          {$inc: {totalAmount: lobbyInfo.wagerAmount}},
-          {session}
+          {
+            $inc: {totalAmount: lobbyInfo.wagerAmount},
+            $push: {playersThatHavePaid: userId},
+          },
+          {session, sort: {createdAt: -1}} // updates the newest escrow record
         );
 
         await session.commitTransaction();
@@ -620,6 +665,419 @@ export async function see_who_i_referred(req: Request, res: Response) {
     const referrals = await REFERRAL.aggregate(pipeline);
 
     res.status(200).json({message: 'Success', data: referrals});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function get_active_lobbies_i_am_in(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+
+    const lobbies = await LOBBY.find({
+      participants: {$in: userId},
+      active: true,
+    });
+
+    res
+      .status(200)
+      .json({message: 'Lobbies retrieved successfully', data: lobbies});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+// request made from the server
+export async function start_game(req: Request, res: Response) {
+  try {
+    const {lobbyId} = req.body.data;
+
+    if (!isValidObjectId(lobbyId)) {
+      res.status(400).json({message: 'Invalid lobby Id'});
+      return;
+    }
+
+    // no of escrows needs to match the no of games played projected
+    const lobbyInfo = await LOBBY.findOne({_id: lobbyId});
+
+    if (lobbyInfo === null) {
+      res.status(404).json({message: 'No lobby found for the given Id'});
+      return;
+    }
+
+    // count escrows
+    const noOfEscrows = await ESCROW.countDocuments({lobbyId});
+
+    // there needs to be an escrow for the new game
+    if (noOfEscrows !== lobbyInfo.noOfGamesPlayed + 1) {
+      res.status(400).json({
+        message:
+          'Invalid request, please try to replay the game properly to create an escrow payment and try again',
+      });
+      return;
+    }
+
+    // update the number of games playes
+    await LOBBY.updateOne({_id: lobbyId}, {$inc: {noOfGamesPlayed: 1}});
+
+    res.status(200).json({message: 'Game started successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function replay_game(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    const {lobbyId} = req.body;
+
+    const userInfo = await USER.findOne({_id: userId});
+
+    if (userInfo === null) {
+      res.status(401).json({
+        message:
+          'Something went wrong while verifying your account, please logged back in',
+      });
+      return;
+    }
+
+    // check lobby
+    if (!isValidObjectId(lobbyId)) {
+      res.status(400).json({message: 'Invalid lobby Id'});
+      return;
+    }
+
+    const lobbyInfo = await LOBBY.findOne({_id: lobbyId});
+
+    if (lobbyInfo === null) {
+      res.status(404).json({message: 'No lobby found for the given Id'});
+      return;
+    }
+
+    // check that user is a participant in the lobby
+    if (
+      !lobbyInfo.participants
+        .map(x => x.toString())
+        .includes(userInfo._id.toString())
+    ) {
+      res.status(400).json({
+        message: 'You can not replay a game in a lobby you are not a part of',
+      });
+      return;
+    }
+
+    // check user's balance
+    if (userInfo.walletBalance < lobbyInfo.wagerAmount) {
+      res
+        .status(400)
+        .json({message: 'You do not have enough funds to replay this game'});
+      return;
+    }
+
+    const escrowCount = await ESCROW.countDocuments({lobbyId});
+
+    // check that I have not attempted to replay already
+    if (escrowCount > lobbyInfo.noOfGamesPlayed) {
+      const latestEscrow = await ESCROW.findOne(
+        {lobbyId},
+        {},
+        {sort: {createdAt: -1}}
+      );
+
+      if (latestEscrow === null) {
+        Sentry.addBreadcrumb({
+          category: 'game',
+          data: {lobbyId, userId},
+          level: 'error',
+        });
+
+        Sentry.captureMessage(
+          'While a user was trying to replay a game, the system could not find any escrow payment',
+          {level: 'error'}
+        );
+        res.status(500).json({message: 'Something went wrong'});
+        return;
+      }
+
+      if (
+        latestEscrow.playersThatHavePaid
+          .map(x => x.toString())
+          .includes(userInfo._id.toString())
+      ) {
+        res.status(400).json({
+          message:
+            'You have already attempted to replay, please wait for the other user to confirm',
+        });
+        return;
+      }
+    }
+
+    const session = await mongoose.startSession({
+      defaultTransactionOptions: {
+        writeConcern: {w: 'majority'},
+        readConcern: {level: 'majority'},
+      },
+    });
+
+    await session.withTransaction(async session => {
+      try {
+        // deduct the wager amount from the user's wallet
+        await USER.updateOne(
+          {_id: userId},
+          {$inc: {walletBalance: -lobbyInfo.wagerAmount}},
+          {session}
+        );
+
+        // create a new transaction entry
+        await TRANSACTION.create(
+          [
+            {
+              amount: lobbyInfo.wagerAmount,
+              description: 'Moved money to escrow',
+              fee: 0,
+              ref: uuidV4(),
+              status: 'completed',
+              total: lobbyInfo.wagerAmount,
+              type: 'withdrawal',
+              userId: userId,
+            },
+          ],
+          {session}
+        );
+
+        // if there are more escrows the other person has clicked replay
+        if (escrowCount > lobbyInfo.noOfGamesPlayed) {
+          await ESCROW.findOneAndUpdate(
+            {lobbyId: lobbyInfo._id},
+            {
+              $inc: {totalAmount: lobbyInfo.wagerAmount},
+              $push: {playersThatHavePaid: userId},
+            },
+            {session, sort: {createdAt: -1}} // updates the newest escrow record
+          );
+        } else if (escrowCount === lobbyInfo.noOfGamesPlayed) {
+          await ESCROW.create(
+            [
+              {
+                lobbyId: lobbyInfo._id,
+                totalAmount: lobbyInfo.wagerAmount,
+                playersThatHavePaid: [userId],
+              },
+            ],
+            {session}
+          );
+        } else {
+          Sentry.addBreadcrumb({
+            category: 'game',
+            data: {lobbyId, userId},
+            level: 'error',
+          });
+
+          Sentry.captureMessage(
+            "While handling a user replay_game request, the number of escrows was less than the number of games played which shouldn't be possible",
+            {level: 'error'}
+          );
+
+          throw Error('Something went wrong');
+        }
+
+        await session.commitTransaction();
+
+        res.status(200).json({
+          message: 'Success, wait for the other user(s) to replay',
+        });
+      } catch (error) {
+        await session.abortTransaction();
+        throw error;
+      } finally {
+        await session.endSession();
+      }
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+// request made from the server
+export async function cancel_game(req: Request, res: Response) {
+  try {
+    const {userWhoCancelledId, lobbyId} = req.body.data;
+
+    if (!isValidObjectId(userWhoCancelledId) || !isValidObjectId(lobbyId)) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    // check if user who cancelled is in lobby
+    const lobbyInfo = await LOBBY.findOne({_id: lobbyId});
+
+    if (lobbyInfo === null) {
+      res.status(400).json({message: 'No lobby found for given Id'});
+      return;
+    }
+
+    if (
+      !lobbyInfo.participants
+        .map(x => x.toString())
+        .includes(userWhoCancelledId.toString())
+    ) {
+      res
+        .status(400)
+        .json({message: 'This user is not a member of the provided lobby'});
+      return;
+    }
+
+    // check latest escrow from lobby
+    const latestEscrow = await ESCROW.findOne(
+      {lobbyId},
+      {},
+      {sort: {createdAt: -1}}
+    );
+
+    if (latestEscrow === null) {
+      Sentry.addBreadcrumb({
+        category: 'game',
+        data: {lobbyId, userWhoCancelledId},
+        level: 'error',
+      });
+
+      Sentry.captureMessage(
+        'While the game server was cancelling a game, the system could not find any escrow payment',
+        {level: 'error'}
+      );
+      res.status(500).json({message: 'Something went wrong'});
+      return;
+    }
+
+    if (latestEscrow.paidOut) {
+      res
+        .status(200)
+        .json({message: 'Escrow has already been paid out to the winner'});
+      return;
+    }
+
+    const session = await mongoose.startSession({
+      defaultTransactionOptions: {
+        writeConcern: {w: 'majority'},
+        readConcern: {level: 'majority'},
+      },
+    });
+
+    await session.withTransaction(async session => {
+      try {
+        const escrowCount = await ESCROW.countDocuments({lobbyId});
+
+        // check if both of them have paid and if they have started the game
+        if (
+          lobbyInfo.participants.length ===
+            latestEscrow.playersThatHavePaid.length &&
+          lobbyInfo.noOfGamesPlayed === escrowCount
+        ) {
+          const otherUsers = latestEscrow.playersThatHavePaid.filter(
+            x => x.toString() !== userWhoCancelledId.toString()
+          );
+
+          const amountToCredit = Math.floor(
+            latestEscrow.totalAmount / otherUsers.length
+          );
+
+          // TODO: add a transaction record
+          // TODO: to be paid to skyboard
+          const difference =
+            latestEscrow.totalAmount - amountToCredit * otherUsers.length;
+          console.log('This should be paid to the admin', difference);
+
+          await USER.updateMany(
+            {_id: {$in: otherUsers}},
+            {$inc: {walletBalance: amountToCredit}},
+            {session}
+          );
+
+          // create new transactions
+          await TRANSACTION.create(
+            otherUsers.map(x => ({
+              amount: amountToCredit,
+              description: 'Earnings from game',
+              fee: 0,
+              ref: uuidV4(),
+              status: 'completed',
+              total: amountToCredit,
+              type: 'deposit',
+              userId: x._id,
+            })),
+            {session}
+          );
+
+          await LOBBY.updateOne(
+            {_id: lobbyId},
+            {$push: {winners: otherUsers}},
+            {session}
+          );
+        } else if (
+          lobbyInfo.participants.length ===
+            latestEscrow.playersThatHavePaid.length &&
+          lobbyInfo.noOfGamesPlayed < escrowCount
+        ) {
+          // refund everybody in the latestEscrow.playersThatHavePaid
+          await USER.updateMany(
+            {_id: {$in: latestEscrow.playersThatHavePaid}},
+            {$inc: {walletBalance: lobbyInfo.wagerAmount}},
+            {session}
+          );
+
+          // create new transactions
+          await TRANSACTION.create(
+            latestEscrow.playersThatHavePaid.map(x => ({
+              amount: lobbyInfo.wagerAmount,
+              description: 'Refund from game',
+              fee: 0,
+              ref: uuidV4(),
+              status: 'completed',
+              total: lobbyInfo.wagerAmount,
+              type: 'deposit',
+              userId: x._id,
+            })),
+            {session}
+          );
+        } else {
+          Sentry.addBreadcrumb({
+            category: 'game',
+            data: {lobbyId, userWhoCancelledId},
+            level: 'error',
+          });
+
+          Sentry.captureMessage(
+            'while cancelling a game an unhandled condition was met',
+            {level: 'error'}
+          );
+
+          throw Error('Something went wrong');
+        }
+
+        // update escrow as paid out
+        await ESCROW.updateOne(
+          {_id: latestEscrow._id},
+          {$set: {paidOut: true}},
+          {session}
+        );
+
+        // update the lobby as inactive, just to keep things simple
+        await LOBBY.updateOne(
+          {_id: lobbyId},
+          {$set: {active: false}},
+          {session}
+        );
+
+        await session.commitTransaction();
+        res.status(200).json({message: 'Game cancelled successfully'});
+      } catch (error) {
+        await session.abortTransaction();
+
+        throw error;
+      } finally {
+        await session.endSession();
+      }
+    });
   } catch (error) {
     handle_error(error, res);
   }

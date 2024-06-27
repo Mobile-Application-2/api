@@ -17,6 +17,15 @@ const escrowSchema = new mongoose.Schema(
       required: [true, 'Total amount is required'],
       min: [0, 'Total amount must be at least 0'],
     },
+    playersThatHavePaid: {
+      type: [mongoose.Schema.Types.ObjectId],
+      default: [],
+    },
+    // this shows if this escrow is still active or not
+    paidOut: {
+      type: Boolean,
+      default: false,
+    },
   },
   {timestamps: true}
 );

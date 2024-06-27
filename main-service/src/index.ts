@@ -34,10 +34,7 @@ import {
 import path from 'node:path';
 import {rate_limit_api} from './middlewares/ratelimiter.middleware';
 import amqplib from 'amqplib';
-import {
-  handle_game_started,
-  handle_game_won,
-} from './controllers/msg-queue.controller';
+import {handle_game_won} from './controllers/msg-queue.controller';
 
 const app = express();
 
@@ -119,7 +116,6 @@ async function main() {
   });
 
   const queuesAndHandlers = {
-    'game-info-start': handle_game_started,
     'game-info-win': handle_game_won,
   };
 

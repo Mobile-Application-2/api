@@ -1,5 +1,5 @@
 import {Router} from 'express';
-import {is_logged_in} from '../middlewares/auth.middleware';
+import {is_game_server, is_logged_in} from '../middlewares/auth.middleware';
 import {
   create_a_ticket,
   get_notifications,
@@ -15,6 +15,10 @@ import {
   create_a_lobby,
   join_lobby,
   see_who_i_referred,
+  get_active_lobbies_i_am_in,
+  start_game,
+  replay_game,
+  cancel_game,
 } from '../controllers/main.controller';
 const router = Router();
 
@@ -31,6 +35,8 @@ router.get('/game/:gameId', is_logged_in, get_game);
 
 router.get('/referrals', is_logged_in, see_who_i_referred);
 
+router.get('/mylobbies', is_logged_in, get_active_lobbies_i_am_in);
+
 router.post('/waitlist', join_waitlist);
 
 router.post('/contact', is_logged_in, create_a_ticket);
@@ -42,6 +48,13 @@ router.post('/rating', is_logged_in, rate_a_game);
 router.post('/create-lobby', is_logged_in, create_a_lobby);
 
 router.post('/join-lobby', is_logged_in, join_lobby);
+
+// this going to come from the game server
+router.patch('/game/start', is_game_server, start_game);
+
+router.patch('/game/cancel', is_game_server, cancel_game);
+
+router.patch('/game/replay', is_logged_in, replay_game);
 
 router.delete('/notification/:id', is_logged_in, delete_notification);
 

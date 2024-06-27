@@ -25,7 +25,7 @@ const lobbySchema = new mongoose.Schema(
       type: [mongoose.Schema.Types.ObjectId],
       ref: 'user',
     },
-    // might need a new collection for this
+    // might need a new collection for this, and the count here may not match the no of games played because of cancellation in a 3 and above player game
     winners: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: 'user',

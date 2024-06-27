@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import {isValidObjectId} from 'mongoose';
 import {Socket} from 'socket.io';
 import redisClient from '../utils/redis';
+import crypto from 'node:crypto';
 
 export function process_token(token: string | undefined) {
   if (typeof token === 'undefined' || token.length === 0) {
@@ -48,5 +49,31 @@ export async function is_authorized_socket(socket: Socket): Promise<Boolean> {
     return true;
   } catch (error) {
     return false;
+  }
+}
+
+export async function is_game_server(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const {data, hash} = req.body;
+
+    // rehash and compare
+    const calculatedHash = crypto
+      .createHmac('sha512', process.env.GAME_SERVER_KEY as string)
+      .update(JSON.stringify(data))
+      .digest('hex');
+
+    if (hash !== calculatedHash) {
+      res.status(401).json({message: 'Access Denied'});
+      return;
+    }
+
+    next();
+  } catch (error) {
+    // sentry already captures all errors;
+    res.status(401).json({message: 'Access Denied'});
   }
 }
