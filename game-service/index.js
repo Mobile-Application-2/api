@@ -11,6 +11,9 @@ import Chess from './chess/Chess.js';
 import Snooker from "./snooker/Snooker.js"
 import Scrabble from './scrabble/Scrabble.js';
 
+import LOBBY from "./models/lobby.model.js"
+import GAME from "./models/game.model.js"
+
 const app = express();
 
 const server = createServer(app);
@@ -25,6 +28,7 @@ const io = new Server(server, {
 
 let active = [
     {
+        userID: '',
         socketID: ''
     }
 ]
@@ -45,10 +49,10 @@ io.on('connection', (socket) => {
     console.log("user connected to general namespace");
 
     active.push({
-        socketID: socket.id
+        socketID: socket.id,
     });
 
-    io.emit('get_active', active);
+    // io.emit('get_active', active);
 
     console.log(active);
 
@@ -66,6 +70,54 @@ io.on('connection', (socket) => {
     //     // socket.emit('get_active', active.filter(obj => obj.socketID != socket.id));
     //     io.emit('get_active', active.filter(obj => obj.socketID != socket.id));
     // })
+
+    socket.on('lobby-created', (userID) => {
+        const activeUser = active.find(activeUser => activeUser.socketID == socket.id);
+
+        activeUser.userID = userID;
+
+        console.log("updated active", active);
+
+        io.emit('get_active', active);
+    })
+
+    socket.on('lobby-joined', async (userID, lobbyCode, cb) => {
+        const activeUser = active.find(activeUser => activeUser.socketID == socket.id);
+
+        activeUser.userID = userID;
+
+        console.log("updated active", active);
+
+        io.emit('get_active', active);
+
+        const lobby = await LOBBY.findOne({code: lobbyCode});
+
+        const creatorID = lobby.toObject().creatorId;
+
+        const gameID = lobby.toObject().gameId;
+
+        const game = await GAME.findById(gameID);
+
+        const gameName = game.toObject().name;
+
+        const opponentToNotify = active.find(activeUser => {
+            console.log(activeUser.userID, creatorID.toString());
+
+            return activeUser.userID == creatorID.toString();
+        });
+
+        if(opponentToNotify) {
+            io.to(opponentToNotify.socketID).emit('opponent-joined-lobby', creatorID, gameName, lobbyCode);
+    
+            cb({
+                gameName: gameName
+            })
+        }
+    })
+
+    // socket.on('ready', lobbyCode => {
+    //     io.emit
+    // });
 
     socket.on('created', (gameID, userID, roomID) => {
         console.log("lobby created");
