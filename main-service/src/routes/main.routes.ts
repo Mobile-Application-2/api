@@ -52,6 +52,7 @@ router.post('/join-lobby', is_logged_in, join_lobby);
 // this going to come from the game server
 router.patch('/game/start', is_game_server, start_game);
 
+// this going to come from the game server
 router.patch('/game/cancel', is_game_server, cancel_game);
 
 router.patch('/game/replay', is_logged_in, replay_game);

@@ -58,12 +58,18 @@ export async function is_game_server(
   next: NextFunction
 ) {
   try {
-    const {data, hash} = req.body;
+    const data = req.body;
+    const hash = req.headers['skyboard-request-hash'];
+
+    if (typeof data !== 'object' || !hash) {
+      res.status(401).json({message: 'Access Denied'});
+      return;
+    }
 
     // rehash and compare
     const calculatedHash = crypto
       .createHmac('sha512', process.env.GAME_SERVER_KEY as string)
-      .update(JSON.stringify(data))
+      .update(JSON.stringify(data, null, 0))
       .digest('hex');
 
     if (hash !== calculatedHash) {

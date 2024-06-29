@@ -690,7 +690,7 @@ export async function get_active_lobbies_i_am_in(req: Request, res: Response) {
 // request made from the server
 export async function start_game(req: Request, res: Response) {
   try {
-    const {lobbyId} = req.body.data;
+    const {lobbyId} = req.body;
 
     if (!isValidObjectId(lobbyId)) {
       res.status(400).json({message: 'Invalid lobby Id'});
@@ -698,10 +698,10 @@ export async function start_game(req: Request, res: Response) {
     }
 
     // no of escrows needs to match the no of games played projected
-    const lobbyInfo = await LOBBY.findOne({_id: lobbyId});
+    const lobbyInfo = await LOBBY.findOne({_id: lobbyId, active: true});
 
     if (lobbyInfo === null) {
-      res.status(404).json({message: 'No lobby found for the given Id'});
+      res.status(404).json({message: 'No active lobby found for the given Id'});
       return;
     }
 
@@ -747,10 +747,10 @@ export async function replay_game(req: Request, res: Response) {
       return;
     }
 
-    const lobbyInfo = await LOBBY.findOne({_id: lobbyId});
+    const lobbyInfo = await LOBBY.findOne({_id: lobbyId, active: true});
 
     if (lobbyInfo === null) {
-      res.status(404).json({message: 'No lobby found for the given Id'});
+      res.status(404).json({message: 'No active lobby found for the given Id'});
       return;
     }
 
@@ -796,6 +796,14 @@ export async function replay_game(req: Request, res: Response) {
           {level: 'error'}
         );
         res.status(500).json({message: 'Something went wrong'});
+        return;
+      }
+
+      // you guys have not started the game yet
+      if (escrowCount === 1) {
+        res.status(400).json({
+          message: 'Please play the first game before attempting to replay',
+        });
         return;
       }
 
@@ -901,18 +909,19 @@ export async function replay_game(req: Request, res: Response) {
 // request made from the server
 export async function cancel_game(req: Request, res: Response) {
   try {
-    const {userWhoCancelledId, lobbyId} = req.body.data;
+    const {userWhoCancelledId, lobbyId} = req.body;
 
     if (!isValidObjectId(userWhoCancelledId) || !isValidObjectId(lobbyId)) {
       res.status(400).json({message: 'Invalid request'});
       return;
     }
 
-    // check if user who cancelled is in lobby
+    // check if user who cancelled is in lobby, in this case I don't need to check if lobby is active
+    // as the escrow payout will block multiple request from passing
     const lobbyInfo = await LOBBY.findOne({_id: lobbyId});
 
     if (lobbyInfo === null) {
-      res.status(400).json({message: 'No lobby found for given Id'});
+      res.status(400).json({message: 'No active lobby found for given Id'});
       return;
     }
 
@@ -982,7 +991,7 @@ export async function cancel_game(req: Request, res: Response) {
           );
 
           // TODO: add a transaction record
-          // TODO: to be paid to skyboard
+          // TODO: to be paid to skyboard if more than 0
           const difference =
             latestEscrow.totalAmount - amountToCredit * otherUsers.length;
           console.log('This should be paid to the admin', difference);
