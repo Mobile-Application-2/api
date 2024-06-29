@@ -7,11 +7,6 @@ const escrowSchema = new mongoose.Schema(
       ref: 'lobby',
       required: [true, 'Lobby ID is required'],
     },
-    status: {
-      type: String,
-      enum: ['pending', 'completed', 'cancelled'],
-      default: 'pending',
-    },
     totalAmount: {
       type: Number,
       required: [true, 'Total amount is required'],
