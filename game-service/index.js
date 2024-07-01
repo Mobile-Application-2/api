@@ -52,7 +52,7 @@ io.on('connection', (socket) => {
         socketID: socket.id,
     });
 
-    // io.emit('get_active', active);
+    io.emit('get_active', active);
 
     console.log(active);
 
@@ -180,7 +180,7 @@ ludoNamespace.on('connection', socket => {
         Ludo.declareWinner(roomID, socket.id);
     })
 
-    socket.on("create_room", (roomID, setup) => {
+    socket.on("create_room", (roomID, setup, username, avatar) => {
         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
             console.log("room found");
 
@@ -189,13 +189,22 @@ ludoNamespace.on('connection', socket => {
             const currentRoomObject = ludoRooms.filter(roomObject => roomObject.roomID == roomID)[0];
 
             currentRoomObject.players.push({
-                username: '',
-                socketID: socket.id
+                username: username,
+                socketID: socket.id,
+                avatar: avatar
             })
             
             socket.emit("already_created", currentRoomObject.setup);
 
-            Ludo.addPlayerToDB(roomID, socket.id);
+            Ludo.addPlayerToDB(roomID, socket.id, username);
+
+            let playerOneInfo = currentRoomObject.players[0];
+            let playerTwoInfo = currentRoomObject.players[1];
+
+            // playerOneInfo.socketID = undefined;
+            // playerTwoInfo.socketID = undefined;
+
+            ludoNamespace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo)
         }
         else {
             console.log("creating room");
@@ -203,9 +212,9 @@ ludoNamespace.on('connection', socket => {
     
             console.log(roomID);
     
-            Ludo.addRoom(roomID, setup, ludoRooms, socket.id);
+            Ludo.addRoom(roomID, setup, ludoRooms, socket.id, username, avatar);
     
-            Ludo.addPlayerToDB(roomID, socket.id);
+            Ludo.addPlayerToDB(roomID, socket.id, username);
     
             socket.emit('created_room');
         }

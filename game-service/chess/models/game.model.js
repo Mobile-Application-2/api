@@ -14,6 +14,10 @@ const GameSchema = new Schema({
             winner: {
                 type: Boolean,
                 required: false
+            },
+            userID: {
+                type: String,
+                required: false
             }
         }
     ],

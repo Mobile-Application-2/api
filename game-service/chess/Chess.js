@@ -29,9 +29,9 @@ export default class Chess {
             console.log("user connected to chess server");
             // TODO: reconnect player to game if disconnected and game still on
 
-            socket.once('create_game', (roomID) => this.createGame(socket, roomID))
+            socket.once('create_game', (roomID, state) => this.createGame(socket, roomID, state))
 
-            socket.on('join_game', (roomID) => this.joinGame(chessNameSpace, socket, roomID));
+            socket.on('join_game', (roomID, state) => this.joinGame(chessNameSpace, socket, roomID, state));
 
             socket.on('turn_played', (roomID, indexClicked, newPosition, callback) => {
                 callback({
@@ -106,6 +106,8 @@ export default class Chess {
     static async createGame(socket, roomID, state) {
         socket.join(roomID);
 
+        console.log("state on room create", state);
+
         const game = await GameModel.findOne({roomID: roomID})
 
         if(game != null) {
@@ -118,8 +120,8 @@ export default class Chess {
             game_name: "chess",
             players: [
                 {
-                    username: 'test',
-                    socketID: socket.id
+                    username: state.username,
+                    socketID: socket.id,
                 }
             ],
             roomID: roomID
@@ -132,8 +134,9 @@ export default class Chess {
             state: state,
             players: [
                 {
-                    username: 'test',
-                    socketID: socket.id
+                    username: state.username,
+                    socketID: socket.id,
+                    avatar: state.avatar
                 }
             ]
         });
@@ -156,19 +159,22 @@ export default class Chess {
             }
             else {
                 socket.join(roomID);
+
+                console.log("state on room join", state);
         
                 await GameModel.updateOne({roomID: roomID}, {
                     $push: {
                         players: {
-                            username: 'test',
+                            username: state.username,
                             socketID: socket.id,
                         }
                     }
                 })
     
                 this.rooms.filter(room => room.roomID == roomID)[0].players.push({
-                    username: 'test',
-                    socketID: socket.id
+                    username: state.username,
+                    socketID: socket.id,
+                    avatar: state.avatar
                 })
     
                 const currentGameState = this.rooms.filter(room => room.roomID == roomID)[0].state;
@@ -177,7 +183,21 @@ export default class Chess {
     
                 socket.emit('joined_game', currentGameState);
 
-                chessNameSpace.to(roomID).emit('start_game');
+                const playerOneInfo = this.rooms.filter(room => room.roomID == roomID)[0].players.find(playerObject => playerObject.socketID != socket.id);
+                const playerTwoInfo = this.rooms.filter(room => room.roomID == roomID)[0].players.find(playerObject => playerObject.socketID == socket.id);
+
+                if(!playerOneInfo || !playerTwoInfo) {
+                    console.log("cant get info");
+
+                    return
+                }
+
+                // playerOneInfo = playerOneInfo.map(info => {return {username: info.username, avatar: info.avatar}})
+                // playerTwoInfo = playerTwoInfo.map(info => {return {username: info.username, avatar: info.avatar}})
+                // playerOneInfo.socketID = undefined;
+                // playerTwoInfo.socketID = undefined;
+
+                chessNameSpace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo);
             }
         }
         else {

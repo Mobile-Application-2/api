@@ -1,14 +1,15 @@
 import GameModel from "./models/game.model.js";
 
 export default class Ludo {
-    static async addRoom(roomID, setup, ludoRooms, socketID) {
+    static async addRoom(roomID, setup, ludoRooms, socketID, username, avatar) {
         const roomObject = {
             roomID: roomID,
             setup: setup,
             players: [
                 {
-                    username: '',
+                    username: username,
                     socketID: socketID,
+                    avatar: avatar
                 }
             ]
         }
@@ -26,7 +27,7 @@ export default class Ludo {
         await gameModel.save();
     }
 
-    static async addPlayerToDB(roomID, socketID) {
+    static async addPlayerToDB(roomID, socketID, username) {
         // const currentGame = await GameModel.findOne({roomID: roomID});
 
         // console.log(currentGame.toObject());
@@ -43,7 +44,7 @@ export default class Ludo {
         await GameModel.updateOne({roomID: roomID}, {
             $push: {
                 players: {
-                    username: 'test',
+                    username: username,
                     socketID: socketID,
                 }
             }
