@@ -1,0 +1,22 @@
+name: Skyboard Staging CD Pipeline
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - name: Pull latest changes from github
+        run: cd ${{SECRETS.API_DIR}} && git checkout main && git pull
+
+      - name: Stop active container
+        run: cd ${{SECRETS.API_DIR}} && sudo docker compose stop
+
+      - name: Delete Old Docker containers and images
+        run: cd ${{SECRETS.API_DIR}} && sudo docker system prune -a -f
+
+      - name: Run Docker Container
+        run: cd ${{SECRETS.API_DIR}} && sudo docker compose up --build -d
