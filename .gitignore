@@ -4,3 +4,5 @@
 */.sentryclirc
 redis/dump.rdb
 .vscode/
+*.pem
+*.bash
