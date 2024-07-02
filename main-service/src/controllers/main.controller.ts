@@ -27,14 +27,181 @@ export async function search_users(req: Request, res: Response) {
       return;
     }
 
-    // fetch results based on only usernames
-    const users = await USER.find(
+    // shows fave game and no of wins
+    const pipeline: PipelineStage[] = [
       {
-        username: {$regex: searchQuery, $options: 'i'},
+        $match: {
+          username: {
+            $regex: searchQuery,
+            $options: 'i',
+          },
+        },
       },
-      {username: 1, avatar: 1, bio: 1},
-      {limit: 50}
-    );
+      {
+        $limit: 50,
+      },
+      {
+        $lookup: {
+          from: 'lobbies',
+          let: {
+            userId: '$_id',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ['$$userId', '$participants'],
+                },
+              },
+            },
+          ],
+          as: 'userLobbies',
+        },
+      },
+      {
+        $unwind: '$userLobbies',
+      },
+      {
+        $group: {
+          _id: {
+            userId: '$_id',
+            gameId: '$userLobbies.gameId',
+          },
+          count: {
+            $sum: 1,
+          },
+        },
+      },
+      {
+        $sort: {
+          count: -1,
+        },
+      },
+      {
+        $group: {
+          _id: '$_id.userId',
+          favoriteGame: {
+            $first: '$_id.gameId',
+          },
+          favoriteGameCount: {
+            $first: '$count',
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'lobbies',
+          let: {
+            userId: '$_id',
+            gameId: '$favoriteGame',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {
+                      $eq: ['$gameId', '$$gameId'],
+                    },
+                    {
+                      $in: ['$$userId', '$winners'],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'favoriteGameLobbies',
+        },
+      },
+      {
+        $unwind: {
+          path: '$favoriteGameLobbies',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          winCount: {
+            $size: {
+              $filter: {
+                input: {
+                  $ifNull: ['$favoriteGameLobbies.winners', []],
+                },
+                as: 'winner',
+                cond: {
+                  $eq: ['$$winner', '$_id'],
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $group: {
+          _id: '$_id',
+          favoriteGame: {
+            $first: '$favoriteGame',
+          },
+          favoriteGameCount: {
+            $first: '$favoriteGameCount',
+          },
+          totalWins: {
+            $sum: '$winCount',
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'games',
+          localField: 'favoriteGame',
+          foreignField: '_id',
+          as: 'favoriteGameInfo',
+        },
+      },
+      {
+        $addFields: {
+          favoriteGameInfo: {
+            $arrayElemAt: ['$favoriteGameInfo', 0],
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo',
+        },
+      },
+      {
+        $addFields: {
+          userInfo: {
+            $arrayElemAt: ['$userInfo', 0],
+          },
+        },
+      },
+      {
+        $addFields: {
+          username: '$userInfo.username',
+          bio: '$userInfo.bio',
+          avatar: '$userInfo.avatar',
+        },
+      },
+      {
+        $project: {
+          username: 1,
+          avatar: 1,
+          bio: 1,
+          favoriteGame: '$favoriteGameInfo',
+          favoriteGameCount: 1,
+          totalWins: 1,
+        },
+      },
+    ];
+
+    // fetch results based on only usernames
+    const users = await USER.aggregate(pipeline);
 
     res.status(200).json({message: 'Success', data: users});
   } catch (error) {

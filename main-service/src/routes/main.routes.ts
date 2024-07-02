@@ -24,7 +24,6 @@ import {
 } from '../controllers/main.controller';
 const router = Router();
 
-// TODO: update to show fave game and no of wins
 router.get('/search', is_logged_in, search_users);
 
 router.get('/notifications', is_logged_in, get_notifications);
