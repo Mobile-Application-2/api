@@ -30,7 +30,7 @@ router.get('/notifications', is_logged_in, get_notifications);
 
 router.get('/transactions', is_logged_in, get_transactions);
 
-router.get('/games', is_logged_in, get_games); // TODO: update to show no of players
+router.get('/games', is_logged_in, get_games);
 
 router.get('/game/:gameId', is_logged_in, get_game);
 

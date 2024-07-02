@@ -435,7 +435,45 @@ export async function join_waitlist(req: Request, res: Response) {
 
 export async function get_games(_: Request, res: Response) {
   try {
-    const games = await GAME.find();
+    // shows no of players of this game all time
+    const pipeline: PipelineStage[] = [
+      {
+        $lookup: {
+          from: 'lobbies',
+          localField: '_id',
+          foreignField: 'gameId',
+          as: 'lobbies',
+        },
+      },
+      {
+        $addFields: {
+          uniquePlayers: {
+            $reduce: {
+              input: '$lobbies.participants',
+              initialValue: [],
+              in: {
+                $setUnion: ['$$value', '$$this'],
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          totalNumberOfPlayers: {
+            $size: '$uniquePlayers',
+          },
+        },
+      },
+      {
+        $project: {
+          uniquePlayers: 0,
+          lobbies: 0,
+        },
+      },
+    ];
+
+    const games = await GAME.aggregate(pipeline);
 
     res.status(200).json({message: 'Success', data: games});
   } catch (error) {
