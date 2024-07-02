@@ -1091,3 +1091,122 @@ export async function cancel_game(req: Request, res: Response) {
     handle_error(error, res);
   }
 }
+
+export async function top_games(_: Request, res: Response) {
+  try {
+    const firstDayOfCurrentWeek = new Date(
+      new Date().setHours(0, 0, 0, 0) -
+        new Date().getDay() * 24 * 60 * 60 * 1000
+    );
+
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          createdAt: {
+            $gte: firstDayOfCurrentWeek,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: '$gameId',
+          totalPlays: {
+            $sum: 1,
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'games',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'gameInfo',
+        },
+      },
+      {
+        $addFields: {
+          gameInfo: {
+            $arrayElemAt: ['$gameInfo', 0],
+          },
+        },
+      },
+      {
+        $sort: {
+          total: -1,
+        },
+      },
+    ];
+
+    const topGames = await LOBBY.aggregate(pipeline);
+
+    res.status(200).json({message: 'Success', data: topGames});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function top_gamers(_: Request, res: Response) {
+  try {
+    const firstDayOfCurrentWeek = new Date(
+      new Date().setHours(0, 0, 0, 0) -
+        new Date().getDay() * 24 * 60 * 60 * 1000
+    );
+
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          createdAt: {
+            $gte: firstDayOfCurrentWeek,
+          },
+        },
+      },
+      {
+        $unwind: {
+          path: '$winners',
+        },
+      },
+      {
+        $group: {
+          _id: '$winners',
+          totalWins: {
+            $sum: 1,
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo',
+          pipeline: [
+            {
+              $project: {
+                username: 1,
+                avatar: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          userInfo: {
+            $arrayElemAt: ['$userInfo', 0],
+          },
+        },
+      },
+      {
+        $sort: {
+          total: -1,
+        },
+      },
+    ];
+
+    const topGamers = await LOBBY.aggregate(pipeline);
+
+    res.status(200).json({message: 'Success', data: topGamers});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}

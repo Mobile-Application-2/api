@@ -257,7 +257,7 @@ export async function login(req: Request, res: Response) {
       }
     }
 
-    const tokens = await create_tokens(user._id.toString());
+    const tokens = await create_tokens(user._id.toString(), user.isCelebrity);
 
     res.status(200).json({message: 'Login successful', data: {tokens, user}});
   } catch (error) {
