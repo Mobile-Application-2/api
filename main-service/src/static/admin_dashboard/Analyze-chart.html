@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Percentage Stake Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #chartContainer {
+            width: 90%;
+            margin: 10px auto;
+        }
+        canvas {
+            background-color: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="chartContainer">
+        <canvas id="stakeChart"></canvas>
+    </div>
+    <script>
+        const ctx = document.getElementById('stakeChart').getContext('2d');
+
+        // Generate random oscillating values
+        function generateRandomValues(num) {
+            const values = [];
+            for (let i = 0; i < num; i++) {
+                values.push(Math.abs(Math.sin(i + 1) * 100 + Math.random() * 10));
+            }
+            return values;
+        }
+
+        const xLabels = Array.from({ length: 10 }, (_, i) => (i + 1) * 1000);
+        const yValues = generateRandomValues(10);
+
+        // Create gradient colors for each bar
+        function createGradient(ctx, height, color1, color2) {
+            const gradient = ctx.createLinearGradient(0, 0, 0, height);
+            gradient.addColorStop(0, color1);
+            gradient.addColorStop(1, color2);
+            return gradient;
+        }
+
+        const barColors = yValues.map((_, i) => createGradient(ctx, 400, '#BD3193', '#9FCB3A'));
+
+        const stakeChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: xLabels, // Naira labels
+                datasets: [{
+                    label: 'Random Oscillating Values',
+                    data: yValues, // Example amounts
+                    backgroundColor: barColors,
+                    barThickness: 50
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Percentage Stake vs Amount',
+                        font: {
+                            family: 'Quantico',
+                            size: 20,
+                            weight: 'bold'
+                        },
+                        align: 'start',
+                        color: 'white',
+                        padding: {
+                            bottom: 20
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: 'white'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            display: true,
+                            color: 'white'
+                        },
+                        ticks: {
+                            color: 'white',
+                            stepSize: 10
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Quantico&display=swap" rel="stylesheet">
+</body>
+</html>

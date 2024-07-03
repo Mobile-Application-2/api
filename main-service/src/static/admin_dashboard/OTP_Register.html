@@ -1,0 +1,56 @@
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <link rel="icon" type="image/x-icon" href="asset/images/logo.png">
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">  
+      <link rel="stylesheet" href="asset/css/bootstrap.min.css">
+      <link rel="stylesheet" href="asset/css/main.css">
+      <link href='https://fonts.googleapis.com/css?family=Quantico' rel='stylesheet'>
+      <title>Document</title>
+  </head>
+  <body>
+              <!-- navbar -->
+              <nav class="navbar navbar-expand-lg  navbar-dark bg-transparent ">
+                  <div class="container">
+                              
+                    <!-- logo -->
+                    <a class="navbar-brand fs-4" href="#">
+                      <img src="asset/images/logo.png" class="logo"> 
+                      <span class="caption p-sm-0">SkyBoard</span>   
+                    </a>
+                           
+                   </div>
+  
+                </nav>
+                  
+                    <div class="p-3 contact-form">
+                       <h3>Verify  <span class="text-gradient">Email</span></h3>
+                       <p class="welcome">We’ve sent the OTP verification code to your email address. Check your email and enter the code below</p>
+                      <form action="signup_sucessfull.html" method="" >
+                          <div class="otp-form mx-2">
+                              <input type="text" maxlength="1" class="otp-input" id="digit1" oninput="moveFocus(1)">
+                              <input type="text" maxlength="1" class="otp-input" id="digit2" oninput="moveFocus(2)">
+                              <input type="text" maxlength="1" class="otp-input" id="digit3" oninput="moveFocus(3)">
+                              <input type="text" maxlength="1" class="otp-input" id="digit4" oninput="moveFocus(4)">
+                              <input type="text" maxlength="1" class="otp-input" id="digit5" oninput="moveFocus(5)">
+                          </div>
+                            
+                          <button type="submit">
+                            Continue   
+                            <svg xmlns="http://www.w3.org/2000/svg" width="25" height="24" viewBox="0 0 25 24" fill="none">
+                              <path d="M21.1475 12.3975L14.3975 19.1475C14.2909 19.2469 14.1498 19.301 14.0041 19.2984C13.8584 19.2958 13.7193 19.2368 13.6163 19.1337C13.5132 19.0307 13.4542 18.8916 13.4516 18.7459C13.449 18.6002 13.5031 18.4591 13.6025 18.3525L19.3916 12.5625H4.25C4.10082 12.5625 3.95774 12.5032 3.85225 12.3978C3.74676 12.2923 3.6875 12.1492 3.6875 12C3.6875 11.8508 3.74676 11.7077 3.85225 11.6023C3.95774 11.4968 4.10082 11.4375 4.25 11.4375H19.3916L13.6025 5.64751C13.5031 5.54088 13.449 5.39984 13.4516 5.25411C13.4542 5.10839 13.5132 4.96935 13.6163 4.86629C13.7193 4.76323 13.8584 4.7042 14.0041 4.70163C14.1498 4.69905 14.2909 4.75315 14.3975 4.85251L21.1475 11.6025C21.2528 11.708 21.312 11.8509 21.312 12C21.312 12.1491 21.2528 12.292 21.1475 12.3975Z" fill="white"/>
+                            </svg>
+                        </button>
+                        <div class="text-center  mt-4">
+                        <p class="welcome" style="margin: 0;">Didn’t receive email? </p>
+                        <p class="welcome" id="request_count" >You can resend code in <span class="text-purple" id="countdown">60s</span></p>
+                        <a href="#" id="resend-link" class="welcome"> <span class="text-purple">Resend code</span></a>                      
+                      </div>
+                      </form>
+  
+  
+    <script src="asset/js/script.js"></script>
+  </body>
+  </html> 

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revenue Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #chartContainer {
+            width: 80%;
+            margin:10px auto;
+        }
+        canvas {
+            background-color: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="chartContainer">
+        <canvas id="revenueChart"></canvas>
+    </div>
+    <script>
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+        const revenueChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                datasets: [
+                {
+                    label: 'Deposit',
+                    data: [20000, 25000, 15000, 14000, 17000, 15000, 16000, 18000, 13000, 15000, 24000, 20000],
+                    backgroundColor: '#BD3193',
+                    barThickness: 15
+                },
+                {
+                    label: 'withdrwal',
+                    data: [10000, 15000, 10000, 15000, 17000, 19000, 19500, 13000, 15000, 20000, 10000, 5000],
+                    backgroundColor: '#9FCC3B',
+                    barThickness: 15
+                }
+
+                ]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    },
+                    title: {
+                    display: true,
+                    text: 'Total Earning',
+                    font: {
+                        family: 'Quantico', // Font family
+                        size: 20, // Size for h5, adjust as needed
+                        weight: 'bold' // Bold text
+                    },
+                    align: 'start', // Align to the left
+                    color: 'white',
+                    padding: {
+                            bottom: 20 // Add padding to the bottom of the title
+                        }
+                }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: 'white'
+                        },
+                        categoryPercentage: 20, // Decrease this value to make more space between groups
+                        barPercentage: 1 // Adjust barPercentage for spacing within the group
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            display: true,
+                            color: 'white'
+                        },
+                        ticks: {
+                            color: 'white',
+                            stepSize: 5000 // Set scale to 1000 per 1 cm
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Quantico&display=swap" rel="stylesheet">
+</body>
+</html>

@@ -1,0 +1,35 @@
+{
+  "files": {
+    "main.css": "./static/css/main.d91ebd68.css",
+    "main.js": "./static/js/main.cc66fc70.js",
+    "static/js/453.3d5501c9.chunk.js": "./static/js/453.3d5501c9.chunk.js",
+    "static/media/SourceSans.ttf": "./static/media/SourceSans.f0bd6d1942b9ef5e8026.ttf",
+    "static/media/ludoGame.png": "./static/media/ludoGame.91f66a8f33d77e1a4f5f.png",
+    "static/media/dashboardCarousel1.png": "./static/media/dashboardCarousel1.77af12921cf8517845cc.png",
+    "static/media/dashboardCarousel4.png": "./static/media/dashboardCarousel4.122b8c2183b9c1d292e3.png",
+    "static/media/dashboardCarousel2.png": "./static/media/dashboardCarousel2.02667cbec49ea54bff72.png",
+    "static/media/dashboardCarousel3.png": "./static/media/dashboardCarousel3.2fb51e359e145f51d6a8.png",
+    "static/media/Poppins.ttf": "./static/media/Poppins.35d26b781dc5fda684cc.ttf",
+    "static/media/registerCarouselImg1.png": "./static/media/registerCarouselImg1.baaa94a29d9f40d76833.png",
+    "static/media/SnookerBoard.svg": "./static/media/SnookerBoard.a3fcf6efd5366017a1a344abf1c96296.svg",
+    "static/media/Faces.png": "./static/media/Faces.7833a41ddb8e78bacd2c.png",
+    "static/media/ChessGames.svg": "./static/media/ChessGames.f69010aa8c91cab2c952baa1b1b0b45d.svg",
+    "static/media/Ludotournament.png": "./static/media/Ludotournament.aa1c744390f67b105ed4.png",
+    "static/media/WhotGames.svg": "./static/media/WhotGames.789e813b9c48d88b5310d5e0187f7436.svg",
+    "static/media/ScrabbleGames.svg": "./static/media/ScrabbleGames.b8091875c7eef6a855eac78cfaf56396.svg",
+    "static/media/winnerImg.png": "./static/media/winnerImg.78677d7dee0d86e19c88.png",
+    "static/media/Quantico.ttf": "./static/media/Quantico.3faac7b366ab13616d56.ttf",
+    "static/media/VS.svg": "./static/media/VS.7dc962949bfc7243a2ceea462bf78bdb.svg",
+    "static/media/carouselleft.svg": "./static/media/carouselleft.7c1a910fb0a33eea6528.svg",
+    "index.html": "./index.html",
+    "static/media/carouselright.svg": "./static/media/carouselright.22ca743d6cefdb2a252c.svg",
+    "static/media/Active.svg": "./static/media/Active.04cf8d1955d357d60f61fc5842e31858.svg",
+    "main.d91ebd68.css.map": "./static/css/main.d91ebd68.css.map",
+    "main.cc66fc70.js.map": "./static/js/main.cc66fc70.js.map",
+    "453.3d5501c9.chunk.js.map": "./static/js/453.3d5501c9.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.d91ebd68.css",
+    "static/js/main.cc66fc70.js"
+  ]
+}

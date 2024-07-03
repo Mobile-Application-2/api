@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Satisfaction</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            color: white;
+        }
+        canvas {
+            display: block;
+            margin: auto;
+        }
+        .legend-container {
+            display: flex;
+            justify-content: space-evenly;
+            margin-top: 10px;
+            font-family: poppins;
+        }
+        .legend {
+            display: inline-block;
+            margin: 0 15px;
+            font-size: 12px;
+            text-align: center;
+        }
+        .legend span {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 5px;
+        }
+        .last-month {
+            background-color: rgba(189, 49, 147, 0.6);
+        }
+        .this-month {
+            background-color: rgba(159, 204, 59, 0.6);
+        }
+    </style>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+
+</head>
+<body>
+    <canvas id="customerSatisfactionChart" width="250" height="220"></canvas>
+    <div class="legend-container">
+        <div class="legend">
+            <span class="last-month"></span>
+            Last Month <br> 32.4%
+        </div>
+        <div class="legend">
+            <span class="this-month"></span>
+            This Month <br> 45.5%
+        </div>
+    </div>
+    <script>
+        const ctx = document.getElementById('customerSatisfactionChart').getContext('2d');
+        const customerSatisfactionChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                datasets: [
+                    {
+                        label: 'Last Month',
+                        data: [30, 45, 30, 35, 32, 30, 36, 30, 45, 30, 28, 30],
+                        backgroundColor: 'rgba(189, 49, 147, 0.6)',
+                        borderColor: 'rgba(189, 49, 147, 1)',
+                        fill: true,
+                        tension: 0.4,
+                    },
+                    {
+                        label: 'This Month',
+                        data: [35, 50, 35, 40, 35, 30, 35, 35, 50, 35, 40, 45],
+                        backgroundColor: 'rgba(159, 204, 59, 0.6)',
+                        borderColor: 'rgba(159, 204, 59, 1)',
+                        fill: true,
+                        tension: 0.4,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Customer Satisfaction',
+                        color: 'white',
+                        font: {
+                            family: 'Quantico',
+                            size: 16,
+                        }
+                    },
+                    legend: {
+                        display: false // Hide default legend
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false,
+                            color: 'white' // Color of the x-axis line
+                        },
+                        ticks: {
+                            color: 'white' // Color of the x-axis labels
+                        }
+                    },
+                    y: {
+                        display: false
+                    }
+                }
+            }
+        });
+    </script>
+        <link href="https://fonts.googleapis.com/css2?family=Quantico&display=swap" rel="stylesheet">
+</body>
+</html>
