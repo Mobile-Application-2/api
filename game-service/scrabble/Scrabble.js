@@ -10,6 +10,7 @@ export default class Scrabble {
             players: [{
                 username: '',
                 socketID: '',
+                avatar: ''
             }],
             bag: new Bag()
         }
@@ -35,7 +36,7 @@ export default class Scrabble {
 
             socket.once('create_game', (roomID) => this.createGame(socket, roomID))
 
-            socket.on('join_game', (roomID) => this.joinGame(scrabbleNameSpace, socket, roomID));
+            socket.on('join_game', (roomID, username, avatar) => this.joinGame(scrabbleNameSpace, socket, roomID, username, avatar));
 
             socket.on('update_state', (roomID, state) => {
                 const gameRoom = this.rooms.filter(room => room.roomID == roomID)[0];
@@ -61,7 +62,7 @@ export default class Scrabble {
         })
     }
 
-    static async createGame(socket, roomID) {
+    static async createGame(socket, roomID, username, avatar) {
         socket.join(roomID);
 
         const game = await GameModel.findOne({roomID: roomID})
@@ -76,7 +77,7 @@ export default class Scrabble {
             game_name: "scrabble",
             players: [
                 {
-                    username: 'test',
+                    username: username,
                     socketID: socket.id,
                     playerNumber: '0'
                 }
@@ -94,8 +95,9 @@ export default class Scrabble {
             roomID: roomID,
             players: [
                 {
-                    username: 'test',
-                    socketID: socket.id
+                    username: username,
+                    socketID: socket.id,
+                    avatar: avatar
                 }
             ],
             bag: scrabbleBag
@@ -106,7 +108,7 @@ export default class Scrabble {
         console.log("user created game");   
     }
 
-    static async joinGame(scrabbleNameSpace, socket, roomID) {
+    static async joinGame(scrabbleNameSpace, socket, roomID, username, avatar) {
         const gameRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
         if(gameRoom != undefined) {
@@ -123,7 +125,7 @@ export default class Scrabble {
                 await GameModel.updateOne({roomID: roomID}, {
                     $push: {
                         players: {
-                            username: 'test',
+                            username: username,
                             socketID: socket.id,
                             playerNumber: '1'
                         }
@@ -133,8 +135,9 @@ export default class Scrabble {
                 const room = this.rooms.filter(room => room.roomID == roomID)[0]
 
                 room.players.push({
-                    username: 'test',
-                    socketID: socket.id
+                    username: username,
+                    socketID: socket.id,
+                    avatar: avatar
                 })
     
                 console.log("user joined game");
@@ -143,11 +146,20 @@ export default class Scrabble {
 
                 socket.emit('joined_game', scrabbleBag);
 
-                scrabbleNameSpace.to(roomID).emit('start_game');
+                const playerOneInfo = this.rooms.filter(room => room.roomID == roomID)[0].players.find(playerObject => playerObject.socketID != socket.id);
+                const playerTwoInfo = this.rooms.filter(room => room.roomID == roomID)[0].players.find(playerObject => playerObject.socketID == socket.id);
+
+                if(!playerOneInfo || !playerTwoInfo) {
+                    console.log("player info not found");
+
+                    return;
+                }
+
+                scrabbleNameSpace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo);
             }
         }
         else {
-            this.createGame(socket, roomID);
+            this.createGame(socket, roomID, username, avatar);
         }
     }
 }
