@@ -38,7 +38,9 @@ router.get('/referrals', is_logged_in, see_who_i_referred);
 
 router.get('/mylobbies', is_logged_in, get_active_lobbies_i_am_in);
 
-// TODO: router.get('/top/competitions') // tournaments with most participants this week
+// TODO: router.get('/tournaments') // all tournaments still opening for registration sorted by participants, prize, space left, date, trending (those with most participants that were created this week) etc.
+
+// TODO: router.get('/tournaments/:tournamentId'); // get a tournament info
 
 router.get('/top/games', is_logged_in, top_games); // games with most number of current active lobbies (plays) in the last week
 

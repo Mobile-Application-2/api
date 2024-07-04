@@ -39,6 +39,13 @@ export function handle_error(error: any, res: Response): void {
     return;
   }
 
+  if (error.name === 'CastError') {
+    res
+      .status(400)
+      .json({message: 'One or more of the specified fields are invalid'});
+    return;
+  }
+
   // this particular error won't happen in production as mongoDB will be deployed using a replica set
   if (
     error.toString() ===

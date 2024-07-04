@@ -28,21 +28,6 @@ export function is_logged_in(req: Request, res: Response, next: NextFunction) {
   try {
     const token = req.headers.authorization?.split(' ')[1];
 
-    const {userId} = process_token(token as string);
-
-    req.userId = userId;
-
-    next();
-  } catch (error) {
-    // sentry already captures all errors;
-    res.status(401).json({message: 'Access Denied'});
-  }
-}
-
-export function is_celebrity(req: Request, res: Response, next: NextFunction) {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-
     const {userId, isCelebrity} = process_token(token as string);
 
     req.userId = userId;
@@ -53,6 +38,19 @@ export function is_celebrity(req: Request, res: Response, next: NextFunction) {
     // sentry already captures all errors;
     res.status(401).json({message: 'Access Denied'});
   }
+}
+
+export function is_celebrity(req: Request, res: Response, next: NextFunction) {
+  const {isCelebrity} = req;
+
+  if (!isCelebrity) {
+    res.status(401).json({
+      message: 'Access Denied, you need a celebrity account to proceed',
+    });
+    return;
+  }
+
+  next();
 }
 
 export async function is_authorized_socket(socket: Socket): Promise<Boolean> {
