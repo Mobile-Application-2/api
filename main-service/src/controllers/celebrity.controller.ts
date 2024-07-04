@@ -1,8 +1,13 @@
 import {Request, Response} from 'express';
 import {handle_error} from '../utils/handle-error';
 import TOURNAMENT from '../models/tournament.model';
-import {PipelineStage, isValidObjectId} from 'mongoose';
+import mongoose, {PipelineStage, isValidObjectId} from 'mongoose';
 import GAME from '../models/game.model';
+import USER from '../models/user.model';
+import TRANSACTION from '../models/transaction.model';
+import {v4 as uuidV4} from 'uuid';
+import TOURNAMENTESCROW from '../models/tournament-escrow.model';
+const ObjectId = mongoose.Types.ObjectId;
 
 export async function get_my_tournaments(req: Request, res: Response) {
   try {
@@ -51,9 +56,9 @@ export async function get_a_tournament(req: Request, res: Response) {
 export async function get_tournament_winners(req: Request, res: Response) {
   try {
     const {userId} = req;
-    const {tournamenId} = req.params;
+    const {tournamentId} = req.params;
 
-    if (!isValidObjectId(tournamenId)) {
+    if (!isValidObjectId(tournamentId)) {
       res.status(400).json({message: 'Invalid tournament id'});
       return;
     }
@@ -61,7 +66,7 @@ export async function get_tournament_winners(req: Request, res: Response) {
     // check that torunament exists
     const tournamentInfo = await TOURNAMENT.findOne({
       creatorId: userId,
-      _id: tournamenId,
+      _id: tournamentId,
     });
 
     if (!tournamentInfo) {
@@ -72,8 +77,8 @@ export async function get_tournament_winners(req: Request, res: Response) {
     const pipeline: PipelineStage[] = [
       {
         $match: {
-          creatorId: userId,
-          _id: tournamenId,
+          creatorId: new ObjectId(userId),
+          _id: new ObjectId(tournamentId),
         },
       },
       {
@@ -93,6 +98,13 @@ export async function get_tournament_winners(req: Request, res: Response) {
               },
             },
           ],
+        },
+      },
+      {
+        $addFields: {
+          winner: {
+            $arrayElemAt: ['$winner', 0],
+          },
         },
       },
       {
@@ -135,8 +147,8 @@ export async function get_tournament_participants(req: Request, res: Response) {
     const pipeline: PipelineStage[] = [
       {
         $match: {
-          creatorId: userId,
-          _id: tournamentId,
+          creatorId: new ObjectId(userId),
+          _id: new ObjectId(tournamentId),
         },
       },
       {
@@ -159,11 +171,20 @@ export async function get_tournament_participants(req: Request, res: Response) {
         },
       },
       {
+        $addFields: {
+          participant: {
+            $arrayElemAt: ['$participant', 0],
+          },
+        },
+      },
+      {
         $replaceRoot: {
           newRoot: '$participant',
         },
       },
     ];
+
+    console.log(JSON.stringify(pipeline));
 
     const participants = await TOURNAMENT.aggregate(pipeline);
 
@@ -265,6 +286,11 @@ export async function update_prizes_to_tournament(req: Request, res: Response) {
       return;
     }
 
+    if (tournamentInfo.prizes.length) {
+      res.status(400).json({message: 'Prizes have already been set'});
+      return;
+    }
+
     if (!prizes || !Array.isArray(prizes)) {
       res.status(400).json({message: 'Please provide valid prizes'});
       return;
@@ -286,27 +312,102 @@ export async function update_prizes_to_tournament(req: Request, res: Response) {
       return;
     }
 
-    const update = {
-      prizes,
-      isFullyCreated: false,
-    };
+    // check that I have this much money
+    const totalPrize = prizes.reduce((acc, prize) => acc + prize, 0);
 
-    // so the order doesn't matter
-    if (tournamentInfo.joiningCode) {
-      update['isFullyCreated'] = true;
+    const userInfo = await USER.findOne({_id: userId});
+
+    if (!userInfo) {
+      res.status(404).json({
+        message: 'There was a problem with your account, try to login again',
+      });
+      return;
     }
 
-    // update
-    await TOURNAMENT.updateOne(
-      {_id: tournamentId},
-      {
-        $set: {
-          update,
-        },
-      }
-    );
+    if (userInfo.walletBalance < totalPrize) {
+      res.status(400).json({
+        message: `Insufficient funds in your wallet to pay the winners, you need at least ${Math.round(totalPrize / 100).toFixed(2)} naira to pay the winners`,
+      });
+      return;
+    }
 
-    res.status(200).json({message: 'Prizes updated successfully'});
+    const session = await mongoose.startSession({
+      defaultTransactionOptions: {
+        writeConcern: {w: 'majority'},
+        readConcern: {level: 'majority'},
+      },
+    });
+
+    await session.withTransaction(async session => {
+      try {
+        // deduct the money from my wallet
+        await USER.updateOne(
+          {_id: userId},
+          {
+            $inc: {
+              walletBalance: -totalPrize,
+            },
+          },
+          {session}
+        );
+
+        // create a transaction
+        await TRANSACTION.create(
+          [
+            {
+              amount: totalPrize,
+              description: 'Moved money to escrow for tournament prize',
+              fee: 0,
+              ref: uuidV4(),
+              status: 'completed',
+              total: totalPrize,
+              type: 'withdrawal',
+              userId: userId,
+            },
+          ],
+          {session}
+        );
+
+        // create an escrow payment
+        await TOURNAMENTESCROW.create(
+          [
+            {
+              tournamentId: tournamentInfo._id,
+              totalAmount: totalPrize,
+              playersThatHavePaid: [userId],
+              isPrize: true,
+            },
+          ],
+          {session}
+        );
+
+        const update = {
+          prizes,
+          isFullyCreated: false,
+        };
+
+        // so the order doesn't matter
+        if (tournamentInfo.joiningCode) {
+          update['isFullyCreated'] = true;
+        }
+
+        // update
+        await TOURNAMENT.updateOne(
+          {_id: tournamentId},
+          {$set: update},
+          {session}
+        );
+
+        await session.commitTransaction();
+
+        res.status(200).json({message: 'Prizes updated successfully'});
+      } catch (error) {
+        await session.abortTransaction();
+        throw error;
+      } finally {
+        await session.endSession();
+      }
+    });
   } catch (error) {
     handle_error(error, res);
   }

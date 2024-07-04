@@ -21,6 +21,9 @@ import {
   cancel_game,
   top_games,
   top_gamers,
+  get_a_tournament_info,
+  see_all_tournaments,
+  join_tournament,
 } from '../controllers/main.controller';
 const router = Router();
 
@@ -38,9 +41,9 @@ router.get('/referrals', is_logged_in, see_who_i_referred);
 
 router.get('/mylobbies', is_logged_in, get_active_lobbies_i_am_in);
 
-// TODO: router.get('/tournaments') // all tournaments still opening for registration sorted by participants, prize, space left, date, trending (those with most participants that were created this week) etc.
+router.get('/tournaments', is_logged_in, see_all_tournaments);
 
-// TODO: router.get('/tournaments/:tournamentId'); // get a tournament info
+router.get('/tournament/:tournamentId', is_logged_in, get_a_tournament_info);
 
 router.get('/top/games', is_logged_in, top_games); // games with most number of current active lobbies (plays) in the last week
 
@@ -58,7 +61,7 @@ router.post('/create-lobby', is_logged_in, create_a_lobby);
 
 router.post('/join-lobby', is_logged_in, join_lobby);
 
-// TODO: router.post('/join-tournament') // join a tournament (pay entry fee)
+router.post('/join-tournament', is_logged_in, join_tournament);
 
 // TODO: router.patch('/tournament/lobby/:lobbyCode') // join a tournament's fixture/lobby no payment
 

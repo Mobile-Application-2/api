@@ -87,8 +87,6 @@ const tournamentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
-    // TODO:
     participants: {
       type: [mongoose.Types.ObjectId],
       default: [],

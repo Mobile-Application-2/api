@@ -17,6 +17,8 @@ import REFERRAL from '../models/referral.model';
 import * as Sentry from '@sentry/node';
 const ObjectId = mongoose.Types.ObjectId;
 import {v4 as uuidV4} from 'uuid';
+import TOURNAMENT from '../models/tournament.model';
+import TOURNAMENTESCROW from '../models/tournament-escrow.model';
 
 export async function search_users(req: Request, res: Response) {
   try {
@@ -1411,6 +1413,289 @@ export async function top_gamers(_: Request, res: Response) {
     const topGamers = await LOBBY.aggregate(pipeline);
 
     res.status(200).json({message: 'Success', data: topGamers});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function get_a_tournament_info(req: Request, res: Response) {
+  try {
+    const {tournamentId} = req.params;
+
+    if (!isValidObjectId(tournamentId)) {
+      res.status(400).json({message: 'Invalid tournament id'});
+      return;
+    }
+
+    const tournamentInfo = await TOURNAMENT.findOne(
+      {_id: tournamentId},
+      {winners: 0}
+    );
+
+    if (!tournamentInfo) {
+      res.status(404).json({message: 'Tournament not found'});
+      return;
+    }
+
+    res.status(200).json({message: 'Success', data: tournamentInfo});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function see_all_tournaments(req: Request, res: Response) {
+  try {
+    // all tournaments still open for registration sorted by participants, prize, date,
+    // trending (those with most participants that were created this week) etc.
+
+    const {pageNo, sortBy} = req.query;
+
+    const MAX_RESULTS = 250;
+    let currentPage;
+
+    if (typeof pageNo !== 'string' || isNaN(+pageNo) || +pageNo <= 0) {
+      currentPage = 1;
+    } else {
+      currentPage = Math.floor(+pageNo);
+    }
+
+    const skip = (currentPage - 1) * MAX_RESULTS;
+
+    let sortPipeline: PipelineStage[] = [];
+
+    if (sortBy === 'noOfParticipants') {
+      sortPipeline = [
+        {
+          $addFields: {
+            noOfParticipants: {
+              $size: '$participants',
+            },
+          },
+        },
+        {
+          $sort: {
+            noOfParticipants: -1,
+          },
+        },
+        {
+          $project: {
+            noOfParticipants: 0,
+          },
+        },
+      ];
+    } else if (sortBy === 'prize') {
+      sortPipeline = [
+        {
+          $addFields: {
+            maxPrize: {
+              $max: '$prizes',
+            },
+          },
+        },
+        {
+          $sort: {
+            maxPrize: -1,
+          },
+        },
+        {
+          $project: {
+            maxPrize: 0,
+          },
+        },
+      ];
+    } else if (sortBy === 'date') {
+      sortPipeline = [
+        {
+          $sort: {
+            createdAt: -1,
+          },
+        },
+      ];
+    } else if (sortBy === 'trending') {
+      const firstDayOfCurrentWeek = new Date(
+        new Date().setHours(0, 0, 0, 0) -
+          new Date().getDay() * 24 * 60 * 60 * 1000
+      );
+
+      sortPipeline = [
+        {
+          $match: {
+            createdAt: {
+              $gte: firstDayOfCurrentWeek,
+            },
+          },
+        },
+        {
+          $addFields: {
+            noOfParticipants: {
+              $size: '$participants',
+            },
+          },
+        },
+        {
+          $sort: {
+            noOfParticipants: -1,
+          },
+        },
+        {
+          $project: {
+            noOfParticipants: 0,
+          },
+        },
+      ];
+    }
+
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          isFullyCreated: true,
+          isActive: true,
+        },
+      },
+      ...sortPipeline,
+      {
+        $skip: skip,
+      },
+      {
+        $limit: MAX_RESULTS,
+      },
+    ];
+
+    const tournaments = await TOURNAMENT.aggregate(pipeline);
+
+    res.status(200).json({message: 'Success', data: tournaments});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function join_tournament(req: Request, res: Response) {
+  try {
+    const {joiningCode} = req.body;
+    const {userId} = req;
+
+    // join a tournament (pay entry fee)
+    if (typeof joiningCode !== 'string' || joiningCode.trim() === '') {
+      res.status(400).json({message: 'Invalid joining code'});
+      return;
+    }
+
+    const tournamentInfo = await TOURNAMENT.findOne({
+      joiningCode,
+      isActive: true,
+      isFullyCreated: true,
+    });
+
+    if (!tournamentInfo) {
+      res.status(404).json({message: 'Tournament not found'});
+      return;
+    }
+
+    // check if user is already in the tournament
+    if (
+      tournamentInfo.participants
+        .map(x => x.toString())
+        .includes(userId?.toString() as string)
+    ) {
+      res.status(400).json({message: 'You are already in this tournament'});
+      return;
+    }
+
+    // check user's balance if tournament has gateFee
+    if (
+      tournamentInfo.hasGateFee &&
+      tournamentInfo.gateFee &&
+      tournamentInfo.gateFee > 0
+    ) {
+      const userInfo = await USER.findOne({_id: userId});
+
+      if (!userInfo) {
+        res.status(404).json({
+          message: 'There was a problem with your account, try to login again',
+        });
+        return;
+      }
+
+      if (userInfo.walletBalance < tournamentInfo.gateFee) {
+        res.status(400).json({
+          message: `Insufficient balance, to join you need ${Math.round(tournamentInfo.gateFee / 100).toFixed(2)} naira`,
+        });
+        return;
+      }
+    }
+
+    const session = await mongoose.startSession({
+      defaultTransactionOptions: {
+        writeConcern: {w: 'majority'},
+        readConcern: {level: 'majority'},
+      },
+    });
+
+    await session.withTransaction(async session => {
+      try {
+        if (
+          tournamentInfo.hasGateFee &&
+          tournamentInfo.gateFee &&
+          tournamentInfo.gateFee > 0
+        ) {
+          // deduct the gate fee from the user's wallet
+          await USER.updateOne(
+            {_id: userId},
+            {$inc: {walletBalance: -tournamentInfo.gateFee}},
+            {session}
+          );
+
+          // create a new transaction entry
+          // TODO: this will go straight to the tournament creator when the tournament ends
+          await TRANSACTION.create(
+            [
+              {
+                amount: tournamentInfo.gateFee,
+                description: 'Moved money to escrow for tournament',
+                fee: 0,
+                ref: uuidV4(),
+                status: 'completed',
+                total: tournamentInfo.gateFee,
+                type: 'withdrawal',
+                userId: userId,
+              },
+            ],
+            {session}
+          );
+
+          // create a new escrow
+          await TOURNAMENTESCROW.create(
+            [
+              {
+                tournamentId: tournamentInfo._id,
+                totalAmount: tournamentInfo.gateFee,
+                playersThatHavePaid: [userId],
+              },
+            ],
+            {session}
+          );
+        }
+
+        // update the tournament
+        await TOURNAMENT.updateOne(
+          {_id: tournamentInfo._id},
+          {$push: {participants: userId}},
+          {session}
+        );
+
+        await session.commitTransaction();
+
+        res.status(200).json({
+          message: 'You have joined the tournament',
+          data: {joiningCode, _id: tournamentInfo._id},
+        });
+      } catch (error) {
+        await session.abortTransaction();
+        throw error;
+      } finally {
+        await session.endSession();
+      }
+    });
   } catch (error) {
     handle_error(error, res);
   }

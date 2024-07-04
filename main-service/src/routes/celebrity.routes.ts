@@ -20,8 +20,9 @@ router.get(
   get_a_tournament
 );
 
+// TODO: test this
 router.get(
-  '/tournament/:tournamenId/winners',
+  '/tournament/:tournamentId/winners',
   is_logged_in,
   is_celebrity,
   get_tournament_winners
@@ -29,6 +30,7 @@ router.get(
 
 // router.get('/tournaments/winners'); // TODO: players with most win all time for my tournaments
 
+// TODO: test this
 router.get(
   '/tournament/:tournamentId/participants',
   is_logged_in,
