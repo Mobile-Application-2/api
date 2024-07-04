@@ -15,6 +15,9 @@ jobs:
       - name: Stop active container
         run: cd ${{SECRETS.API_DIR}} && sudo docker compose stop
 
+      - name: Delete Old Docker containers and images
+        run: cd ${{SECRETS.API_DIR}} && sudo docker system prune -a -f
+
       - name: Remove old frontend build
         run: cd ${{SECRETS.API_DIR}}/main-service/src/static && rm -rf * .*
 
@@ -48,9 +51,6 @@ jobs:
           rm -rf celeb_dashboard/* &&
           mv ${{SECRETS.API_DIR}}/temp_dir/* celeb_dashboard &&
           rm -rf ${{SECRETS.API_DIR}}/temp_dir
-
-      - name: Delete Old Docker containers and images
-        run: cd ${{SECRETS.API_DIR}} && sudo docker system prune -a -f
 
       - name: Run Docker Container
         run: cd ${{SECRETS.API_DIR}} && sudo docker compose up --build -d
