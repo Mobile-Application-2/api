@@ -16,7 +16,7 @@ jobs:
         run: cd ${{SECRETS.API_DIR}} && sudo docker compose stop
 
       - name: Remove old frontend build
-        run: cd ${{SECRETS.API_DIR}}/main-service/src/static && rm -rf *
+        run: cd ${{SECRETS.API_DIR}}/main-service/src/static && rm -rf * .*
 
       - name: Clone frontend
         run: cd ${{SECRETS.API_DIR}}/main-service/src/static && git clone ${{SECRETS.AUTHORIZED_FRONTEND_REPO}} .
