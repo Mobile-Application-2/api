@@ -22,7 +22,7 @@ jobs:
         run: cd ${{SECRETS.API_DIR}}/main-service/src/static && git clone ${{SECRETS.AUTHORIZED_FRONTEND_REPO}} .
 
       - name: Move landing page
-        run: cd ${{SECRETS.API_DIR}}/main-service/src/static && mv 'landing page/*' . && rm -rf 'landing page'
+        run: cd ${{SECRETS.API_DIR}}/main-service/src/static && mv 'landing page'/* . && rm -rf 'landing page'
 
       - name: Build user dashboard
         run : cd ${{SECRETS.API_DIR}}/main-service/src/static/user_dashboard && npm install && npm run build
@@ -30,7 +30,8 @@ jobs:
       - name: Move the user dashboard build to the static folder
         run: |
           cd ${{SECRETS.API_DIR}}/main-service/src/static &&
-          mv user_dashboard/build ${{SECRETS.API_DIR}}/temp_dir &&
+          mkdir ${{SECRETS.API_DIR}}/temp_dir &&
+          mv user_dashboard/build/* ${{SECRETS.API_DIR}}/temp_dir &&
           rm -rf user_dashboard/* &&
           mv ${{SECRETS.API_DIR}}/temp_dir/* user_dashboard &&
           rm -rf ${{SECRETS.API_DIR}}/temp_dir
@@ -42,7 +43,8 @@ jobs:
       - name: Move the admin dashboard build to the static folder
         run: |
           cd ${{SECRETS.API_DIR}}/main-service/src/static &&
-          mv celeb_dashboard/build ${{SECRETS.API_DIR}}/temp_dir &&
+          mkdir ${{SECRETS.API_DIR}}/temp_dir &&
+          mv celeb_dashboard/build/* ${{SECRETS.API_DIR}}/temp_dir &&
           rm -rf celeb_dashboard/* &&
           mv ${{SECRETS.API_DIR}}/temp_dir/* celeb_dashboard &&
           rm -rf ${{SECRETS.API_DIR}}/temp_dir
