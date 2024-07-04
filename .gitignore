@@ -6,3 +6,4 @@ redis/dump.rdb
 .vscode/
 *.pem
 *.bash
+*/static/
