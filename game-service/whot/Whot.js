@@ -39,7 +39,7 @@ export default class Whot {
 
         io.emit('remove', 'whot', room.room_id);
       })
-      socket.on("join_room", ({ room_id, storedId }) => {
+      socket.on("join_room", ({ room_id, storedId, username, avatar }) => {
         if (room_id?.length != 6) {
           whotNamespace.to(socket.id).emit(
             "error",
@@ -80,7 +80,7 @@ export default class Whot {
                     ...room,
                     players: [
                       ...room.players,
-                      { storedId, socketId: socket.id, player: "two" },
+                      { storedId, socketId: socket.id, player: "two", username: username, avatar: avatar },
                     ],
                   };
                 }
@@ -106,6 +106,13 @@ export default class Whot {
 
               let opponentSocketId = opponent.socketId;
               whotNamespace.to(opponentSocketId).emit("opponentOnlineStateChanged", true);
+
+              let playerOneInfo = currentPlayers[0];
+              let playerTwoInfo = currentPlayers[1];
+
+              currentRoom.turn = 1;
+
+              whotNamespace.to(room_id).emit("start", playerOneInfo, playerTwoInfo, currentRoom.turn);
             }
           }
           else {
@@ -182,6 +189,8 @@ export default class Whot {
                 storedId,
                 socketId: socket.id,
                 player: "one",
+                username: username,
+                avatar: avatar
               },
             ],
             playerOneState,
@@ -217,6 +226,16 @@ export default class Whot {
             playerTwoState,
           },
         });
+
+        
+        const currentRoom = rooms.find((room) => room.room_id == room_id);
+        currentRoom.turn = playerOneState.infoText == "It's your opponent's turn to make a move now" ? 2 : 1
+        // currentRoom.turn = currentRoom.turn == 1 ? 2 : 1;
+
+        // console.log(playerOneState.player, "p1")
+        // console.log(playerTwoState.player, "p2")
+
+        whotNamespace.to(room_id).emit('change_turn', currentRoom.turn)
       });
 
       socket.on("game_over", async (room_id, isWinner) => {
