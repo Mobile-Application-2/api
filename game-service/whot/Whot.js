@@ -40,7 +40,7 @@ export default class Whot {
         io.emit('remove', 'whot', room.room_id);
       })
       socket.on("join_room", ({ room_id, storedId }) => {
-        if (room_id?.length !== 7) {
+        if (room_id?.length != 6) {
           whotNamespace.to(socket.id).emit(
             "error",
             "Sorry! Seems like this game link is invalid. Just go back and start your own game 🙏🏾."
