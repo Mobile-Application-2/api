@@ -1,4 +1,4 @@
-import {isValidObjectId} from 'mongoose';
+import {isValidObjectId, PipelineStage} from 'mongoose';
 import GAME from '../models/game.model';
 import {delete_file, upload_file} from '../utils/cloudinary';
 import {handle_error} from '../utils/handle-error';
@@ -7,6 +7,7 @@ import USER from '../models/user.model';
 import ADMINTRANSACTION from '../models/admin-transaction.model';
 import ADMIN from '../models/admin.model';
 import * as Sentry from '@sentry/node';
+import TRANSACTION from '../models/transaction.model';
 
 export async function create_game(req: Request, res: Response) {
   try {
@@ -267,6 +268,121 @@ export async function unblock_user(req: Request, res: Response) {
     await USER.updateOne({_id: userId}, {$set: {accountIsActive: true}});
 
     res.status(200).json({message: 'User unblocked successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function get_all_transactions(req: Request, res: Response) {
+  try {
+    const {pageNo, searchTerm, resultsPerPage, monthAndYear} = req.query;
+
+    // default to 100,000,000 if resultsPerPage is not provided, should serve for now
+    const MAX_RESULTS = resultsPerPage ? +resultsPerPage : 100_000_000;
+    let currentPage;
+
+    if (typeof pageNo !== 'string' || isNaN(+pageNo) || +pageNo <= 0) {
+      currentPage = 1;
+    } else {
+      currentPage = Math.floor(+pageNo);
+    }
+
+    const skip = (currentPage - 1) * MAX_RESULTS;
+    let filter = {};
+
+    if (searchTerm) {
+      filter = {
+        $or: [
+          {description: {$regex: searchTerm, $options: 'i'}},
+          {status: searchTerm},
+        ],
+      };
+    }
+
+    if (monthAndYear) {
+      const date = new Date(monthAndYear as string);
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth();
+
+      const startOfMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+      const startOfNextMonth = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0));
+
+      filter = {
+        ...filter,
+        createdAt: {
+          $gte: startOfMonth,
+          $lt: startOfNextMonth,
+        },
+      };
+    }
+
+    const projections = {
+      userId: 1,
+      type: 1,
+      createdAt: 1,
+      status: 1,
+      amount: 1,
+    };
+
+    // fetch all transactions, then sum all deposits and withdrawals as total deposits and total withdrawals
+    const pipeline: PipelineStage[] = [
+      {
+        $facet: {
+          allTransactions: [
+            {
+              $match: filter,
+            },
+            {
+              $project: projections,
+            },
+            {
+              $skip: skip,
+            },
+            {
+              $limit: MAX_RESULTS,
+            },
+          ],
+          totals: [
+            {
+              $match: filter,
+            },
+            {
+              $skip: skip,
+            },
+            {
+              $limit: MAX_RESULTS,
+            },
+            {
+              $group: {
+                _id: null,
+                totalDeposits: {
+                  $sum: {
+                    $cond: {
+                      if: {$eq: ['$type', 'deposit']},
+                      then: '$amount',
+                      else: 0,
+                    },
+                  },
+                },
+                totalWithdrawals: {
+                  $sum: {
+                    $cond: {
+                      if: {$eq: ['$type', 'withdrawal']},
+                      then: '$amount',
+                      else: 0,
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    ];
+
+    const transactions = await TRANSACTION.aggregate(pipeline);
+
+    res.status(200).json({message: 'Success', data: transactions});
   } catch (error) {
     handle_error(error, res);
   }
