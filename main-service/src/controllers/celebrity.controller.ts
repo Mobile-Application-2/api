@@ -491,3 +491,68 @@ export async function update_tournament_code(req: Request, res: Response) {
     handle_error(error, res);
   }
 }
+
+export async function get_players_with_most_wins_in_my_tournaments(
+  req: Request,
+  res: Response
+) {
+  try {
+    const {userId} = req;
+
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          creatorId: new ObjectId(userId),
+        },
+      },
+      {
+        $unwind: '$winners',
+      },
+      {
+        $group: {
+          _id: '$winners',
+          totalWins: {
+            $sum: 1,
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      {
+        $addFields: {
+          user: {
+            $arrayElemAt: ['$user', 0],
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          username: '$user.username',
+          avatar: '$user.avatar',
+          totalWins: 1,
+        },
+      },
+      {
+        $sort: {
+          totalWins: -1,
+        },
+      },
+    ];
+
+    const players = await TOURNAMENT.aggregate(pipeline);
+
+    res.status(200).json({
+      message: 'Players with most wins retrieved successfully',
+      data: players,
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}

@@ -7,6 +7,7 @@ import {
   create_tournament,
   update_prizes_to_tournament,
   update_tournament_code,
+  get_players_with_most_wins_in_my_tournaments,
 } from '../controllers/celebrity.controller';
 import {is_celebrity, is_logged_in} from '../middlewares/auth.middleware';
 const router = Router();
@@ -20,7 +21,6 @@ router.get(
   get_a_tournament
 );
 
-// TODO: test this
 router.get(
   '/tournament/:tournamentId/winners',
   is_logged_in,
@@ -28,9 +28,13 @@ router.get(
   get_tournament_winners
 );
 
-// router.get('/tournaments/winners'); // TODO: players with most win all time for my tournaments
+router.get(
+  '/tournaments/top-winners',
+  is_logged_in,
+  is_celebrity,
+  get_players_with_most_wins_in_my_tournaments
+);
 
-// TODO: test this
 router.get(
   '/tournament/:tournamentId/participants',
   is_logged_in,
@@ -56,6 +60,6 @@ router.patch(
   update_tournament_code
 );
 
-// router.patch('/tournaments/:tournamentId/start') // officially start the tournament and get first fixtures
+// router.patch('/tournaments/:tournamentId/start') // TODO: officially start the tournament and get first fixtures
 
 export default router;
