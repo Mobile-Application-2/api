@@ -143,3 +143,131 @@ export async function get_dashboard_details(_: Request, res: Response) {
     handle_error(error, res);
   }
 }
+
+export async function get_users_summary(_: Request, res: Response) {
+  try {
+    const totalRegularUsers = await USER.countDocuments({isCelebrity: false});
+    const totalCelebrityUsers = await USER.countDocuments({isCelebrity: true});
+    const totalAdminAccounts = await ADMIN.countDocuments();
+
+    res.status(200).json({
+      message: 'Success',
+      data: {totalAdminAccounts, totalCelebrityUsers, totalRegularUsers},
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function get_users(req: Request, res: Response) {
+  try {
+    const {pageNo, searchTerm, resultsPerPage, joinedMonthAndYear} = req.query;
+
+    const MAX_RESULTS = resultsPerPage ? +resultsPerPage : 10;
+    let currentPage;
+
+    if (typeof pageNo !== 'string' || isNaN(+pageNo) || +pageNo <= 0) {
+      currentPage = 1;
+    } else {
+      currentPage = Math.floor(+pageNo);
+    }
+
+    const skip = (currentPage - 1) * MAX_RESULTS;
+    let filter = {};
+
+    if (searchTerm) {
+      filter = {username: {$regex: searchTerm, $options: 'i'}};
+    }
+
+    if (joinedMonthAndYear) {
+      const date = new Date(joinedMonthAndYear as string);
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth();
+
+      const startOfMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+      const startOfNextMonth = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0));
+
+      filter = {
+        ...filter,
+        createdAt: {
+          $gte: startOfMonth,
+          $lt: startOfNextMonth,
+        },
+      };
+    }
+
+    const users = await USER.find(
+      filter,
+      {
+        username: 1,
+        email: 1,
+        createdAt: 1,
+        isCelebrity: 1,
+        accountIsActive: 1,
+      },
+      {limit: MAX_RESULTS, skip}
+    );
+
+    res.status(200).json({message: 'Success', data: users});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function block_user(req: Request, res: Response) {
+  try {
+    const {userId} = req.params;
+
+    if (!isValidObjectId(userId)) {
+      res.status(400).json({message: 'Invalid user id'});
+      return;
+    }
+
+    const user = await USER.findOne({_id: userId});
+
+    if (!user) {
+      res.status(404).json({message: 'User not found'});
+      return;
+    }
+
+    if (user.accountIsActive === false) {
+      res.status(400).json({message: 'User is already blocked'});
+      return;
+    }
+
+    await USER.updateOne({_id: userId}, {$set: {accountIsActive: false}});
+
+    res.status(200).json({message: 'User blocked successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function unblock_user(req: Request, res: Response) {
+  try {
+    const {userId} = req.params;
+
+    if (!isValidObjectId(userId)) {
+      res.status(400).json({message: 'Invalid user id'});
+      return;
+    }
+
+    const user = await USER.findOne({_id: userId});
+
+    if (!user) {
+      res.status(404).json({message: 'User not found'});
+      return;
+    }
+
+    if (user.accountIsActive === true) {
+      res.status(400).json({message: 'User is already unblocked'});
+      return;
+    }
+
+    await USER.updateOne({_id: userId}, {$set: {accountIsActive: true}});
+
+    res.status(200).json({message: 'User unblocked successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
