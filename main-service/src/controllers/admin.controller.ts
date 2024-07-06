@@ -3,6 +3,10 @@ import GAME from '../models/game.model';
 import {delete_file, upload_file} from '../utils/cloudinary';
 import {handle_error} from '../utils/handle-error';
 import {Request, Response} from 'express';
+import USER from '../models/user.model';
+import ADMINTRANSACTION from '../models/admin-transaction.model';
+import ADMIN from '../models/admin.model';
+import * as Sentry from '@sentry/node';
 
 export async function create_game(req: Request, res: Response) {
   try {
@@ -52,7 +56,7 @@ export async function update_game(req: Request, res: Response) {
     }
 
     const fieldsFromUpdate = Object.keys(update);
-    const validFields = ['image', 'name', 'description'];
+    const validFields = ['image', 'name', 'description', 'isActive'];
 
     const hasInvalidFields = fieldsFromUpdate.some(
       field => validFields.includes(field) === false
@@ -86,6 +90,55 @@ export async function update_game(req: Request, res: Response) {
     }
 
     res.status(200).json({message: 'Game updated successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function get_games(_: Request, res: Response) {
+  try {
+    const games = await GAME.find();
+
+    res.status(200).json({message: 'Games fetch successfully', data: games});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function get_dashboard_details(_: Request, res: Response) {
+  try {
+    const totalUsers = await USER.countDocuments();
+    const totalGames = await GAME.countDocuments();
+    const totalTransactions = await ADMINTRANSACTION.find();
+    const adminInfo = await ADMIN.findOne(); // there should be exactly 1 document always
+
+    if (!adminInfo) {
+      Sentry.captureMessage('There is no admin account in the DB', {
+        level: 'fatal',
+      });
+
+      res.status(401).json({
+        message: 'Something went wrong while verifying your auth status',
+      });
+      return;
+    }
+
+    const topGames = await GAME.find(
+      {},
+      {name: 1, averageRating: 1},
+      {sort: {averageRating: -1}, limit: 5}
+    );
+
+    res.status(200).json({
+      message: 'Success',
+      data: {
+        totalUsers,
+        totalGames,
+        totalRevenue: adminInfo.walletBalance,
+        totalTransactions,
+        topGames,
+      },
+    });
   } catch (error) {
     handle_error(error, res);
   }

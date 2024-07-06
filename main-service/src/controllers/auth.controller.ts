@@ -257,6 +257,13 @@ export async function login(req: Request, res: Response) {
       }
     }
 
+    if (user.accountIsActive === false) {
+      res.status(401).json({
+        message: 'Your account is currently disabled, please contact support',
+      });
+      return;
+    }
+
     const tokens = await create_tokens(user._id.toString(), user.isCelebrity);
 
     res.status(200).json({message: 'Login successful', data: {tokens, user}});
@@ -293,6 +300,13 @@ export async function refresh_tokens(req: Request, res: Response) {
 
     if (userInfo === null) {
       res.status(401).json({message: 'Access Denied'});
+      return;
+    }
+
+    if (userInfo.accountIsActive === false) {
+      res.status(401).json({
+        message: 'Your account is currently disabled, please contact support',
+      });
       return;
     }
 

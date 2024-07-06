@@ -440,6 +440,11 @@ export async function get_games(_: Request, res: Response) {
     // shows no of players of this game all time
     const pipeline: PipelineStage[] = [
       {
+        $match: {
+          isActive: true,
+        },
+      },
+      {
         $lookup: {
           from: 'lobbies',
           localField: '_id',

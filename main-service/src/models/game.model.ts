@@ -14,6 +14,10 @@ const gameSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Description is required'],
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
     averageRating: {
       type: Number,
       default: 0,
