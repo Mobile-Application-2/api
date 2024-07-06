@@ -9,6 +9,7 @@ import {
   block_user,
   unblock_user,
   get_all_transactions,
+  get_stake_report,
 } from '../controllers/admin.controller';
 import {process_file} from '../middlewares/file-upload.middleware';
 const router = Router();
@@ -21,16 +22,12 @@ router.get('/users-summary', get_users_summary);
 
 router.get('/users', get_users);
 
-// router.get('/logs');
-
 // TODO: all the game lobby joining and creation logic needs change as well
 router.get('/games', get_games);
 
 router.get('/transactions', get_all_transactions);
 
-// router.get('/export/transactions'); // handle csv or pdf
-
-// router.get('/stake-report');
+router.get('/stake-report', get_stake_report);
 
 router.post('/games', process_file('image'), create_game);
 

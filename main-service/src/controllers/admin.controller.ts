@@ -8,6 +8,9 @@ import ADMINTRANSACTION from '../models/admin-transaction.model';
 import ADMIN from '../models/admin.model';
 import * as Sentry from '@sentry/node';
 import TRANSACTION from '../models/transaction.model';
+import LOBBY from '../models/lobby.model';
+import generate_csv from '../utils/generate-csv';
+import generate_pdf from '../utils/generate-pdf';
 
 export async function create_game(req: Request, res: Response) {
   try {
@@ -275,7 +278,8 @@ export async function unblock_user(req: Request, res: Response) {
 
 export async function get_all_transactions(req: Request, res: Response) {
   try {
-    const {pageNo, searchTerm, resultsPerPage, monthAndYear} = req.query;
+    const {pageNo, searchTerm, resultsPerPage, monthAndYear, exportType} =
+      req.query;
 
     // default to 100,000,000 if resultsPerPage is not provided, should serve for now
     const MAX_RESULTS = resultsPerPage ? +resultsPerPage : 100_000_000;
@@ -382,7 +386,93 @@ export async function get_all_transactions(req: Request, res: Response) {
 
     const transactions = await TRANSACTION.aggregate(pipeline);
 
+    if (exportType) {
+      if (exportType === 'csv') {
+        const csv = generate_csv(transactions[0].allTransactions);
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader(
+          'Content-Disposition',
+          'attachment; filename=transactions.csv'
+        );
+
+        res.end(csv);
+        return;
+      } else if (exportType === 'pdf') {
+        const pdf = generate_pdf(transactions[0].allTransactions);
+
+        res.setHeader(
+          'Content-Disposition',
+          'attachment; filename="transactions.pdf"'
+        );
+        res.setHeader('Content-Type', 'application/pdf');
+
+        const base64Data = pdf.split(';base64,').pop();
+        const binaryData = Buffer.from(base64Data as any, 'base64');
+
+        res.end(binaryData);
+        return;
+      } else {
+        res.status(400).json({message: 'Invalid export type'});
+        return;
+      }
+    }
+
     res.status(200).json({message: 'Success', data: transactions});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function get_stake_report(req: Request, res: Response) {
+  try {
+    const {exportType} = req.query;
+
+    // this fetches all the lobby's and thier wager amount then it tries to group them, similar amounts are added together
+    const pipeline: PipelineStage[] = [
+      {
+        $group: {
+          _id: '$wagerAmount',
+          noOfTimes: {$sum: 1},
+        },
+      },
+    ];
+
+    const stakeReport = await LOBBY.aggregate(pipeline);
+
+    if (exportType) {
+      if (exportType === 'csv') {
+        const csv = generate_csv(stakeReport);
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader(
+          'Content-Disposition',
+          'attachment; filename=stake-report.csv'
+        );
+
+        res.end(csv);
+        return;
+      } else if (exportType === 'pdf') {
+        const pdf = generate_pdf(stakeReport);
+
+        res.setHeader(
+          'Content-Disposition',
+          'attachment; filename="transactions.pdf"'
+        );
+        res.setHeader('Content-Type', 'application/pdf');
+
+        const base64Data = pdf.split(';base64,').pop();
+        const binaryData = Buffer.from(base64Data as any, 'base64');
+
+        res.end(binaryData);
+        return;
+      } else {
+        res.status(400).json({message: 'Invalid export type'});
+        return;
+      }
+    }
+
+    res.status(200).json({message: 'Success', data: stakeReport});
   } catch (error) {
     handle_error(error, res);
   }
