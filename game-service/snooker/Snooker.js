@@ -8,6 +8,7 @@ export default class Snooker {
             players: [{
                 username: '',
                 socketID: '',
+                avatar: ''
             }]
         }
     ]
@@ -33,7 +34,7 @@ export default class Snooker {
 
             socket.once('create_game', (roomID) => this.createGame(socket, roomID))
 
-            socket.on('join_game', (roomID) => this.joinGame(snookerNameSpace, socket, roomID));
+            socket.on('join_game', (roomID, username, avatar) => this.joinGame(snookerNameSpace, socket, roomID, username, avatar));
 
             // x and y for the whiteball position
             // down for mouse click
@@ -106,7 +107,7 @@ export default class Snooker {
         })
     }
 
-    static async createGame(socket, roomID) {
+    static async createGame(socket, roomID, username, avatar) {
 
         socket.join(roomID);
 
@@ -122,7 +123,7 @@ export default class Snooker {
             game_name: "snooker",
             players: [
                 {
-                    username: 'test',
+                    username: username,
                     socketID: socket.id,
                     playerNumber: '0'
                 }
@@ -136,8 +137,9 @@ export default class Snooker {
             roomID: roomID,
             players: [
                 {
-                    username: 'test',
-                    socketID: socket.id
+                    username: username,
+                    socketID: socket.id,
+                    avatar: avatar
                 }
             ]
         });
@@ -146,7 +148,7 @@ export default class Snooker {
         
     }
 
-    static async joinGame(snookerNameSpace, socket, roomID) {
+    static async joinGame(snookerNameSpace, socket, roomID, username, avatar) {
         const gameRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
         if(gameRoom != undefined) {
@@ -163,7 +165,7 @@ export default class Snooker {
                 await GameModel.updateOne({roomID: roomID}, {
                     $push: {
                         players: {
-                            username: 'test',
+                            username: username,
                             socketID: socket.id,
                             playerNumber: '1'
                         }
@@ -171,8 +173,9 @@ export default class Snooker {
                 })
     
                 this.rooms.filter(room => room.roomID == roomID)[0].players.push({
-                    username: 'test',
-                    socketID: socket.id
+                    username: username,
+                    socketID: socket.id,
+                    avatar: avatar
                 })
     
                 // const currentGameState = this.rooms.filter(room => room.roomID == roomID)[0].state;
@@ -181,11 +184,14 @@ export default class Snooker {
 
                 socket.emit('joined_game')
 
-                snookerNameSpace.to(roomID).emit('start_game');
+                const playerOneInfo = this.rooms.filter(room => room.roomID == roomID)[0].players.find(playerObject => playerObject.socketID != socket.id);
+                const playerTwoInfo = this.rooms.filter(room => room.roomID == roomID)[0].players.find(playerObject => playerObject.socketID == socket.id);
+
+                snookerNameSpace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo);
             }
         }
         else {
-            this.createGame(socket, roomID);
+            this.createGame(socket, roomID, username, avatar);
         }
     }
 }
