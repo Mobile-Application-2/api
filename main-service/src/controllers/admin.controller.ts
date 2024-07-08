@@ -11,6 +11,13 @@ import TRANSACTION from '../models/transaction.model';
 import LOBBY from '../models/lobby.model';
 import generate_csv from '../utils/generate-csv';
 import generate_pdf from '../utils/generate-pdf';
+import {isEmail} from 'validator';
+import bcrypt from 'bcrypt';
+import redisClient from '../utils/redis';
+import send_mail from '../utils/nodemailer';
+import generate_otp_token from '../utils/generate-otp';
+import jwt from 'jsonwebtoken';
+import IResetPassword from '../interfaces/reset-password';
 
 export async function create_game(req: Request, res: Response) {
   try {
@@ -473,6 +480,229 @@ export async function get_stake_report(req: Request, res: Response) {
     }
 
     res.status(200).json({message: 'Success', data: stakeReport});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+async function create_admin_tokens(userId: string) {
+  const accessToken = jwt.sign(
+    {userId, isAdmin: true},
+    process.env.ADMIN_ACCESS_TOKEN_SECRET as string,
+    {expiresIn: '7d'}
+  );
+
+  return {accessToken};
+}
+
+export async function admin_login(req: Request, res: Response) {
+  try {
+    const {email, password, otp} = req.body;
+
+    if (email === undefined || email.length === 0 || isEmail(email) === false) {
+      res.status(401).json({message: 'Invalid credentials'});
+      return;
+    }
+
+    if (password === undefined || password.length === 0) {
+      res.status(401).json({message: 'Invalid credentials'});
+      return;
+    }
+
+    const admin = await ADMIN.findOne({email});
+
+    if (admin === null) {
+      res.status(401).json({message: 'Invalid credentials'});
+      return;
+    }
+
+    const passwordMatches = bcrypt.compareSync(password, admin.password);
+
+    if (passwordMatches === false) {
+      res.status(401).json({message: 'Invalid credentials'});
+      return;
+    }
+
+    // send them the otp, admin has 2FA on always
+    if (otp === undefined) {
+      const token = await generate_otp_token(admin.email);
+
+      await send_mail(
+        admin.email,
+        'email-verification',
+        'Verify Your 2FA Method',
+        {email: admin.email, token}
+      );
+
+      res.status(202).json({
+        message: 'Please proceed with 2FA, a code has been sent to your email',
+      });
+      return;
+    }
+
+    // when OTP is defined
+    const response = await redisClient.get(otp);
+
+    if (response !== admin.email) {
+      res.status(401).json({message: 'Invalid OTP'});
+      return;
+    }
+
+    await redisClient.del(otp);
+
+    const tokens = await create_admin_tokens(admin._id.toString());
+
+    res.status(200).json({
+      message: 'Login successful',
+      data: {
+        tokens,
+        admin: {...admin.toJSON(), password: undefined, __v: undefined},
+      },
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function change_admin_password(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    const {oldPassword, newPassword} = req.body;
+
+    const admin = await ADMIN.findOne({_id: userId});
+
+    if (admin === null) {
+      res
+        .status(400)
+        .json({message: 'It appears this admin account no longer exists'});
+      return;
+    }
+
+    if (oldPassword === undefined || oldPassword.length === 0) {
+      res.status(400).json({message: 'Please enter your old password'});
+      return;
+    }
+
+    if (newPassword === undefined || newPassword.length === 0) {
+      res.status(400).json({message: 'Please enter your new password'});
+      return;
+    }
+
+    const hasCorrectOldPassword = bcrypt.compareSync(
+      oldPassword,
+      admin.password
+    );
+
+    if (hasCorrectOldPassword === false) {
+      res.status(400).json({message: 'Incorrect old password'});
+      return;
+    }
+
+    const salt = bcrypt.genSaltSync(10);
+    const hashedPassword = bcrypt.hashSync(newPassword, salt);
+
+    const updateInfo = await ADMIN.updateOne(
+      {_id: userId},
+      {password: hashedPassword}
+    );
+
+    if (updateInfo.modifiedCount === 0) {
+      res
+        .status(400)
+        .json({message: 'It appears this admin account no longer exists'});
+      return;
+    }
+
+    res.status(200).json({message: 'Password updated successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+// might make this so that the email is sent to the only admin account available, so the user doesn't specify anything
+export async function send_reset_admin_password_email(
+  req: Request,
+  res: Response
+) {
+  try {
+    const {email} = req.body;
+
+    if (email === undefined || email.length === 0 || isEmail(email) === false) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    const adminExists = await ADMIN.findOne({email});
+
+    if (adminExists === null) {
+      res.status(200).json({
+        message: `An email will be sent to ${email}, if it is a registered admin account`,
+      });
+      return;
+    }
+
+    const token = await generate_otp_token(email);
+
+    const payload: IResetPassword = {
+      token,
+      email,
+      ip: req.ip,
+    };
+
+    await send_mail(email, 'reset-password', 'Reset Your Password', payload);
+
+    res.status(200).json({
+      message: `An email will be sent to ${email}, if it is a registered admin account`,
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function reset_admin_password(req: Request, res: Response) {
+  try {
+    const {email, token, newPassword} = req.body;
+
+    if (email === undefined || email.length === 0 || isEmail(email) === false) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    if (token === undefined || token.length === 0) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    if (newPassword === undefined || newPassword.length === 0) {
+      res.status(400).json({message: 'Invalid request'});
+      return;
+    }
+
+    const tokenInfo = await redisClient.get(token);
+
+    if (tokenInfo !== email) {
+      res.status(400).json({message: 'Invalid token'});
+      return;
+    }
+
+    await redisClient.del(token);
+
+    const salt = bcrypt.genSaltSync(10);
+    const hashedPassword = bcrypt.hashSync(newPassword, salt);
+
+    const updateInfo = await ADMIN.updateOne(
+      {email},
+      {password: hashedPassword}
+    );
+
+    if (updateInfo.modifiedCount === 0) {
+      res
+        .status(400)
+        .json({message: 'It appears this user account no longer exists'});
+      return;
+    }
+
+    res.status(200).json({message: 'Password updated successfully'});
   } catch (error) {
     handle_error(error, res);
   }

@@ -5,6 +5,28 @@ import {Socket} from 'socket.io';
 import redisClient from '../utils/redis';
 import crypto from 'node:crypto';
 
+export function process_admin_token(token: string | undefined) {
+  if (typeof token === 'undefined' || token.length === 0) {
+    throw Error('Access Denied');
+  }
+
+  const decoded = jwt.verify(
+    token,
+    process.env.ADMIN_ACCESS_TOKEN_SECRET as string
+  );
+
+  const {userId, isAdmin} = decoded as {
+    userId: string;
+    isAdmin: string;
+  };
+
+  if (!isValidObjectId(userId)) {
+    throw Error('Access Denied');
+  }
+
+  return {userId, isAdmin};
+}
+
 export function process_token(token: string | undefined) {
   if (typeof token === 'undefined' || token.length === 0) {
     throw Error('Access Denied');
@@ -51,6 +73,25 @@ export function is_celebrity(req: Request, res: Response, next: NextFunction) {
   }
 
   next();
+}
+
+export function is_admin(req: Request, res: Response, next: NextFunction) {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+
+    const {userId, isAdmin} = process_admin_token(token as string);
+
+    if (!isAdmin) {
+      res.status(401).json({message: 'Access Denied, you are not an admin'});
+      return;
+    }
+
+    req.userId = userId;
+
+    next();
+  } catch (error) {
+    res.status(401).json({message: 'Access Denied'});
+  }
 }
 
 export async function is_authorized_socket(socket: Socket): Promise<Boolean> {

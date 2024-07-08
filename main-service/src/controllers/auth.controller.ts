@@ -14,18 +14,7 @@ import {customJwtPayload} from '../interfaces/jwt-payload';
 import IResetPassword from '../interfaces/reset-password';
 import NOTIFICATION from '../models/notification.model';
 import {send_OTP, verify_OTP} from '../utils/twilio';
-
-async function generate_otp_token(email: string) {
-  // the * 10 ^ 8 feels useless but it's important as it makes sure the number will not start with 0
-  const token = (Math.random() * Math.pow(10, 8))
-    .toString()
-    .replace('.', '')
-    .slice(0, 6);
-
-  await redisClient.set(token, email, {EX: 60 * 5});
-
-  return token;
-}
+import generate_otp_token from '../utils/generate-otp';
 
 async function create_tokens(userId: string, isCelebrity = false) {
   const tokenId = uuidv4();
@@ -266,7 +255,10 @@ export async function login(req: Request, res: Response) {
 
     const tokens = await create_tokens(user._id.toString(), user.isCelebrity);
 
-    res.status(200).json({message: 'Login successful', data: {tokens, user}});
+    res.status(200).json({
+      message: 'Login successful',
+      data: {tokens, user: {...user.toJSON(), password: 0, __v: 0}},
+    });
   } catch (error) {
     handle_error(error, res);
   }
