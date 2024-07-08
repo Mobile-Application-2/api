@@ -21,7 +21,7 @@ export default class Scrabble {
             console.log("user connected to scrabble server");
 
             socket.on('disconnect', () => {
-                console.log("user disconnected from snooker", socket.id);
+                console.log("user disconnected from scrabble", socket.id);
 
                 const room = this.rooms.find(room => room.players.includes(room.players.find(player => player.socketID == socket.id)));
 
@@ -29,7 +29,7 @@ export default class Scrabble {
                 
                 if(!room) return;
 
-                io.emit('remove', 'snooker', room.roomID);
+                io.emit('remove', 'scrabble', room.roomID);
             })
 
             console.log(socket.id);
