@@ -14,7 +14,7 @@ import {
 import {process_file} from '../middlewares/file-upload.middleware';
 const router = Router();
 
-// TODO: change the admin password, currently exposed on postman
+// TODO: add all auth routes admin, change the admin password, currently exposed on postman
 
 router.get('/dashboard', get_dashboard_details);
 

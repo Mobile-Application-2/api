@@ -7,3 +7,5 @@ redis/dump.rdb
 *.pem
 *.bash
 */static/
+*.key
+*.crt
