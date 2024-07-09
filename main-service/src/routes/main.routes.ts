@@ -63,6 +63,7 @@ router.post('/join-lobby', is_logged_in, join_lobby);
 
 router.post('/join-tournament', is_logged_in, join_tournament);
 
+// TODO:when a player joins a lobby for a fixture the other party will be notified, (handle winning, losing, cancellation etc.)
 // TODO: router.patch('/tournament/lobby/:lobbyCode') // join a tournament's fixture/lobby no payment
 
 // this going to come from the game server

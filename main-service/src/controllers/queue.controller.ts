@@ -7,6 +7,8 @@ import {IGameWon} from '../interfaces/queue';
 import ESCROW from '../models/escrow.model';
 import TRANSACTION from '../models/transaction.model';
 import {v4 as uuidV4} from 'uuid';
+import IStartTournamentNotification from '../interfaces/start-tournament-notification';
+import send_mail from '../utils/nodemailer';
 
 export async function handle_game_won(
   message: amqplib.ConsumeMessage | null,
@@ -184,6 +186,33 @@ export async function handle_game_won(
     Sentry.captureException(error, {
       level: 'error',
       tags: {source: 'handle_game_won function'},
+    });
+
+    if (message) channel.ack(message);
+  }
+}
+
+export async function send_tournament_start_notification(
+  message: amqplib.ConsumeMessage | null,
+  channel: amqplib.Channel
+) {
+  try {
+    if (message) {
+      const {email, message: emailContent} = JSON.parse(
+        message.content.toString()
+      ) as IStartTournamentNotification;
+
+      // send email to user
+      await send_mail(email, 'tournament-started', 'Your Fixture List', {
+        emailContent,
+      });
+
+      channel.ack(message);
+    }
+  } catch (error) {
+    Sentry.captureException(error, {
+      level: 'error',
+      tags: {source: 'send_tournament_start_notification function'},
     });
 
     if (message) channel.ack(message);

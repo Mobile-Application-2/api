@@ -33,8 +33,6 @@ import {
 } from './controllers/messaging.controller';
 import path from 'node:path';
 import {rate_limit_api} from './middlewares/ratelimiter.middleware';
-import amqplib from 'amqplib';
-import {handle_game_won} from './controllers/msg-queue.controller';
 
 const app = express();
 
@@ -84,11 +82,6 @@ async function main() {
   const io = new Server(httpServer);
   console.log(`Created Web Socket Server on port ${PORT}`);
 
-  console.log('Connecting to RabbitMQ...');
-  const connection = await amqplib.connect(process.env.RABBITMQ_URL as string);
-  const channel = await connection.createChannel();
-  console.log('Connected to RabbitMQ');
-
   // holds an object with functions for each type of event
   const eventsAndHandlers = {
     disconnect: handle_socket_disconnection,
@@ -113,23 +106,6 @@ async function main() {
         eventsAndHandlers[event](socket, io, args)
       );
     });
-  });
-
-  const queuesAndHandlers = {
-    'game-info-win': handle_game_won,
-  };
-
-  // keyof here is a typescript construct
-  const queues = Object.keys(
-    queuesAndHandlers
-  ) as (keyof typeof queuesAndHandlers)[];
-
-  // register and listen to all queues
-  queues.forEach(queue => {
-    channel.assertQueue(queue, {durable: true});
-    channel.consume(queue, message =>
-      queuesAndHandlers[queue](message, channel)
-    );
   });
 
   app.use('/api', generalRoutes);

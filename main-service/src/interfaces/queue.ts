@@ -1,6 +1,6 @@
-import {ObjectId} from 'mongoose';
+import mongoose from 'mongoose';
 
 export interface IGameWon {
-  lobbyId: ObjectId;
-  winnerId: ObjectId;
+  lobbyId: mongoose.Types.ObjectId;
+  winnerId: mongoose.Types.ObjectId;
 }

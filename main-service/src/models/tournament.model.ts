@@ -1,21 +1,6 @@
 import mongoose from 'mongoose';
 
 // no of participants when trying to start must be greater than number of winners, number of winners must equal prizes array and a prize in the array cannot be 0
-// and you need to also account for games that have a minimum of more than 2 players in the log calculation
-
-// const roundSchema = new mongoose.Schema(
-//   {
-//     label: {
-//       type: String,
-//       required: [true, 'Please specify the name of this round'],
-//     },
-//     completed: {
-//       type: Boolean,
-//       default: false,
-//     },
-//   },
-//   {_id: false}
-// );
 
 const tournamentSchema = new mongoose.Schema(
   {
@@ -83,6 +68,10 @@ const tournamentSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    hasStarted: {
+      type: Boolean,
+      default: false,
+    },
     isFullyCreated: {
       type: Boolean,
       default: false,
@@ -94,6 +83,21 @@ const tournamentSchema = new mongoose.Schema(
     winners: {
       type: [mongoose.Types.ObjectId],
       default: [],
+    },
+    endDate: {
+      type: Date,
+      required: [true, 'Please provide an end date for this tournament'],
+      validate: {
+        validator: (date: Date) => Date.now() < new Date(date).getTime(),
+        message: 'Please specify a deadline date in the future',
+      },
+    },
+    noOfGamesToPlay: {
+      type: Number,
+      required: [
+        true,
+        'Please provide the number of games to play for this tournament',
+      ],
     },
     // currentRound: {
     //   type: String,

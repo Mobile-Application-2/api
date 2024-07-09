@@ -1589,6 +1589,7 @@ export async function join_tournament(req: Request, res: Response) {
       joiningCode,
       isActive: true,
       isFullyCreated: true,
+      hasStarted: false,
     });
 
     if (!tournamentInfo) {

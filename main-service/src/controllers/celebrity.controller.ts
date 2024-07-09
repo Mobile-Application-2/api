@@ -7,6 +7,10 @@ import USER from '../models/user.model';
 import TRANSACTION from '../models/transaction.model';
 import {v4 as uuidV4} from 'uuid';
 import TOURNAMENTESCROW from '../models/tournament-escrow.model';
+import generate_tournament_fixtures from '../utils/generate-fixtures';
+import crypto from 'crypto';
+import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
+import {publish_to_queue} from '../utils/rabbitmq';
 const ObjectId = mongoose.Types.ObjectId;
 
 export async function get_my_tournaments(req: Request, res: Response) {
@@ -184,8 +188,6 @@ export async function get_tournament_participants(req: Request, res: Response) {
       },
     ];
 
-    console.log(JSON.stringify(pipeline));
-
     const participants = await TOURNAMENT.aggregate(pipeline);
 
     res.status(200).json({
@@ -207,10 +209,13 @@ export async function create_tournament(req: Request, res: Response) {
       return;
     }
 
+    // TODO: add a ttl to actually end the tournament and process winners, add to winners array and pay the winners
     const allowedFields = [
       'name',
       'gameId',
       'registrationDeadline',
+      'endDate',
+      'noOfGamesToPlay',
       'noOfWinners',
       'hasGateFee',
     ];
@@ -230,6 +235,17 @@ export async function create_tournament(req: Request, res: Response) {
       res.status(400).json({
         message: 'Please provide valid tournament information',
       });
+      return;
+    }
+
+    // check that endDate ahead of registrationDeadline
+    if (
+      new Date(tournamentInfo.endDate).getTime() <=
+      new Date(tournamentInfo.registrationDeadline).getTime()
+    ) {
+      res
+        .status(400)
+        .json({message: 'End date must be ahead of registration deadline'});
       return;
     }
 
@@ -551,6 +567,169 @@ export async function get_players_with_most_wins_in_my_tournaments(
     res.status(200).json({
       message: 'Players with most wins retrieved successfully',
       data: players,
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function start_a_tournament(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    const {tournamentId} = req.params;
+
+    if (!isValidObjectId(tournamentId)) {
+      res.status(400).json({message: 'Invalid tournament id'});
+      return;
+    }
+
+    const tournamentInfo = await TOURNAMENT.findOne({
+      creatorId: userId,
+      _id: tournamentId,
+    });
+
+    if (!tournamentInfo) {
+      res.status(404).json({message: 'Tournament not found'});
+      return;
+    }
+
+    if (tournamentInfo.hasStarted) {
+      res.status(400).json({message: 'Tournament has already started'});
+      return;
+    }
+
+    if (!tournamentInfo.isFullyCreated) {
+      res.status(400).json({message: 'Tournament is not fully created yet'});
+      return;
+    }
+
+    // check that tournament has players and even number of players
+    // in the future we might add a logic to pad the players with bots to form an even number
+    if (
+      !tournamentInfo.participants.length ||
+      tournamentInfo.participants.length % 2 !== 0
+    ) {
+      res
+        .status(400)
+        .json({message: 'Tournament must have an even number of players'});
+      return;
+    }
+
+    // TODO: if there are less players than prizes refund the celebrity when the tournament ends
+
+    // start the tournament
+    const session = await mongoose.startSession({
+      defaultTransactionOptions: {
+        writeConcern: {w: 'majority'},
+        readConcern: {level: 'majority'},
+      },
+    });
+
+    await session.withTransaction(async session => {
+      try {
+        await TOURNAMENT.updateOne(
+          {_id: tournamentId},
+          {
+            $set: {
+              hasStarted: true,
+            },
+          },
+          {session}
+        );
+
+        // generate fixtures (leaving this as round-based generation might be useful in the future) for now I'll flatten the answer
+        const fixtures = generate_tournament_fixtures(
+          tournamentInfo.participants.map(id => id.toString()),
+          tournamentInfo.noOfGamesToPlay
+        ).flat();
+
+        const fixtureNotifications: {
+          [key: string]: {opponent: string; joiningCode: string}[];
+        } = {};
+
+        // create an entry for each fixture
+        const bulkEntry = fixtures.map(fixture => {
+          const joiningCode = crypto
+            .createHash('sha256')
+            .update(fixture.join(''))
+            .digest('base64')
+            .slice(0, 6);
+
+          fixture.forEach(player => {
+            if (!fixtureNotifications[player]) {
+              fixtureNotifications[player] = [];
+            }
+
+            const opponent = fixture.find(p => p !== player);
+
+            fixtureNotifications[player].push({
+              opponent: opponent as string,
+              joiningCode,
+            });
+          });
+
+          return {
+            joiningCode,
+            players: fixture,
+          };
+        });
+
+        await TOURNAMENTFIXTURES.create(bulkEntry, {session});
+
+        // and after the fixtures are entered every player will be notified of all thier fixtures and the players they are playing against and code
+        // fetch the username for all the players
+        const playerUsernameAndEmail = await USER.find(
+          {_id: {$in: Object.keys(fixtureNotifications)}},
+          {username: 1, email: 1},
+          {session}
+        );
+
+        // convert the usernames to an object such that the key is the id and the value is the username
+        const playerUsernameAndEmailMap: {
+          [key: string]: {username: string; email: string};
+        } = {};
+
+        playerUsernameAndEmail.forEach(user => {
+          playerUsernameAndEmailMap[user._id.toString()] = {
+            username: user.username,
+            email: user.email,
+          };
+        });
+
+        const notifications: {[key: string]: string} = {};
+        Object.keys(fixtureNotifications).forEach(playerId => {
+          const playerEmail = playerUsernameAndEmailMap[playerId].email;
+          let str = `Hello ${playerUsernameAndEmailMap[playerId].username},<br><br> The tournament <b>${tournamentInfo.name}</b> has started and you have the following fixtures.`;
+
+          fixtureNotifications[playerId].forEach(fixture => {
+            str += `<br><br><b>Opponent:</b> ${playerUsernameAndEmailMap[fixture.opponent].username}<br><b>Joining code:</b> ${fixture.joiningCode}`;
+          });
+
+          str += '<br><br>Good luck!';
+
+          notifications[playerEmail] = str;
+        });
+
+        Object.keys(notifications).forEach(async email => {
+          await publish_to_queue(
+            'tournament-started-notification',
+            {
+              email,
+              message: notifications[email],
+            },
+            true
+          );
+        });
+
+        await session.commitTransaction();
+
+        res.status(200).json({message: 'Tournament started successfully'});
+      } catch (error) {
+        await session.abortTransaction();
+        throw error;
+      } finally {
+        await session.endSession();
+      }
     });
   } catch (error) {
     handle_error(error, res);

@@ -8,6 +8,7 @@ import {
   update_prizes_to_tournament,
   update_tournament_code,
   get_players_with_most_wins_in_my_tournaments,
+  start_a_tournament,
 } from '../controllers/celebrity.controller';
 import {is_celebrity, is_logged_in} from '../middlewares/auth.middleware';
 const router = Router();
@@ -60,6 +61,11 @@ router.patch(
   update_tournament_code
 );
 
-// router.patch('/tournaments/:tournamentId/start') // TODO: officially start the tournament and get first fixtures
+router.patch(
+  '/tournament/:tournamentId/start',
+  is_logged_in,
+  is_celebrity,
+  start_a_tournament
+);
 
 export default router;
