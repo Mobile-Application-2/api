@@ -24,6 +24,7 @@ import {
   get_a_tournament_info,
   see_all_tournaments,
   join_tournament,
+  fetch_my_fixtures_in_tournament,
 } from '../controllers/main.controller';
 const router = Router();
 
@@ -44,6 +45,12 @@ router.get('/mylobbies', is_logged_in, get_active_lobbies_i_am_in);
 router.get('/tournaments', is_logged_in, see_all_tournaments);
 
 router.get('/tournament/:tournamentId', is_logged_in, get_a_tournament_info);
+
+router.get(
+  '/tournament/:tournamentId/fixtures',
+  is_logged_in,
+  fetch_my_fixtures_in_tournament
+);
 
 router.get('/top/games', is_logged_in, top_games); // games with most number of current active lobbies (plays) in the last week
 
