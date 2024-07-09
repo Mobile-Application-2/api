@@ -9,6 +9,7 @@ import {
   update_tournament_code,
   get_players_with_most_wins_in_my_tournaments,
   start_a_tournament,
+  fetch_tournament_fixtures,
 } from '../controllers/celebrity.controller';
 import {is_celebrity, is_logged_in} from '../middlewares/auth.middleware';
 const router = Router();
@@ -43,7 +44,12 @@ router.get(
   get_tournament_participants
 );
 
-// router.get('/tournaments/:tournamentId/fixtures'); // TODO: get all fixtures for a tournament
+router.get(
+  '/tournament/:tournamentId/fixtures',
+  is_logged_in,
+  is_celebrity,
+  fetch_tournament_fixtures
+);
 
 router.post('/tournaments', is_logged_in, is_celebrity, create_tournament);
 

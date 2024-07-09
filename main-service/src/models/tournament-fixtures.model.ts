@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const tournamentFixturesSchema = new mongoose.Schema(
   {
+    tournamentId: {
+      type: mongoose.Types.ObjectId,
+      required: [true, 'Please provide a tournament ID'],
+      ref: 'tournaments',
+    },
     players: {
       type: [mongoose.Types.ObjectId],
       required: [true, 'Please provide a list of players'],

@@ -644,7 +644,11 @@ export async function start_a_tournament(req: Request, res: Response) {
         ).flat();
 
         const fixtureNotifications: {
-          [key: string]: {opponent: string; joiningCode: string}[];
+          [key: string]: {
+            opponent: string;
+            joiningCode: string;
+            tournamentId: string;
+          }[];
         } = {};
 
         // create an entry for each fixture
@@ -663,6 +667,7 @@ export async function start_a_tournament(req: Request, res: Response) {
             const opponent = fixture.find(p => p !== player);
 
             fixtureNotifications[player].push({
+              tournamentId,
               opponent: opponent as string,
               joiningCode,
             });
@@ -730,6 +735,90 @@ export async function start_a_tournament(req: Request, res: Response) {
       } finally {
         await session.endSession();
       }
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function fetch_tournament_fixtures(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    const {tournamentId} = req.params;
+
+    if (!isValidObjectId(tournamentId)) {
+      res.status(400).json({message: 'Invalid tournament id'});
+      return;
+    }
+
+    const tournamentInfo = await TOURNAMENT.findOne({
+      creatorId: userId,
+      _id: tournamentId,
+    });
+
+    if (!tournamentInfo) {
+      res.status(404).json({message: 'Tournament not found'});
+      return;
+    }
+
+    // for each player in the players array fetch thier avatar and username from users
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          tournamentId: new ObjectId(tournamentId),
+        },
+      },
+      {
+        $unwind: '$players',
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'players',
+          foreignField: '_id',
+          as: 'playerDetails',
+        },
+      },
+      {
+        $unwind: '$playerDetails',
+      },
+      {
+        $group: {
+          _id: '$_id',
+          players: {
+            $push: {
+              _id: '$players',
+              username: '$playerDetails.username',
+              avatar: '$playerDetails.avatar',
+            },
+          },
+          joiningCode: {
+            $first: '$joiningCode',
+          },
+          gameStarted: {
+            $first: '$gameStarted',
+          },
+          createdAt: {
+            $first: '$createdAt',
+          },
+          updatedAt: {
+            $first: '$updatedAt',
+          },
+          __v: {
+            $first: '$__v',
+          },
+          tournamentId: {
+            $first: '$tournamentId',
+          },
+        },
+      },
+    ];
+
+    const fixtures = await TOURNAMENTFIXTURES.aggregate(pipeline);
+
+    res.status(200).json({
+      message: 'Tournament fixtures retrieved successfully',
+      data: fixtures,
     });
   } catch (error) {
     handle_error(error, res);
