@@ -445,15 +445,14 @@ export async function initialize_withdraw(req: Request, res: Response) {
           return;
         }
 
-        // TODO: store the charge as profit
-
+        // charge is for paystack, not skyboard
         await TRANSACTION.create(
           [
             {
               ref,
               userId,
-              amount,
-              fee: charge,
+              amount: total,
+              fee: 0,
               total,
               type: 'withdrawal',
               description,

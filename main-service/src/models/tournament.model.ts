@@ -1,7 +1,5 @@
 import mongoose from 'mongoose';
 
-// no of participants when trying to start must be greater than number of winners, number of winners must equal prizes array and a prize in the array cannot be 0
-
 const tournamentSchema = new mongoose.Schema(
   {
     name: {
@@ -99,20 +97,10 @@ const tournamentSchema = new mongoose.Schema(
         'Please provide the number of games to play for this tournament',
       ],
     },
-    // currentRound: {
-    //   type: String,
-    // },
-    // allRounds: {
-    //   type: [roundSchema],
-    //   required: [true, "The rounds array couldn't not be set automatically"],
-    // },
   },
   {timestamps: true}
 );
 
 const TOURNAMENT = mongoose.model('tournament', tournamentSchema);
-
-// TODO: add a presave to generate the rounds, see if you need to account for number of winners, you might not because say 4 people need to win, then you can simply do top 4, then generate two fixtures the two winners, then the two losers to get 1st, 2nd, 3rd and 4th.
-// if 5 winners then you take top 4 and the 5th person you can have a mini tournament among the last 4 where, the losers from round of 8 play again to get the winner who becomes 5th
 
 export default TOURNAMENT;

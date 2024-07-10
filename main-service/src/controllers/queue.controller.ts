@@ -9,6 +9,7 @@ import TRANSACTION from '../models/transaction.model';
 import {v4 as uuidV4} from 'uuid';
 import IStartTournamentNotification from '../interfaces/start-tournament-notification';
 import send_mail from '../utils/nodemailer';
+import NOTIFICATION from '../models/notification.model';
 
 export async function handle_game_won(
   message: amqplib.ConsumeMessage | null,
@@ -170,7 +171,26 @@ export async function handle_game_won(
             {session}
           );
 
-          // TODO: send the winner a notification
+          // send the winner a notification
+          await NOTIFICATION.create(
+            [
+              {
+                userId: winnerId,
+                title: '🥳🥳 You won!!! 🥳🥳',
+                body: 'Good job, you won your game and your earnings have been credited to your account',
+                image: process.env.SKYBOARD_LOGO as string,
+              },
+            ],
+            {session}
+          );
+
+          await send_mail(userInfo.email, 'game-won', 'You won a game', {
+            username: userInfo.username,
+            lobbyCode: lobbyInfo.code,
+            amount: `${(lastestEscrowInfo.totalAmount / 100).toFixed(2)} naira`,
+          });
+
+          // TODO: push notification later
           await session.commitTransaction();
           channel.ack(message);
         } catch (error) {

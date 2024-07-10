@@ -20,6 +20,8 @@ import {v4 as uuidV4} from 'uuid';
 import TOURNAMENT from '../models/tournament.model';
 import TOURNAMENTESCROW from '../models/tournament-escrow.model';
 import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
+import ADMIN from '../models/admin.model';
+import ADMINTRANSACTION from '../models/admin-transaction.model';
 
 export async function search_users(req: Request, res: Response) {
   try {
@@ -1203,11 +1205,32 @@ export async function cancel_game(req: Request, res: Response) {
             latestEscrow.totalAmount / otherUsers.length
           );
 
-          // TODO: add a transaction record
-          // TODO: to be paid to skyboard if more than 0
+          // to be paid to skyboard if more than 0
           const difference =
             latestEscrow.totalAmount - amountToCredit * otherUsers.length;
-          console.log('This should be paid to the admin', difference);
+
+          if (difference > 0) {
+            // there is going to be 1 admin, but if we do have multiple I'm sorting by createdAt to be safe
+            await ADMIN.findOneAndUpdate(
+              {},
+              {$inc: {walletBalance: difference}},
+              {session, sort: {createdAt: 1}}
+            );
+
+            await ADMINTRANSACTION.create(
+              [
+                {
+                  ref: uuidV4(),
+                  amount: difference,
+                  type: 'deposit',
+                  status: 'completed',
+                  description:
+                    'There was a difference left after spliting the escrow payment to players',
+                },
+              ],
+              {session}
+            );
+          }
 
           await USER.updateMany(
             {_id: {$in: otherUsers}},
@@ -1226,6 +1249,17 @@ export async function cancel_game(req: Request, res: Response) {
               total: amountToCredit,
               type: 'deposit',
               userId: x._id,
+            })),
+            {session}
+          );
+
+          // insert notification for the other users
+          await NOTIFICATION.create(
+            otherUsers.map(x => ({
+              userId: x._id,
+              body: 'You have received your earnings from a game, that was cancelled',
+              title: 'Earnings from a cancelled game',
+              image: process.env.SKYBOARD_LOGO as string,
             })),
             {session}
           );
