@@ -674,6 +674,7 @@ export async function start_a_tournament(req: Request, res: Response) {
           });
 
           return {
+            tournamentId,
             joiningCode,
             players: fixture,
           };
@@ -809,6 +810,9 @@ export async function fetch_tournament_fixtures(req: Request, res: Response) {
           },
           tournamentId: {
             $first: '$tournamentId',
+          },
+          winner: {
+            $first: '$winner',
           },
         },
       },

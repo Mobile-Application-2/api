@@ -1817,6 +1817,9 @@ export async function fetch_my_fixtures_in_tournament(
           tournamentId: {
             $first: '$tournamentId',
           },
+          winner: {
+            $first: '$winner',
+          },
         },
       },
     ];
@@ -1942,6 +1945,106 @@ export async function see_all_tournaments_i_am_in(req: Request, res: Response) {
       message: 'Tournaments retrieved successfully',
       data: tournaments,
     });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function start_tournament_game(req: Request, res: Response) {
+  try {
+    const {tournamentId, lobbyCode} = req.body;
+
+    if (!isValidObjectId(tournamentId)) {
+      res.status(400).json({message: 'Invalid tournament id'});
+      return;
+    }
+
+    if (typeof lobbyCode !== 'string' || lobbyCode.trim() === '') {
+      res.status(400).json({message: 'Invalid lobby code'});
+      return;
+    }
+
+    const fixtureInfo = await TOURNAMENTFIXTURES.findOne({
+      tournamentId,
+      joiningCode: lobbyCode,
+    });
+
+    if (!fixtureInfo) {
+      res.status(404).json({message: 'Fixture not found'});
+      return;
+    }
+
+    if (fixtureInfo.gameStarted) {
+      res.status(400).json({message: 'This fixture has already started'});
+      return;
+    }
+
+    await TOURNAMENTFIXTURES.updateOne(
+      {_id: fixtureInfo._id},
+      {$set: {gameStarted: true}}
+    );
+
+    res.status(200).json({message: 'Game started successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function cancel_tournament_game(req: Request, res: Response) {
+  try {
+    const {tournamentId, lobbyCode, playerWhoCancelledId} = req.body;
+
+    if (!isValidObjectId(tournamentId)) {
+      res.status(400).json({message: 'Invalid tournament id'});
+      return;
+    }
+
+    if (typeof lobbyCode !== 'string' || lobbyCode.trim() === '') {
+      res.status(400).json({message: 'Invalid lobby code'});
+      return;
+    }
+
+    if (!isValidObjectId(playerWhoCancelledId)) {
+      res.status(400).json({message: 'Invalid player id'});
+      return;
+    }
+
+    const fixtureInfo = await TOURNAMENTFIXTURES.findOne({
+      tournamentId,
+      joiningCode: lobbyCode,
+    });
+
+    if (!fixtureInfo) {
+      res.status(404).json({message: 'Fixture not found'});
+      return;
+    }
+
+    if (!fixtureInfo.gameStarted) {
+      res
+        .status(400)
+        .json({message: 'You can not cancel a game that has not started'});
+      return;
+    }
+
+    if (
+      !fixtureInfo.players.map(x => x.toString()).includes(playerWhoCancelledId)
+    ) {
+      res.status(400).json({
+        message: 'The specified player who cancelled is not in this fixture',
+      });
+      return;
+    }
+
+    const otherPlayer = fixtureInfo.players.filter(
+      x => x.toString() !== playerWhoCancelledId.toString()
+    );
+
+    await TOURNAMENTFIXTURES.updateOne(
+      {_id: fixtureInfo._id},
+      {$set: {winner: otherPlayer[0]}}
+    );
+
+    res.status(200).json({message: 'Game cancelled successfully'});
   } catch (error) {
     handle_error(error, res);
   }

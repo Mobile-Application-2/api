@@ -27,6 +27,8 @@ import {
   fetch_my_fixtures_in_tournament,
   join_tournament_lobby,
   see_all_tournaments_i_am_in,
+  start_tournament_game,
+  cancel_tournament_game,
 } from '../controllers/main.controller';
 const router = Router();
 
@@ -84,9 +86,20 @@ router.post(
   join_tournament_lobby
 );
 
-// TODO: then the game server should start the game then winners, cancellations can be recorded
+// TODO: then winners
 // this going to come from the game server
-// router.patch('/tournament/:tournamentId/lobby/:lobbyCode/start', is_game_server, start_tournament_game);
+router.patch(
+  '/tournament/start-fixture-game',
+  is_game_server,
+  start_tournament_game
+);
+
+// this going to come from the game server
+router.patch(
+  '/tournament/cancel-fixture-game',
+  is_game_server,
+  cancel_tournament_game
+);
 
 // this going to come from the game server
 router.patch('/game/start', is_game_server, start_game);
