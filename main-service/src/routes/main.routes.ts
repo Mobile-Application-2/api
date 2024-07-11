@@ -25,6 +25,8 @@ import {
   see_all_tournaments,
   join_tournament,
   fetch_my_fixtures_in_tournament,
+  join_tournament_lobby,
+  see_all_tournaments_i_am_in,
 } from '../controllers/main.controller';
 const router = Router();
 
@@ -45,6 +47,12 @@ router.get('/mylobbies', is_logged_in, get_active_lobbies_i_am_in);
 router.get('/tournaments', is_logged_in, see_all_tournaments);
 
 router.get('/tournament/:tournamentId', is_logged_in, get_a_tournament_info);
+
+router.get(
+  '/participating-tournaments',
+  is_logged_in,
+  see_all_tournaments_i_am_in
+);
 
 router.get(
   '/tournament/:tournamentId/fixtures',
@@ -70,8 +78,15 @@ router.post('/join-lobby', is_logged_in, join_lobby);
 
 router.post('/join-tournament', is_logged_in, join_tournament);
 
-// TODO:when a player joins a lobby for a fixture the other party will be notified, (handle winning, losing, cancellation etc.)
-// TODO: router.patch('/tournament/lobby/:lobbyCode') // join a tournament's fixture/lobby no payment
+router.post(
+  '/tournament/:tournamentId/lobby/:lobbyCode',
+  is_logged_in,
+  join_tournament_lobby
+);
+
+// TODO: then the game server should start the game then winners, cancellations can be recorded
+// this going to come from the game server
+// router.patch('/tournament/:tournamentId/lobby/:lobbyCode/start', is_game_server, start_tournament_game);
 
 // this going to come from the game server
 router.patch('/game/start', is_game_server, start_game);

@@ -1831,3 +1831,118 @@ export async function fetch_my_fixtures_in_tournament(
     handle_error(error, res);
   }
 }
+
+export async function join_tournament_lobby(req: Request, res: Response) {
+  try {
+    // join a tournament's fixture/lobby no payment
+    // when a player joins a lobby for a fixture the other party will be notified
+    const {userId} = req;
+    const {tournamentId, lobbyCode} = req.params;
+
+    if (!userId || !isValidObjectId(userId)) {
+      res
+        .status(400)
+        .json({message: 'Something went wrong, try to login again'});
+      return;
+    }
+
+    const userInfo = await USER.findOne({_id: userId});
+
+    if (!userInfo) {
+      res.status(404).json({
+        message: 'There was a problem with your account, try to login again',
+      });
+      return;
+    }
+
+    if (!isValidObjectId(tournamentId)) {
+      res.status(400).json({message: 'Invalid tournament id'});
+      return;
+    }
+
+    if (typeof lobbyCode !== 'string' || lobbyCode.trim() === '') {
+      res.status(400).json({message: 'Invalid lobby code'});
+      return;
+    }
+
+    const tournamentInfo = await TOURNAMENT.findOne({_id: tournamentId});
+
+    if (!tournamentInfo) {
+      res.status(404).json({message: 'Tournament not found'});
+      return;
+    }
+
+    // check if this fixture exists and I am a part of it
+    const fixtureInfo = await TOURNAMENTFIXTURES.findOne({
+      tournamentId,
+      joiningCode: lobbyCode,
+      players: userId,
+    });
+
+    if (!fixtureInfo) {
+      res.status(404).json({
+        message:
+          'You do not have this as a fixture, please check the lobby code or tournament and try again',
+      });
+      return;
+    }
+
+    // check if the fixture has started
+    if (fixtureInfo.gameStarted) {
+      res.status(400).json({message: 'This fixture has already started'});
+      return;
+    }
+
+    // notify the other player
+    const otherPlayer = fixtureInfo.players.filter(
+      x => x.toString() !== userId.toString()
+    );
+
+    const otherPlayerInfo = await USER.findOne({_id: otherPlayer});
+
+    if (!otherPlayerInfo) {
+      res.status(404).json({
+        message: 'Something went wrong while notifying the other player',
+      });
+      return;
+    }
+
+    await send_mail(
+      otherPlayerInfo.email,
+      'fixture-notification',
+      'Fixture Notification',
+      {
+        tournamentName: tournamentInfo.name,
+        lobbyCode,
+        username: otherPlayerInfo.username,
+        waitingPlayerName: userInfo.username,
+      }
+    );
+
+    // TODO: push notification later
+
+    res.status(200).json({
+      message:
+        'You have joined the fixture, a notification has been sent to the other player, you game should start soon',
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function see_all_tournaments_i_am_in(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+
+    const tournaments = await TOURNAMENT.find({
+      participants: userId,
+    });
+
+    res.status(200).json({
+      message: 'Tournaments retrieved successfully',
+      data: tournaments,
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
