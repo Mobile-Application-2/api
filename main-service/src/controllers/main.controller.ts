@@ -603,6 +603,14 @@ export async function create_a_lobby(req: Request, res: Response) {
       return;
     }
 
+    if (!gameInfo.isActive) {
+      res.status(400).json({
+        message:
+          'This game is not active at the moment, please try again later',
+      });
+      return;
+    }
+
     // find a way to ensure this will not be decimal (fractional) should always be a full integer
     const minWager = 100000; // 1k naira
     if (typeof wagerAmount !== 'number') {
