@@ -1952,21 +1952,15 @@ export async function see_all_tournaments_i_am_in(req: Request, res: Response) {
 
 export async function start_tournament_game(req: Request, res: Response) {
   try {
-    const {tournamentId, lobbyCode} = req.body;
+    const {fixtureId} = req.body;
 
-    if (!isValidObjectId(tournamentId)) {
-      res.status(400).json({message: 'Invalid tournament id'});
-      return;
-    }
-
-    if (typeof lobbyCode !== 'string' || lobbyCode.trim() === '') {
-      res.status(400).json({message: 'Invalid lobby code'});
+    if (!isValidObjectId(fixtureId)) {
+      res.status(400).json({message: 'Invalid fixture id'});
       return;
     }
 
     const fixtureInfo = await TOURNAMENTFIXTURES.findOne({
-      tournamentId,
-      joiningCode: lobbyCode,
+      _id: fixtureId,
     });
 
     if (!fixtureInfo) {
@@ -1992,15 +1986,10 @@ export async function start_tournament_game(req: Request, res: Response) {
 
 export async function cancel_tournament_game(req: Request, res: Response) {
   try {
-    const {tournamentId, lobbyCode, playerWhoCancelledId} = req.body;
+    const {fixtureId, playerWhoCancelledId} = req.body;
 
-    if (!isValidObjectId(tournamentId)) {
-      res.status(400).json({message: 'Invalid tournament id'});
-      return;
-    }
-
-    if (typeof lobbyCode !== 'string' || lobbyCode.trim() === '') {
-      res.status(400).json({message: 'Invalid lobby code'});
+    if (!isValidObjectId(fixtureId)) {
+      res.status(400).json({message: 'Invalid fixture id'});
       return;
     }
 
@@ -2010,8 +1999,7 @@ export async function cancel_tournament_game(req: Request, res: Response) {
     }
 
     const fixtureInfo = await TOURNAMENTFIXTURES.findOne({
-      tournamentId,
-      joiningCode: lobbyCode,
+      _id: fixtureId,
     });
 
     if (!fixtureInfo) {
@@ -2023,6 +2011,11 @@ export async function cancel_tournament_game(req: Request, res: Response) {
       res
         .status(400)
         .json({message: 'You can not cancel a game that has not started'});
+      return;
+    }
+
+    if (fixtureInfo.winner) {
+      res.status(400).json({message: 'This game has already been won'});
       return;
     }
 

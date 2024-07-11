@@ -86,7 +86,6 @@ router.post(
   join_tournament_lobby
 );
 
-// TODO: then winners
 // this going to come from the game server
 router.patch(
   '/tournament/start-fixture-game',

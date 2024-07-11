@@ -18,6 +18,7 @@ import amqplib from 'amqplib';
 import {
   handle_game_won,
   send_tournament_start_notification,
+  handle_tournament_game_won,
 } from './controllers/queue.controller';
 import mongoose from 'mongoose';
 
@@ -41,6 +42,7 @@ async function main(tries = 0) {
 
     const queuesAndHandlers = {
       'game-info-win': handle_game_won,
+      'tournament-info-win': handle_tournament_game_won,
       'tournament-started-notification': send_tournament_start_notification,
     };
 

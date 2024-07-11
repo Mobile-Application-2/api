@@ -1,7 +1,10 @@
 import amqplib from 'amqplib';
 import * as Sentry from '@sentry/node';
-import {IGameWon} from '../interfaces/queue';
-import IStartTournamentNotification from '../interfaces/start-tournament-notification';
+import {
+  IGameWon,
+  IStartTournamentNotification,
+  ITournamentFixtureWon,
+} from '../interfaces/queue';
 
 let channel: amqplib.Channel;
 
@@ -10,11 +13,14 @@ const init = async () => {
   channel = await connection.createChannel();
 };
 
-type queueType = 'game-info-win' | 'tournament-started-notification';
+type queueType =
+  | 'game-info-win'
+  | 'tournament-started-notification'
+  | 'tournament-info-win';
 
 export const publish_to_queue = async (
   queueName: queueType,
-  data: IGameWon | IStartTournamentNotification,
+  data: IGameWon | IStartTournamentNotification | ITournamentFixtureWon,
   queueIsDurable: boolean,
   options?: amqplib.Options.Publish
 ) => {

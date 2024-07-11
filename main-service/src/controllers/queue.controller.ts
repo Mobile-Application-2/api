@@ -3,13 +3,17 @@ import * as Sentry from '@sentry/node';
 import mongoose, {isValidObjectId} from 'mongoose';
 import LOBBY from '../models/lobby.model';
 import USER from '../models/user.model';
-import {IGameWon} from '../interfaces/queue';
+import {
+  IGameWon,
+  IStartTournamentNotification,
+  ITournamentFixtureWon,
+} from '../interfaces/queue';
 import ESCROW from '../models/escrow.model';
 import TRANSACTION from '../models/transaction.model';
 import {v4 as uuidV4} from 'uuid';
-import IStartTournamentNotification from '../interfaces/start-tournament-notification';
 import send_mail from '../utils/nodemailer';
 import NOTIFICATION from '../models/notification.model';
+import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
 
 export async function handle_game_won(
   message: amqplib.ConsumeMessage | null,
@@ -233,6 +237,138 @@ export async function send_tournament_start_notification(
     Sentry.captureException(error, {
       level: 'error',
       tags: {source: 'send_tournament_start_notification function'},
+    });
+
+    if (message) channel.ack(message);
+  }
+}
+
+export async function handle_tournament_game_won(
+  message: amqplib.ConsumeMessage | null,
+  channel: amqplib.Channel
+) {
+  try {
+    if (message) {
+      const {fixtureId, winnerId} = JSON.parse(
+        message.content.toString()
+      ) as ITournamentFixtureWon;
+
+      if (!isValidObjectId(fixtureId) || !isValidObjectId(winnerId)) {
+        Sentry.addBreadcrumb({
+          category: 'tournament',
+          data: {
+            fixtureId,
+            winnerId,
+          },
+          message: 'Invalid fixtureId or winnerId provided',
+        });
+
+        Sentry.captureMessage(
+          'A handle tournament game won message came in with an invalid lobbyId or winnerId',
+          'warning'
+        );
+
+        channel.ack(message);
+        return;
+      }
+
+      // check that fixture exists
+      const fixtureInfo = await TOURNAMENTFIXTURES.findOne({
+        _id: fixtureId,
+      });
+
+      if (fixtureInfo === null) {
+        Sentry.addBreadcrumb({
+          category: 'tournament',
+          data: {
+            fixtureId,
+          },
+          message: 'Invalid fixtureId provided',
+        });
+
+        Sentry.captureMessage(
+          'A handle tournament game won message came in for a fixture that does not exist',
+          'warning'
+        );
+
+        channel.ack(message);
+        return;
+      }
+
+      // check that winner is a part of the fixture
+      if (
+        !fixtureInfo.players
+          .map(x => x.toString())
+          .includes(winnerId.toString())
+      ) {
+        Sentry.addBreadcrumb({
+          category: 'tournament',
+          data: {
+            fixtureId,
+            winnerId,
+          },
+          message: 'Winner is not part of the fixture',
+        });
+
+        Sentry.captureMessage(
+          'A handle tournament game won message came in for a winner that is not part of the fixture',
+          'warning'
+        );
+
+        channel.ack(message);
+        return;
+      }
+
+      // check that game has started
+      if (!fixtureInfo.gameStarted) {
+        Sentry.addBreadcrumb({
+          category: 'tournament',
+          data: {
+            fixtureId,
+          },
+          message: 'Game has not started yet',
+        });
+
+        Sentry.captureMessage(
+          'A handle tournament game won message came in for a fixture that has not started yet',
+          'warning'
+        );
+
+        channel.ack(message);
+        return;
+      }
+
+      // check that game has not been won already
+      if (fixtureInfo.winner) {
+        Sentry.addBreadcrumb({
+          category: 'tournament',
+          data: {
+            fixtureId,
+          },
+          message: 'Game has already been won',
+        });
+
+        Sentry.captureMessage(
+          'A handle tournament game won message came in for a fixture that has already been won',
+          'warning'
+        );
+
+        channel.ack(message);
+        return;
+      }
+
+      // assign a winner to fixture and ack message
+      await TOURNAMENTFIXTURES.updateOne(
+        {_id: fixtureId},
+        {$set: {winner: winnerId}}
+      );
+
+      channel.ack(message);
+    }
+  } catch (error) {
+    Sentry.captureException(error, {
+      level: 'error',
+      tags: {source: 'handle_tournament_game_won function'},
     });
 
     if (message) channel.ack(message);
