@@ -11,6 +11,7 @@ import generate_tournament_fixtures from '../utils/generate-fixtures';
 import crypto from 'crypto';
 import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
 import {publish_to_queue} from '../utils/rabbitmq';
+import TOURNAMENTTTL from '../models/tournament-ttl.model';
 const ObjectId = mongoose.Types.ObjectId;
 
 export async function get_my_tournaments(req: Request, res: Response) {
@@ -209,7 +210,6 @@ export async function create_tournament(req: Request, res: Response) {
       return;
     }
 
-    // TODO: add a ttl to actually end the tournament and process winners, add to winners array and pay the winners
     const allowedFields = [
       'name',
       'gameId',
@@ -262,15 +262,51 @@ export async function create_tournament(req: Request, res: Response) {
       return;
     }
 
-    // create
-    const newTournament = await TOURNAMENT.create({
-      ...tournamentInfo,
-      creatorId: userId,
+    const session = await mongoose.startSession({
+      defaultTransactionOptions: {
+        writeConcern: {w: 'majority'},
+        readConcern: {level: 'majority'},
+      },
     });
 
-    res
-      .status(201)
-      .json({message: 'Tournament created successfully', data: newTournament});
+    await session.withTransaction(async session => {
+      try {
+        // create tournament
+        const newTournament = await TOURNAMENT.create(
+          [
+            {
+              ...tournamentInfo,
+              creatorId: userId,
+            },
+          ],
+          {session}
+        );
+
+        // create ttl
+        await TOURNAMENTTTL.create(
+          [
+            {
+              tournamentId: newTournament[0]._id,
+              expiresAt: new Date(tournamentInfo.endDate),
+            },
+          ],
+          {session}
+        );
+
+        await session.commitTransaction();
+
+        res.status(201).json({
+          message: 'Tournament created successfully',
+          data: newTournament[0],
+        });
+      } catch (error) {
+        await session.abortTransaction();
+
+        throw error;
+      } finally {
+        await session.endSession();
+      }
+    });
   } catch (error) {
     handle_error(error, res);
   }
@@ -297,7 +333,7 @@ export async function update_prizes_to_tournament(req: Request, res: Response) {
       return;
     }
 
-    if (!tournamentInfo.isActive) {
+    if (tournamentInfo.endDate < new Date()) {
       res.status(400).json({message: 'Tournament has already ended'});
       return;
     }
@@ -450,7 +486,7 @@ export async function update_tournament_code(req: Request, res: Response) {
       return;
     }
 
-    if (!tournamentInfo.isActive) {
+    if (tournamentInfo.endDate < new Date()) {
       res.status(400).json({message: 'Tournament has already ended'});
       return;
     }
@@ -603,6 +639,11 @@ export async function start_a_tournament(req: Request, res: Response) {
       return;
     }
 
+    if (tournamentInfo.endDate < new Date()) {
+      res.status(400).json({message: 'Tournament has already ended'});
+      return;
+    }
+
     // check that tournament has players and even number of players
     // in the future we might add a logic to pad the players with bots to form an even number
     if (
@@ -614,8 +655,6 @@ export async function start_a_tournament(req: Request, res: Response) {
         .json({message: 'Tournament must have an even number of players'});
       return;
     }
-
-    // TODO: if there are less players than prizes refund the celebrity when the tournament ends
 
     // start the tournament
     const session = await mongoose.startSession({

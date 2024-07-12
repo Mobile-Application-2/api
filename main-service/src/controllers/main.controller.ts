@@ -1597,7 +1597,7 @@ export async function see_all_tournaments(req: Request, res: Response) {
       {
         $match: {
           isFullyCreated: true,
-          isActive: true,
+          endDate: {$gt: new Date()},
         },
       },
       ...sortPipeline,
@@ -1630,7 +1630,6 @@ export async function join_tournament(req: Request, res: Response) {
 
     const tournamentInfo = await TOURNAMENT.findOne({
       joiningCode,
-      isActive: true,
       isFullyCreated: true,
       hasStarted: false,
     });
@@ -1647,6 +1646,18 @@ export async function join_tournament(req: Request, res: Response) {
         .includes(userId?.toString() as string)
     ) {
       res.status(400).json({message: 'You are already in this tournament'});
+      return;
+    }
+
+    if (tournamentInfo.registrationDeadline < new Date()) {
+      res
+        .status(400)
+        .json({message: 'Registration has closed for this tournament'});
+      return;
+    }
+
+    if (tournamentInfo.endDate < new Date()) {
+      res.status(400).json({message: 'This tournament has ended'});
       return;
     }
 
@@ -1695,7 +1706,6 @@ export async function join_tournament(req: Request, res: Response) {
           );
 
           // create a new transaction entry
-          // TODO: this will go straight to the tournament creator when the tournament ends
           await TRANSACTION.create(
             [
               {
@@ -1712,16 +1722,17 @@ export async function join_tournament(req: Request, res: Response) {
             {session}
           );
 
-          // create a new escrow
-          await TOURNAMENTESCROW.create(
-            [
-              {
-                tournamentId: tournamentInfo._id,
-                totalAmount: tournamentInfo.gateFee,
-                playersThatHavePaid: [userId],
-              },
-            ],
-            {session}
+          // create a new escrow if none exists, else update
+          await TOURNAMENTESCROW.updateOne(
+            {
+              tournamentId: tournamentInfo._id,
+              isPrize: false,
+            },
+            {
+              $inc: {totalAmount: tournamentInfo.gateFee},
+              $push: {playersThatHavePaid: userId},
+            },
+            {upsert: true, session}
           );
         }
 
@@ -1883,6 +1894,11 @@ export async function join_tournament_lobby(req: Request, res: Response) {
       return;
     }
 
+    if (tournamentInfo.endDate < new Date()) {
+      res.status(400).json({message: 'This tournament has ended'});
+      return;
+    }
+
     // check if this fixture exists and I am a part of it
     const fixtureInfo = await TOURNAMENTFIXTURES.findOne({
       tournamentId,
@@ -1981,6 +1997,20 @@ export async function start_tournament_game(req: Request, res: Response) {
       return;
     }
 
+    const tournamentInfo = await TOURNAMENT.findOne({
+      _id: fixtureInfo.tournamentId,
+    });
+
+    if (!tournamentInfo) {
+      res.status(404).json({message: 'Tournament not found'});
+      return;
+    }
+
+    if (tournamentInfo.endDate < new Date()) {
+      res.status(400).json({message: 'This tournament has ended'});
+      return;
+    }
+
     await TOURNAMENTFIXTURES.updateOne(
       {_id: fixtureInfo._id},
       {$set: {gameStarted: true}}
@@ -2033,6 +2063,20 @@ export async function cancel_tournament_game(req: Request, res: Response) {
       res.status(400).json({
         message: 'The specified player who cancelled is not in this fixture',
       });
+      return;
+    }
+
+    const tournamentInfo = await TOURNAMENT.findOne({
+      _id: fixtureInfo.tournamentId,
+    });
+
+    if (!tournamentInfo) {
+      res.status(404).json({message: 'Tournament not found'});
+      return;
+    }
+
+    if (tournamentInfo.endDate < new Date()) {
+      res.status(400).json({message: 'This tournament has ended'});
       return;
     }
 

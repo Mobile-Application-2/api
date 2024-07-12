@@ -14,6 +14,7 @@ import {v4 as uuidV4} from 'uuid';
 import send_mail from '../utils/nodemailer';
 import NOTIFICATION from '../models/notification.model';
 import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
+import TOURNAMENT from '../models/tournament.model';
 
 export async function handle_game_won(
   message: amqplib.ConsumeMessage | null,
@@ -353,6 +354,34 @@ export async function handle_tournament_game_won(
           'warning'
         );
 
+        channel.ack(message);
+        return;
+      }
+
+      // check the tournament info and if it has ended
+      const tournamentInfo = await TOURNAMENT.findOne({
+        _id: fixtureInfo.tournamentId,
+      });
+
+      if (tournamentInfo === null) {
+        Sentry.addBreadcrumb({
+          category: 'tournament',
+          data: {
+            fixtureId,
+          },
+          message: 'Tournament not found',
+        });
+
+        Sentry.captureMessage(
+          'A handle tournament game won message came in for a tournament that does not exist',
+          'warning'
+        );
+
+        channel.ack(message);
+        return;
+      }
+
+      if (tournamentInfo.endDate < new Date()) {
         channel.ack(message);
         return;
       }
