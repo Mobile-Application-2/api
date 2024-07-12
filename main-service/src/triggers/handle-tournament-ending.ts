@@ -318,7 +318,7 @@ export default async function handle_tournament_ending(changeData: any) {
       // if the tournament did start, then process the people with most wins and add to winners array paying them the prizepool
       // once the winners are paid, pay the celeb the total gatefee he/she earned from the tournament escrow document.
       // if there are less players than prizes refund the celebrity when the tournament ends the remaining prizes
-      // inform the celeb of thier earning and tournament ending same as the users as well
+      // TODO: inform the celeb of thier earning and tournament ending same as the users as well
 
       await session.commitTransaction();
     } catch (error) {

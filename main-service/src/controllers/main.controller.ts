@@ -2094,3 +2094,49 @@ export async function cancel_tournament_game(req: Request, res: Response) {
     handle_error(error, res);
   }
 }
+
+export async function get_top_active_games(_: Request, res: Response) {
+  try {
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          active: true,
+        },
+      },
+      {
+        $group: {
+          _id: '$gameId',
+          totalPlays: {
+            $sum: 1,
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'games',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'gameInfo',
+        },
+      },
+      {
+        $addFields: {
+          gameInfo: {
+            $arrayElemAt: ['$gameInfo', 0],
+          },
+        },
+      },
+      {
+        $sort: {
+          total: -1,
+        },
+      },
+    ];
+
+    const topGamesNow = await LOBBY.aggregate(pipeline);
+
+    res.status(200).json({message: 'Success', data: topGamesNow});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}

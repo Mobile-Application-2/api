@@ -29,6 +29,7 @@ import {
   see_all_tournaments_i_am_in,
   start_tournament_game,
   cancel_tournament_game,
+  get_top_active_games,
 } from '../controllers/main.controller';
 const router = Router();
 
@@ -65,6 +66,8 @@ router.get(
 router.get('/top/games', is_logged_in, top_games); // games with most number of current active lobbies (plays) in the last week
 
 router.get('/top/gamers', is_logged_in, top_gamers); // players with most win weekly
+
+router.get('/top-active-games', is_logged_in, get_top_active_games);
 
 router.post('/waitlist', join_waitlist);
 
