@@ -1,3 +1,6 @@
+import MainServerLayer from "../MainServerLayer.js";
+import LOBBY from "../models/lobby.model.js";
+import USER from "../models/user.model.js";
 import GameModel from "./models/game.model.js";
 
 export default class Chess {
@@ -44,6 +47,20 @@ export default class Chess {
                 await GameModel.updateOne({roomID: roomID, 'players.socketID': socket.id}, {
                     $set: {'players.$.winner': true}
                 })
+
+                const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
+
+                const winner = currentRoom.players.find(player => player.socketID == socket.id);
+
+                const winnerData = await USER.findOne({username: winner.username})
+
+                const winnerId = winnerData.toObject()._id
+
+                const lobbyId = await MainServerLayer.getLobbyID(roomID);
+
+                await MainServerLayer.wonGame(lobbyId, winnerId);
+
+                // await GameModel.findOne({'players.username'})
             })
 
             socket.on('disconnect', () => {
@@ -91,14 +108,14 @@ export default class Chess {
             // currentRoom.state = newState;
 
             socket.broadcast.emit('turn_played', indexClicked, newPosition, (err, response) => {
-                if(err) {
-                    console.log("no response from client");
-                    console.log(err);
-                }
-                else {
-                    console.log("client responded");
-                    console.log(response);
-                }
+                // if(err) {
+                //     console.log("no response from client");
+                //     console.log(err);
+                // }
+                // else {
+                //     console.log("client responded");
+                //     console.log(response);
+                // }
             });
         }
     }
@@ -198,6 +215,14 @@ export default class Chess {
                 // playerTwoInfo.socketID = undefined;
 
                 chessNameSpace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo);
+
+                console.log("sending info to main server");
+
+                const lobbyID = await MainServerLayer.getLobbyID(roomID);
+
+                await MainServerLayer.startGame(lobbyID);
+
+                console.log("done sending info to main server");
             }
         }
         else {
