@@ -1,6 +1,7 @@
 import GameModel from "./models/game.model.js";
 import Bag from "./Bag.js";
 import LetterFactory from "./LetterFactory.js";
+import MainServerLayer from "../MainServerLayer.js";
 
 export default class Scrabble {
 
@@ -156,6 +157,12 @@ export default class Scrabble {
                 }
 
                 scrabbleNameSpace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo);
+
+                const lobbyID = await MainServerLayer.getLobbyID(roomID);
+
+                await MainServerLayer.startGame(lobbyID);
+
+                console.log("done sending info to main server");
             }
         }
         else {

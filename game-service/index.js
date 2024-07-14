@@ -13,6 +13,7 @@ import Scrabble from './scrabble/Scrabble.js';
 
 import LOBBY from "./models/lobby.model.js"
 import GAME from "./models/game.model.js"
+import MainServerLayer from './MainServerLayer.js';
 
 const app = express();
 
@@ -176,11 +177,23 @@ ludoNamespace.on('connection', socket => {
 
     })
 
-    socket.on("player_won", (roomID) => {
+    socket.on("player_won", async (roomID) => {
         Ludo.declareWinner(roomID, socket.id);
+
+        const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
+
+        const winner = currentRoom.players.find(player => player.socketID == socket.id);
+
+        const winnerData = await USER.findOne({username: winner.username})
+
+        const winnerId = winnerData.toObject()._id
+
+        const lobbyId = await MainServerLayer.getLobbyID(roomID);
+
+        await MainServerLayer.wonGame(lobbyId, winnerId);
     })
 
-    socket.on("create_room", (roomID, setup, username, avatar) => {
+    socket.on("create_room", async (roomID, setup, username, avatar) => {
         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
             console.log("room found");
 
@@ -205,6 +218,12 @@ ludoNamespace.on('connection', socket => {
             // playerTwoInfo.socketID = undefined;
 
             ludoNamespace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo)
+
+            const lobbyID = await MainServerLayer.getLobbyID(roomID);
+
+            await MainServerLayer.startGame(lobbyID);
+
+            console.log("done sending info to main server");
         }
         else {
             console.log("creating room");

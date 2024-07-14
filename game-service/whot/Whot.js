@@ -1,3 +1,4 @@
+import MainServerLayer from "../MainServerLayer.js";
 import initializeDeck from "./functions/initializeDeck.js"
 import reverseState from "./functions/reverseState.js";
 import GameModel from "./models/game.model.js";
@@ -39,7 +40,7 @@ export default class Whot {
 
         io.emit('remove', 'whot', room.room_id);
       })
-      socket.on("join_room", ({ room_id, storedId, username, avatar }) => {
+      socket.on("join_room", async ({ room_id, storedId, username, avatar }) => {
         if (room_id?.length != 6) {
           whotNamespace.to(socket.id).emit(
             "error",
@@ -113,6 +114,12 @@ export default class Whot {
               currentRoom.turn = 1;
 
               whotNamespace.to(room_id).emit("start", playerOneInfo, playerTwoInfo, currentRoom.turn);
+
+              const lobbyID = await MainServerLayer.getLobbyID(room_id);
+
+              await MainServerLayer.startGame(lobbyID);
+
+              console.log("done sending info to main server");
             }
           }
           else {
@@ -255,6 +262,18 @@ export default class Whot {
           })
 
           await gameModel.save();
+
+          const currentRoom = this.rooms.filter(room => room.roomID == room_id)[0];
+
+          const winner = currentRoom.players.find(player => player.socketID == socket.id);
+
+          const winnerData = await USER.findOne({username: winner.username})
+
+          const winnerId = winnerData.toObject()._id
+
+          const lobbyId = await MainServerLayer.getLobbyID(roomID);
+
+          await MainServerLayer.wonGame(lobbyId, winnerId);
         }
       });
 
