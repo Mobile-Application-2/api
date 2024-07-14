@@ -77,25 +77,28 @@ export default class Chess {
                 io.emit('remove', 'chess', room.roomID);
             })
 
-            // socket.on('disconnecting', () => {
-            //     for(let i = 0; i < this.rooms.length; ++i) {
-            //         const currentRoom = this.rooms[i];
+            socket.on('disconnecting', () => {
+                for(let i = 0; i < this.rooms.length; ++i) {
+                    const currentRoom = this.rooms[i];
 
-            //         if(currentRoom.players.filter(player => player.socketID == socket.id)[0] != undefined) {
-            //             socket.leave(currentRoom.roomID);
+                    if(currentRoom.players.filter(player => player.socketID == socket.id)[0] != undefined) {
+                        console.log("player is disconnecting");
 
-            //             currentRoom.players
+                        chessNameSpace.to(currentRoom.roomID).emit('pause');
+                        // socket.leave(currentRoom.roomID);
 
-            //             currentRoom.players = currentRoom.players.filter(player => player.socketID != socket.id);
+                        // currentRoom.players
 
-            //             if(currentRoom.players.length == 0) {
+                        // currentRoom.players = currentRoom.players.filter(player => player.socketID != socket.id);
 
-            //             }
+                        // if(currentRoom.players.length == 0) {
 
-            //             break;
-            //         }
-            //     }
-            // })
+                        // }
+
+                        // break;
+                    }
+                }
+            })
         })
     }
 
