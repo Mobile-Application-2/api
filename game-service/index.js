@@ -14,6 +14,7 @@ import Scrabble from './scrabble/Scrabble.js';
 import LOBBY from "./models/lobby.model.js"
 import GAME from "./models/game.model.js"
 import MainServerLayer from './MainServerLayer.js';
+import ErrorModel from './models/error.model.js';
 
 const app = express();
 
@@ -293,4 +294,17 @@ mongoose.connect(URL)
     server.listen(PORT, () => {
         console.log(`server running at http://localhost:${PORT}`);
     });
+
+    process.on("uncaughtException", async (error) => {
+        console.log("uncaught exception");
+        console.log(error.stack);
+
+        const errorModel = new ErrorModel({
+            error: error.stack
+        });
+
+        await errorModel.save();
+
+        process.exit(1);
+    })
 })
