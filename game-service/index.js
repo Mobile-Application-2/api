@@ -20,7 +20,7 @@ const app = express();
 
 const server = createServer(app);
 
-const PORT = 5657;
+const PORT = process.env.PORT || 5657;
 
 const io = new Server(server, {
     cors: {
