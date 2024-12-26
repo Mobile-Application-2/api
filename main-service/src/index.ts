@@ -62,7 +62,7 @@ app.use(rate_limit_api);
 // overwrites the returned JSON to include boolean status
 app.use(responseBool);
 
-const PORT = 5656;
+const PORT = process.env.PORT || 5656;
 const DB_URI =
   process.env.NODE_ENV === 'production'
     ? process.env.DB_URI
