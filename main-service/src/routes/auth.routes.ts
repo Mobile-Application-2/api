@@ -5,6 +5,7 @@ import {
   edit_profile,
   get_my_profile,
   login,
+  logout,
   refresh_tokens,
   register_celebrity,
   register_user,
@@ -27,6 +28,8 @@ router.post('/register/user', register_user);
 router.post('/register/celebrity', register_celebrity);
 
 router.post('/login', login);
+
+router.post('/logout', logout);
 
 router.post('/refresh-tokens', refresh_tokens);
 

@@ -264,6 +264,26 @@ export async function login(req: Request, res: Response) {
   }
 }
 
+export async function logout(req: Request, res: Response) {
+  const refreshToken = req.headers.authorization?.split(' ')[1];
+
+  if (refreshToken === undefined || refreshToken.length === 0) {
+    res.status(401).json({message: 'Invalid token'});
+    return;
+  }
+
+  // verify token integrity
+  const tokenInfo = jwt.verify(
+    refreshToken,
+    process.env.REFRESH_TOKEN_SECRET as string
+  ) as customJwtPayload;
+
+  // delete redis entry for token
+  await redisClient.del(tokenInfo.tokenId);
+
+  res.status(200).json({message: 'Success'});
+}
+
 export async function refresh_tokens(req: Request, res: Response) {
   try {
     const refreshToken = req.headers.authorization?.split(' ')[1];
