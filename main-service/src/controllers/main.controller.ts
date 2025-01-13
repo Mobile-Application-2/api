@@ -2161,7 +2161,42 @@ export async function get_gamers(req: Request, res: Response) {
       };
     }
 
-    const gamers = await USER.find(filter);
+    const gamers = await USER.aggregate([
+      {$match: filter},
+      {$project: {_id: 1, username: 1, avatar: 1}},
+      {$limit: 100},
+      {
+        $lookup: {
+          from: 'lobbies',
+          localField: '_id',
+          foreignField: 'winners',
+          as: 'winnings',
+          let: {playerInQuestion: '$_id'},
+          pipeline: [
+            {
+              $unwind: '$winners',
+            },
+            {
+              $match: {
+                winners: '$$playerInQuestion',
+              },
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          numberOfWins: {$size: '$winnings'},
+        },
+      },
+      {
+        $project: {
+          winnings: 0,
+        },
+      },
+    ]);
+
+    res.status(200).json({message: 'Success', data: gamers});
 
     res.status(200).json({message: 'Success', data: gamers});
   } catch (error) {
