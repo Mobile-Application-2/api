@@ -2140,3 +2140,91 @@ export async function get_top_active_games(_: Request, res: Response) {
     handle_error(error, res);
   }
 }
+
+export async function get_gamers(req: Request, res: Response) {
+  try {
+    const {q: query} = req.query;
+
+    if (typeof query === 'string' && query.length <= 2) {
+      res
+        .status(400)
+        .json({message: 'Query must be at least 2 characters long'});
+    }
+
+    const filter: {[key: string]: any} = {
+      accountIsActive: true, // this ensures the user can play
+    };
+    if (query) {
+      filter['username'] = {
+        $regex: query,
+        $options: 'ig',
+      };
+    }
+
+    const gamers = await USER.find(filter);
+
+    res.status(200).json({message: 'Success', data: gamers});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function select_a_user_to_play_with(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    const {playerId, lobbyId} = req.body;
+
+    if (!isValidObjectId(playerId)) {
+      res.status(400).json({message: 'Invalid player id'});
+      return;
+    }
+
+    if (!isValidObjectId(lobbyId)) {
+      res.status(400).json({message: 'Invalid lobby id'});
+      return;
+    }
+
+    const playerInfo = await USER.findOne({_id: playerId});
+    if (!playerInfo) {
+      res.status(404).json({message: 'Player not found'});
+      return;
+    }
+
+    const userInfo = await USER.findOne({_id: userId});
+    if (!userInfo) {
+      res
+        .status(500)
+        .json({message: 'Something went wrong, please contact support'});
+      return;
+    }
+
+    const lobbyInfo = await LOBBY.findOne({_id: lobbyId});
+    if (!lobbyInfo) {
+      res.status(404).json({message: 'Lobby not found'});
+      return;
+    }
+
+    // check that I own the lobby
+    if (lobbyInfo.creatorId.toString() !== userId) {
+      res.status(400).json({message: 'You do not own this lobby'});
+      return;
+    }
+
+    // check if the player has an active account (not neccesarily online)
+    if (!playerInfo.accountIsActive) {
+      res.status(400).json({message: "This player's account is not active"});
+      return;
+    }
+
+    // send invite to the player
+    await send_mail(playerInfo.email, 'game-invite', 'Game Invite', {
+      username: playerInfo.username,
+      lobbyCode: lobbyInfo.code,
+      inviter: userInfo.username,
+    });
+
+    res.status(200).json({message: 'Invite sent successfully'});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}

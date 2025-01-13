@@ -9,3 +9,4 @@ redis/dump.rdb
 */static/
 *.key
 *.crt
+*.DS_Store

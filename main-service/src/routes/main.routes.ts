@@ -30,6 +30,8 @@ import {
   start_tournament_game,
   cancel_tournament_game,
   get_top_active_games,
+  get_gamers,
+  select_a_user_to_play_with,
 } from '../controllers/main.controller';
 const router = Router();
 
@@ -68,6 +70,10 @@ router.get('/top/games', is_logged_in, top_games); // games with most number of 
 router.get('/top/gamers', is_logged_in, top_gamers); // players with most win weekly
 
 router.get('/top-active-games', is_logged_in, get_top_active_games);
+
+router.get('/gamers', is_logged_in, get_gamers);
+
+router.post('/gamers/select', is_logged_in, select_a_user_to_play_with);
 
 router.post('/waitlist', join_waitlist);
 
