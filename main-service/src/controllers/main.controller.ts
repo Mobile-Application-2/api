@@ -2157,7 +2157,7 @@ export async function get_gamers(req: Request, res: Response) {
     if (query) {
       filter['username'] = {
         $regex: query,
-        $options: 'ig',
+        $options: 'i',
       };
     }
 
