@@ -2178,7 +2178,9 @@ export async function get_gamers(req: Request, res: Response) {
             },
             {
               $match: {
-                winners: '$$playerInQuestion',
+                $expr: {
+                  $eq: ['$winners', '$$playerInQuestion'],
+                },
               },
             },
           ],
