@@ -2260,7 +2260,15 @@ export async function select_a_user_to_play_with(req: Request, res: Response) {
       inviter: userInfo.username,
     });
 
-    res.status(200).json({message: 'Invite sent successfully'});
+    res.status(200).json({
+      message: 'Invite sent successfully',
+      data: {
+        username: userInfo.username,
+        userAvatar: userInfo.avatar,
+        opponentUsername: playerInfo.username,
+        opponentAvatar: playerInfo.avatar,
+      },
+    });
   } catch (error) {
     handle_error(error, res);
   }

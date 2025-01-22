@@ -473,12 +473,12 @@ export async function edit_profile(req: Request, res: Response) {
         return;
       }
 
+      req.body['avatar'] = await upload_file(req.body['avatar'], 'profile');
+
       // NOTE: might need to handle default avatar exception
       if (userInfo.avatar) {
         await delete_file(userInfo.avatar, 'profile');
       }
-
-      req.body['avatar'] = await upload_file(req.body['avatar'], 'profile');
     }
 
     const updateInfo = await USER.updateOne({_id: userId}, update);
