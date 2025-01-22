@@ -333,7 +333,6 @@ export async function refresh_tokens(req: Request, res: Response) {
       tokens,
     });
   } catch (error) {
-    console.log(error);
     handle_error(error, res);
   }
 }
@@ -473,12 +472,21 @@ export async function edit_profile(req: Request, res: Response) {
         return;
       }
 
+      // this is to prevent users from uploading non-default avatars as strings
+      if (
+        typeof update.avatar === 'string' &&
+        !update.avatar.match(/profile\/defaults/)
+      ) {
+        res.status(400).json({message: 'Invalid request'});
+        return;
+      }
+
       // don't upload default avatars since they are already string URLs
-      if (!update.avatar.startsWith('profile/defaults')) {
+      if (typeof update.avatar !== 'string') {
         req.body['avatar'] = await upload_file(req.body['avatar'], 'profile');
       }
 
-      if (!userInfo.avatar?.startsWith('profile/defaults') && userInfo.avatar) {
+      if (userInfo.avatar && !userInfo.avatar.match(/profile\/defaults/)) {
         await delete_file(userInfo.avatar, 'profile');
       }
     }
@@ -825,12 +833,6 @@ export async function begin_2fa_process(req: Request, res: Response) {
       return;
     }
 
-    console.log(
-      userInfo.twoFactorAuthenticationEnabled,
-      method,
-      userInfo.twoFactorAuthenticationProvider
-    );
-
     if (
       userInfo.twoFactorAuthenticationEnabled &&
       userInfo.twoFactorAuthenticationProvider === method
@@ -874,7 +876,7 @@ export async function begin_2fa_process(req: Request, res: Response) {
 
 export async function get_default_avatars(_: Request, res: Response) {
   try {
-    const DefaultAvatars = list_directory('profile/defaults');
+    const DefaultAvatars = await list_directory('profile/defaults');
 
     res
       .status(200)
