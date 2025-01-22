@@ -3,6 +3,7 @@ import {
   begin_2fa_process,
   change_password,
   edit_profile,
+  get_default_avatars,
   get_my_profile,
   login,
   logout,
@@ -22,6 +23,8 @@ import {rate_limit_verification} from '../middlewares/ratelimiter.middleware';
 const router = Router();
 
 router.get('/profile', is_logged_in, get_my_profile);
+
+router.get('/avatars', get_default_avatars);
 
 router.post('/register/user', register_user);
 

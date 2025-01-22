@@ -40,3 +40,11 @@ export async function delete_file(publicId: string, folder: string) {
 
   await cloudinary.api.delete_resources([resourceNameWithFolder]);
 }
+
+export async function list_directory(folder: string) {
+  const {resources} = await cloudinary.search
+    .expression(`folder:${folder}`)
+    .execute();
+
+  return resources.map((resource: any) => resource.url);
+}

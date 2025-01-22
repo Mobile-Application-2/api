@@ -8,7 +8,7 @@ import REFERRAL from '../models/referral.model';
 import mongoose from 'mongoose';
 import {isEmail, isMobilePhone} from 'validator';
 import bcrypt from 'bcrypt';
-import {delete_file, upload_file} from '../utils/cloudinary';
+import {delete_file, list_directory, upload_file} from '../utils/cloudinary';
 import send_mail from '../utils/nodemailer';
 import {customJwtPayload} from '../interfaces/jwt-payload';
 import IResetPassword from '../interfaces/reset-password';
@@ -473,10 +473,12 @@ export async function edit_profile(req: Request, res: Response) {
         return;
       }
 
-      req.body['avatar'] = await upload_file(req.body['avatar'], 'profile');
+      // don't upload default avatars since they are already string URLs
+      if (!update.avatar.startsWith('profile/defaults')) {
+        req.body['avatar'] = await upload_file(req.body['avatar'], 'profile');
+      }
 
-      // NOTE: might need to handle default avatar exception
-      if (userInfo.avatar) {
+      if (!userInfo.avatar?.startsWith('profile/defaults') && userInfo.avatar) {
         await delete_file(userInfo.avatar, 'profile');
       }
     }
@@ -865,6 +867,18 @@ export async function begin_2fa_process(req: Request, res: Response) {
     }
 
     res.status(200).json({message: successMessage});
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function get_default_avatars(_: Request, res: Response) {
+  try {
+    const DefaultAvatars = list_directory('profile/defaults');
+
+    res
+      .status(200)
+      .json({message: 'Default avatars retrieved', data: DefaultAvatars});
   } catch (error) {
     handle_error(error, res);
   }
