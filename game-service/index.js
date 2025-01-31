@@ -110,10 +110,25 @@ io.on('connection', (socket) => {
 
         if(opponentToNotify) {
             io.to(opponentToNotify.socketID).emit('opponent-joined-lobby', creatorID, gameName, lobbyCode);
+
+            if(cb != undefined) {
+                cb({
+                    gameName: gameName
+                })
+            }
     
-            cb({
-                gameName: gameName
-            })
+        }
+    })
+
+    socket.on('game-message-channel', async (messageName, data) => {
+        if(messageName == "photon-id") {
+            console.log(data);
+
+            const errorModel = new ErrorModel({
+                error: data
+            });
+    
+            await errorModel.save();
         }
     })
 
@@ -295,7 +310,7 @@ mongoose.connect(URL)
         console.log(`server running at http://localhost:${PORT}`);
     });
 
-    process.on("uncaughtException", async (error) => {
+    /* process.on("uncaughtException", async (error) => {
         console.log("uncaught exception");
         console.log(error.stack);
 
@@ -306,5 +321,5 @@ mongoose.connect(URL)
         await errorModel.save();
 
         process.exit(1);
-    })
+    }) */
 })
