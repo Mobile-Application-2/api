@@ -10,3 +10,5 @@ redis/dump.rdb
 *.key
 *.crt
 *.DS_Store
+
+game-service/instrument.js

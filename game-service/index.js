@@ -1,3 +1,7 @@
+// import "./instrument.js"
+
+// import * as Sentry from "@sentry/node"
+
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -46,6 +50,21 @@ let rooms = [
 
 rooms.splice(0);
 
+// function sentryLogActive() {
+//     // Sentry.setContext("active_users", active);
+
+//     // Sentry.captureMessage("active users");
+
+//     Sentry.captureEvent({
+//         message: "active users",
+//         level: "info",
+//         extra: active
+//     });
+// }
+
+async function handleError(error) {
+    await ErrorModel.create({error: error.stack})
+}
 
 io.on('connection', (socket) => {
     console.log("user connected to general namespace");
@@ -57,15 +76,23 @@ io.on('connection', (socket) => {
     io.emit('get_active', active);
 
     console.log(active);
+    // sentryLogActive();
 
     socket.on('disconnect', (_) => {
-        console.log("user disconnected from general namespace", socket.id);
-
-        active = active.filter(obj => obj.socketID != socket.id);
-
-        console.log(active);
-
-        io.emit('get_active', active);
+        try {
+            console.log("user disconnected from general namespace", socket.id);
+    
+            active = active.filter(obj => obj.socketID != socket.id);
+    
+            console.log(active);
+            // sentryLogActive();
+    
+            io.emit('get_active', active);    
+        }
+        catch (error) {
+            // Sentry.captureException(error);
+            handleError(error);
+        }
     })
 
     // socket.on('get_active', () => {
@@ -74,61 +101,81 @@ io.on('connection', (socket) => {
     // })
 
     socket.on('lobby-created', (userID) => {
-        const activeUser = active.find(activeUser => activeUser.socketID == socket.id);
-
-        activeUser.userID = userID;
-
-        console.log("updated active", active);
-
-        io.emit('get_active', active);
+        try {
+            const activeUser = active.find(activeUser => activeUser.socketID == socket.id);
+    
+            activeUser.userID = userID;
+    
+            console.log("updated active", active);
+    
+            io.emit('get_active', active);
+        }
+        catch (error) {
+            // Sentry.captureException(error);
+            handleError(error);
+        }
     })
 
     socket.on('lobby-joined', async (userID, lobbyCode, cb) => {
-        const activeUser = active.find(activeUser => activeUser.socketID == socket.id);
-
-        activeUser.userID = userID;
-
-        console.log("updated active", active);
-
-        io.emit('get_active', active);
-
-        const lobby = await LOBBY.findOne({code: lobbyCode});
-
-        const creatorID = lobby.toObject().creatorId;
-
-        const gameID = lobby.toObject().gameId;
-
-        const game = await GAME.findById(gameID);
-
-        const gameName = game.toObject().name;
-
-        const opponentToNotify = active.find(activeUser => {
-            console.log(activeUser.userID, creatorID.toString());
-
-            return activeUser.userID == creatorID.toString();
-        });
-
-        if(opponentToNotify) {
-            io.to(opponentToNotify.socketID).emit('opponent-joined-lobby', creatorID, gameName, lobbyCode);
-
-            if(cb != undefined) {
-                cb({
-                    gameName: gameName
-                })
-            }
+        try {
+            const activeUser = active.find(activeUser => activeUser.socketID == socket.id);
     
+            activeUser.userID = userID;
+    
+            console.log("updated active", active);
+    
+            io.emit('get_active', active);
+    
+            const lobby = await LOBBY.findOne({code: lobbyCode});
+    
+            const creatorID = lobby.toObject().creatorId;
+    
+            const gameID = lobby.toObject().gameId;
+    
+            const game = await GAME.findById(gameID);
+    
+            const gameName = game.toObject().name;
+    
+            const opponentToNotify = active.find(activeUser => {
+                console.log(activeUser.userID, creatorID.toString());
+    
+                return activeUser.userID == creatorID.toString();
+            });
+    
+            if(opponentToNotify) {
+                io.to(opponentToNotify.socketID).emit('opponent-joined-lobby', creatorID, gameName, lobbyCode);
+    
+                if(cb != undefined) {
+                    cb({
+                        gameName: gameName
+                    })
+                }
+        
+            }
+        }
+        catch (error) {
+            // Sentry.captureException(error);
+            handleError(error);
         }
     })
 
     socket.on('game-message-channel', async (messageName, data) => {
-        if(messageName == "photon-id") {
-            console.log(data);
+        try {
+            if(messageName == "photon-id") {
+                console.log(data);
 
-            const errorModel = new ErrorModel({
-                error: data
-            });
+                // Sentry.captureMessage(`game-message-channel: ${messageName} = ${data}`);
     
-            await errorModel.save();
+                /* const errorModel = new ErrorModel({
+                    error: data
+                });
+        
+                await errorModel.save(); */
+            }
+        }
+        catch (error) {
+            // Sentry.captureException(error);
+            handleError(error);
         }
     })
 
@@ -137,14 +184,20 @@ io.on('connection', (socket) => {
     // });
 
     socket.on('created', (gameID, userID, roomID) => {
-        console.log("lobby created");
-
-        rooms.push({
-            gameID: gameID,
-            roomID: roomID
-        })
-
-        socket.broadcast.to(userID).emit('created', gameID, userID, roomID);
+        try {
+            console.log("lobby created");
+    
+            rooms.push({
+                gameID: gameID,
+                roomID: roomID
+            })
+    
+            socket.broadcast.to(userID).emit('created', gameID, userID, roomID);
+        }
+        catch (error) {
+            // Sentry.captureException(error);
+            handleError(error);
+        }
     })
 })
 
@@ -304,6 +357,13 @@ app.get('/', (req, res) => {
     res.send("<h2>Welcome</h2>");
 })
 
+app.get("/debug-sentry", function mainHandler(req, res) {
+    throw new Error("My first Sentry error!");
+});
+
+// The error handler must be registered before any other error middleware and after all controllers
+// Sentry.setupExpressErrorHandler(app);
+
 mongoose.connect(URL)
 .then(() => {
     server.listen(PORT, () => {
@@ -322,4 +382,8 @@ mongoose.connect(URL)
 
         process.exit(1);
     }) */
+})
+.catch(error => {
+    // Sentry.captureException(error);
+    handleError(error);
 })
