@@ -454,6 +454,5 @@ mongoose.connect(URL)
     });
 })
 .catch(error => {
-    // Sentry.captureException(error);
     handleError(error);
 })
