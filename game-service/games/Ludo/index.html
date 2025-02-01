@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Unity WebGL Player | Ludo Game</title>
+    <link rel="shortcut icon" href="/TemplateData/favicon.ico">
+    <link rel="stylesheet" href="/TemplateData/style.css">
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+      
+      #unity-container {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+      }
+
+      #unity-canvas {
+        width: 100%;
+        height: 100%;
+        background-color: #231F20;
+        touch-action: none;
+      }
+
+      #unity-loading-bar {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+      }
+
+      #unity-footer {
+        display: none; /* Hidden on mobile */
+      }
+
+      #unity-warning {
+        position: absolute;
+        left: 50%;
+        top: 5%;
+        transform: translateX(-50%);
+        background: rgba(200, 0, 0, 0.8);
+        padding: 10px;
+        display: none;
+        border-radius: 5px;
+        color: white;
+      }
+
+      .unity-mobile #unity-canvas {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="unity-container" class="unity-mobile">
+      <canvas id="unity-canvas"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"></div>
+      <div id="unity-footer">
+        <div id="unity-webgl-logo"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">Ludo Game</div>
+      </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      var buildUrl = "/games/Ludo/Build";
+      var loaderUrl = buildUrl + "/WebGlBuild.loader.js";
+      var config = {
+        dataUrl: buildUrl + "/WebGlBuild.data",
+        frameworkUrl: buildUrl + "/WebGlBuild.framework.js",
+        codeUrl: buildUrl + "/WebGlBuild.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "Ludo Game",
+        productVersion: "0.1",
+        showBanner: unityShowBanner,
+        devicePixelRatio: window.devicePixelRatio || 1,
+      };
+
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var warningBanner = document.querySelector("#unity-warning");
+
+      // Prevent scrolling/bouncing on iOS
+      document.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+      }, { passive: false });
+
+      // Lock orientation to portrait if needed
+      // screen.orientation.lock('portrait').catch(function() {
+      //   console.log('Orientation lock not supported');
+      // });
+
+      var socket = io({
+        transports: ['websocket'],
+        upgrade: false
+      });
+
+      socket.on('connect', function() {
+        console.log('Connected to server');
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameId = urlParams.get('gameId');
+        const playerId = urlParams.get('playerId');
+        
+        if (gameId && playerId) {
+          socket.emit('joinGame', { gameId, playerId });
+        }
+      });
+
+      function unityShowBanner(msg, type) {
+        warningBanner.style.display = 'block';
+        warningBanner.innerHTML = msg;
+        if (type == 'error') warningBanner.style.backgroundColor = 'rgba(200, 0, 0, 0.8)';
+        else if (type == 'warning') warningBanner.style.backgroundColor = 'rgba(255, 200, 0, 0.8)';
+        setTimeout(function() {
+          warningBanner.style.display = 'none';
+        }, 5000);
+      }
+
+      // Force mobile mode
+      container.className = "unity-mobile";
+
+      loadingBar.style.display = "block";
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onerror = (error) => {
+        console.error('Error loading Unity loader script:', error);
+        unityShowBanner('Failed to load game. Please check your internet connection and try again.', 'error');
+      };
+      
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = 100 * progress + "%";
+        }).then((unityInstance) => {
+          loadingBar.style.display = "none";
+        }).catch((message) => {
+          console.error('Unity initialization error:', message);
+          unityShowBanner(message, 'error');
+        });
+      };
+
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
