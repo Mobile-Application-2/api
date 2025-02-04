@@ -416,13 +416,73 @@ io.on('connection', (socket) => {
 
 const URL = process.env.MONGO_URL;
 
-// Serve Unity files
-app.use('/games/Ludo/Build', unityGzipHandler, express.static(path.join(__dirname, 'games/Ludo/Build')));
-app.use('/TemplateData', express.static(path.join(__dirname, 'games/Ludo/TemplateData')));
+// Get valid games (only directories with both Build folder and index.html)
+const getValidGames = () => {
+    const gamesPath = path.join(__dirname, 'games');
+    if (!fs.existsSync(gamesPath)) {
+        console.log('Games directory not found');
+        return [];
+    }
+    
+    return fs.readdirSync(gamesPath, { withFileTypes: true })
+        .filter(dirent => {
+            if (!dirent.isDirectory()) return false;
+            
+            const gamePath = path.join(gamesPath, dirent.name);
+            const hasBuild = fs.existsSync(path.join(gamePath, 'Build'));
+            const hasIndex = fs.existsSync(path.join(gamePath, 'index.html'));
+            
+            return hasBuild && hasIndex;
+        })
+        .map(dirent => dirent.name);
+};
 
-// Serve the Unity game HTML page
+// Serve static files directly from game directories
+app.use('/games/:gameName/Build', (req, res, next) => {
+    const gameName = req.params.gameName;
+    const buildPath = path.join(__dirname, 'games', gameName, 'Build');
+    
+    // Handle gzipped content
+    if (req.url.endsWith('.gz')) {
+        res.set('Content-Encoding', 'gzip');
+    }
+    
+    express.static(buildPath)(req, res, next);
+});
+
+app.use('/games/:gameName/TemplateData', (req, res, next) => {
+    const gameName = req.params.gameName;
+    const templatePath = path.join(__dirname, 'games', gameName, 'TemplateData');
+    express.static(templatePath)(req, res, next);
+});
+
+// Game route handler
 app.get('/game', (req, res) => {
-    res.sendFile(path.join(__dirname, 'games/Ludo/index.html'));
+    console.log('Game route hit');
+    console.log('Game parameters:', req.query);
+
+    const { gameName } = req.query;
+    const validGames = getValidGames();
+
+    // If no gameName provided, serve the first valid game
+    if (!gameName) {
+        const firstGame = validGames[0];
+        if (!firstGame) {
+            return res.status(404).send('No valid games available');
+        }
+        const gamePath = path.join(__dirname, 'games', firstGame, 'index.html');
+        console.log('Serving default game from:', gamePath);
+        return res.sendFile(gamePath);
+    }
+
+    // Check if requested game exists and is valid
+    if (!validGames.includes(gameName)) {
+        return res.status(404).send(`Game "${gameName}" not found or invalid`);
+    }
+
+    const gamePath = path.join(__dirname, 'games', gameName, 'index.html');
+    console.log('Serving specific game from:', gamePath);
+    res.sendFile(gamePath);
 });
 
 // for cron job
@@ -442,15 +502,27 @@ mongoose.connect(URL)
     server.listen(PORT, () => {
         console.log(`server running at http://localhost:${PORT}`);
 
-        // Log the directory structure
-        console.log('\nChecking directory structure:');
-        const buildPath = path.join(__dirname, 'games/Ludo/Build');
-        if (fs.existsSync(buildPath)) {
-            console.log('Build directory contents:', fs.readdirSync(buildPath));
-        }
-        else {
-            console.log('Build directory not found at:', buildPath);
-        }
+        // Log available games and their status
+        const gamesPath = path.join(__dirname, 'games');
+        const allDirectories = fs.readdirSync(gamesPath, { withFileTypes: true })
+            .filter(dirent => dirent.isDirectory())
+            .map(dirent => dirent.name);
+        
+        console.log('\nAvailable games:');
+        allDirectories.forEach(game => {
+            console.log(`\n${game}:`);
+            const buildPath = path.join(gamesPath, game, 'Build');
+            const indexPath = path.join(gamesPath, game, 'index.html');
+            
+            console.log('Build path:', buildPath);
+            console.log('Index path:', indexPath);
+            console.log('Build exists:', fs.existsSync(buildPath));
+            console.log('Index exists:', fs.existsSync(indexPath));
+            
+            if (fs.existsSync(buildPath)) {
+                console.log('Build contents:', fs.readdirSync(buildPath));
+            }
+        });
     });
 })
 .catch(error => {

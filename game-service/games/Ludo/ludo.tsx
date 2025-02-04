@@ -1,7 +1,14 @@
 import { useRouter } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
+import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useRef, useState } from "react";
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { io, Socket } from "socket.io-client";
 
 interface GameProps {
@@ -19,7 +26,7 @@ interface GameResult {
   loser: string;
 }
 
-const GAME_BASE_URL = "http://localhost:3000"; // Change this to your server URL in production
+const GAME_BASE_URL = "http://localhost:3000";
 
 const LudoGame: React.FC<GameProps> = ({
   gameName,
@@ -35,9 +42,12 @@ const LudoGame: React.FC<GameProps> = ({
   const [showModal, setShowModal] = useState(false);
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
 
   useEffect(() => {
+    // Initialize socket when component mounts
     initializeSocket();
+
     return () => {
       socketRef.current?.disconnect();
     };
@@ -65,10 +75,28 @@ const LudoGame: React.FC<GameProps> = ({
     socketRef.current = socket;
   };
 
+  const startGame = async () => {
+    if (gameStarted) return;
+    
+    setIsLoading(true);
+    setGameStarted(true);
+    
+    try {
+      const url = `${GAME_BASE_URL}/game?gameId=${gameId}&playerId=${playerId}&gameName=${gameName}`;
+      await WebBrowser.openBrowserAsync(url);
+    } catch (error) {
+      console.error("Failed to launch game:", error);
+      setGameStarted(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleGameEnd = async (result: GameResult) => {
     setGameResult(result);
     setShowModal(true);
-    
+    setGameStarted(false);
+
     if (result.winner === playerId) {
       try {
         await updateWallet(playerId, stakeAmount * 2);
@@ -76,21 +104,8 @@ const LudoGame: React.FC<GameProps> = ({
         console.error("Failed to update wallet:", error);
       }
     }
-    
-    onGameEnd?.(result);
-  };
 
-  const openGameInBrowser = async () => {
-    setIsLoading(true);
-    try {
-      const gameUrl = `${GAME_BASE_URL}/game?gameId=${gameId}&playerId=${playerId}`;
-      const result = await WebBrowser.openBrowserAsync(gameUrl);
-      console.log("Game session ended:", result);
-    } catch (error) {
-      console.error("Failed to open game:", error);
-    } finally {
-      setIsLoading(false);
-    }
+    onGameEnd?.(result);
   };
 
   const updateWallet = async (userId: string, amount: number) => {
@@ -109,21 +124,29 @@ const LudoGame: React.FC<GameProps> = ({
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
-        style={[styles.button, isLoading && styles.buttonDisabled]}
-        onPress={openGameInBrowser}
-        disabled={isLoading}
-      >
-        <Text style={styles.buttonText}>
-          {isLoading ? "Loading..." : `Play ${gameName}`}
-        </Text>
-      </TouchableOpacity>
+      {!gameStarted && !isLoading && (
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={startGame}
+        >
+          <Text style={styles.startButtonText}>Start Game</Text>
+        </TouchableOpacity>
+      )}
+
+      {isLoading && (
+        <View>
+          <ActivityIndicator size="large" color="#FFCC00" />
+          <Text style={styles.loadingText}>Launching {gameName}...</Text>
+        </View>
+      )}
 
       <Modal visible={showModal} transparent animationType="fade">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              {gameResult?.winner === playerId ? "Victory!" : "Better luck next time!"}
+              {gameResult?.winner === playerId
+                ? "Victory!"
+                : "Better luck next time!"}
             </Text>
             <Text style={styles.modalText}>
               {gameResult?.winner === playerId
@@ -153,13 +176,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#1E0136",
   },
-  button: {
+  loadingText: {
+    color: "#FFFFFF",
+    marginTop: 10,
+    fontSize: 16,
+  },
+  startButton: {
     backgroundColor: "#FFCC00",
     padding: 15,
     borderRadius: 8,
+    width: "80%",
+    alignItems: "center",
+    marginBottom: 20,
   },
-  buttonText: {
-    color: "#000",
+  startButtonText: {
+    color: "#000000",
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -199,9 +230,6 @@ const styles = StyleSheet.create({
     color: "#000000",
     fontSize: 16,
     fontWeight: "bold",
-  },
-  buttonDisabled: {
-    opacity: 0.6,
   },
 });
 
