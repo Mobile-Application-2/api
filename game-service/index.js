@@ -120,7 +120,8 @@ const newRooms = [
         playerId: '',
         opponentId: '',
         stakeAmount: '',
-        tournamentId: ''
+        tournamentId: '',
+        gameName: ''
     }
 ]
 
@@ -159,9 +160,19 @@ io.on('connection', (socket) => {
         }
     })
 
-    socket.on("joinGame", ({gameId, playerId, opponentId, stakeAmount, tournamentId}) => {
+    socket.on("joinGame", async ({gameId, playerId, opponentId, stakeAmount, tournamentId}) => {
         try {
-            newRooms.push({gameId, playerId, opponentId, stakeAmount, tournamentId});
+            const game = await GAME.findById(gameId);
+
+            if(!game) {
+                await ErrorModel.create({error: "No Game Found"});
+
+                return;
+            }
+
+            newRooms.push({gameId, playerId, opponentId, stakeAmount, tournamentId, gameName: game.name});
+
+            // socket.emit("game-message-channel", "init-game", {gameId, playerId, opponentId, stakeAmount, tournamentId, gameName: game.name});
         }
         catch(error) {
             handleError(error);
@@ -464,12 +475,30 @@ app.get('/game', (req, res) => {
     const { gameName } = req.query;
     const validGames = getValidGames();
 
+    const room = {
+        gameId: '1234',
+        playerId: '8900',
+        opponentId: '3821',
+        stakeAmount: '1000',
+        tournamentId: '0932321',
+        gameName: gameName
+    }
+
     // If no gameName provided, serve the first valid game
     if (!gameName) {
         const firstGame = validGames[0];
         if (!firstGame) {
             return res.status(404).send('No valid games available');
         }
+
+        // const room = newRooms.find(room => room.playerId == req.query.playerId);
+
+        // if(!room) {
+
+        // }
+
+        io.emit("game-message-channel", "init-game", room);
+
         const gamePath = path.join(__dirname, 'games', firstGame, 'index.html');
         console.log('Serving default game from:', gamePath);
         return res.sendFile(gamePath);
@@ -479,6 +508,8 @@ app.get('/game', (req, res) => {
     if (!validGames.includes(gameName)) {
         return res.status(404).send(`Game "${gameName}" not found or invalid`);
     }
+
+    io.emit("game-message-channel", "init-game", room);
 
     const gamePath = path.join(__dirname, 'games', gameName, 'index.html');
     console.log('Serving specific game from:', gamePath);
