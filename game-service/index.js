@@ -251,6 +251,20 @@ io.on('connection', (socket) => {
         
                 await errorModel.save(); */
             }
+            if(messageName == "init-game") {
+                console.log(data);
+
+                const room = {
+                    gameId: '1234',
+                    playerId: '8900',
+                    opponentId: '3821',
+                    stakeAmount: '1000',
+                    tournamentId: '0932321',
+                    gameName: gameName
+                }
+
+                io.emit("game-message-channel", "init-game", room);
+            }
         }
         catch (error) {
             // Sentry.captureException(error);
