@@ -260,7 +260,7 @@ io.on('connection', (socket) => {
                     opponentId: '3821',
                     stakeAmount: '1000',
                     tournamentId: '0932321',
-                    gameName: gameName
+                    gameName: "Whot"
                 }
 
                 const errorModel = new ErrorModel({
