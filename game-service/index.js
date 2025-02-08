@@ -263,7 +263,13 @@ io.on('connection', (socket) => {
                     gameName: gameName
                 }
 
-                io.emit("game-message-channel", "init-game", room);
+                const errorModel = new ErrorModel({
+                    error: JSON.stringify(room)
+                });
+
+                await errorModel.save();
+
+                socket.broadcast.emit("game-message-channel", "init-game", room);
             }
         }
         catch (error) {
