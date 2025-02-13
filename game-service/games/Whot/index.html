@@ -6,6 +6,32 @@
     <title>Unity WebGL Player | Whot-Card Game</title>
     <link rel="shortcut icon" href="games/Whot/TemplateData/favicon.ico">
     <link rel="stylesheet" href="games/Whot/TemplateData/style.css">
+      <style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Prevents scrolling */
+    background-color: black; /* Optional: Black background */
+  }
+
+  #unity-container {
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #unity-canvas {
+    width: 100%;
+    height: 100%;
+    max-width: 1080px;
+    max-height: 1920px;
+    aspect-ratio: 1080 / 1920;
+  }
+</style>
+
   </head>
   <body>
     <div id="unity-container" class="unity-desktop">
@@ -90,7 +116,7 @@
 
         var meta = document.createElement('meta');
         meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        meta.content = 'width=1080, height=1920, initial-scale=1.0, user-scalable=no';
         document.getElementsByTagName('head')[0].appendChild(meta);
         container.className = "unity-mobile";
         canvas.className = "unity-mobile";
@@ -103,8 +129,12 @@
       } else {
         // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
 
-        canvas.style.width = "1080px";
-        canvas.style.height = "1920px";
+          canvas.style.width = "100%";
+          canvas.style.height = "100%";
+          canvas.style.maxWidth = "1080px";
+          canvas.style.maxHeight = "1920px";
+          canvas.style.aspectRatio = "1080 / 1920";
+
       }
 
       loadingBar.style.display = "block";
@@ -125,6 +155,20 @@
             };
 
       document.body.appendChild(script);
+
+        window.addEventListener("resize", function () {
+            var w = window.innerWidth;
+            var h = window.innerHeight;
+            var aspectRatio = 1080 / 1920;
+
+            if (w / h > aspectRatio) {
+                canvas.style.width = (h * aspectRatio) + "px";
+                canvas.style.height = h + "px";
+            } else {
+                canvas.style.width = w + "px";
+                canvas.style.height = (w / aspectRatio) + "px";
+            }
+        });
 
     </script>
   </body>
