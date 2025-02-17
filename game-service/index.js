@@ -260,6 +260,8 @@ io.on('connection', (socket) => {
                     opponentId: '3821',
                     stakeAmount: '1000',
                     tournamentId: '0932321',
+                    lobbyId: "9392372937823",
+                    lobbyCode: "2187232",
                     gameName: "Whot"
                 }
 
@@ -501,6 +503,8 @@ app.get('/game', (req, res) => {
         opponentId: '3821',
         stakeAmount: '1000',
         tournamentId: '0932321',
+        lobbyId: "9392372937823",
+        lobbyCode: "2187232",
         gameName: gameName
     }
 
