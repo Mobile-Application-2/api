@@ -82,6 +82,23 @@
         updateBannerVisibility();
       }
 
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        function sendLobbyCodeToUnity() {
+            if (window.unityInstance) {
+                const lobbyCode = getQueryParam('lobbyCode');
+                if (lobbyCode) {
+                    console.log("Lobby Code:", lobbyCode);
+                    window.unityInstance.SendMessage('SocketManager', 'SetLobbyCode', lobbyCode);
+                }
+            } else {
+                console.error("Unity instance is not ready yet!");
+            }
+        }
+
       var buildUrl = "games/Whot/Build";
       var loaderUrl = buildUrl + "/Whot-WebGL.loader.js";
       var config = {
@@ -146,6 +163,8 @@
           progressBarFull.style.width = 100 * progress + "%";
               }).then((unityInstance) => {
                 loadingBar.style.display = "none";
+                window.unityInstance = unityInstance
+                sendLobbyCodeToUnity();
                 fullscreenButton.onclick = () => {
                   unityInstance.SetFullscreen(1);
                 };
