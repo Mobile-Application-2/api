@@ -20,6 +20,7 @@
     "crypto-js": "^4.2.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "jest": "^29.7.0",
     "mongoose": "^8.3.4",
     "socket.io": "^4.7.5",
     "validator": "^13.12.0"

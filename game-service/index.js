@@ -114,6 +114,18 @@ rooms.splice(0);
 //     });
 // }
 
+/**
+ * @typedef {Object} GameData
+ * @property {string} gameId - The unique identifier for the game.
+ * @property {string} playerId - The unique identifier for the player.
+ * @property {string} opponentId - The unique identifier for the opponent.
+ * @property {string} stakeAmount - The amount staked in the game.
+ * @property {string} tournamentId - The unique identifier for tournaments.
+ * @property {string} lobbyCode - The unique lobby code for the game.
+ * @property {string} gameName - The name of the game.
+ */
+
+/** @type {GameData[]} */
 const newRooms = [
     {
         gameId: '',
@@ -121,7 +133,9 @@ const newRooms = [
         opponentId: '',
         stakeAmount: '',
         tournamentId: '',
-        gameName: ''
+        lobbyCode: '',
+        gameName: '',
+        socketId: ''
     }
 ]
 
@@ -160,8 +174,17 @@ io.on('connection', (socket) => {
         }
     })
 
-    socket.on("joinGame", async ({gameId, playerId, opponentId, stakeAmount, tournamentId}) => {
+    // FOR MOBILE GAME END
+    
+    // interface GameResult {
+    //     winner: string;
+    //     loser: string;
+    // }
+
+    socket.on("joinGame", /** @param {GameData} data */ async (data) => {
         try {
+            const {gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId} = data;
+
             const game = await GAME.findById(gameId);
 
             if(!game) {
@@ -170,7 +193,7 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            newRooms.push({gameId, playerId, opponentId, stakeAmount, tournamentId, gameName: game.name});
+            newRooms.push({gameId, playerId, opponentId, stakeAmount, tournamentId, gameName: game.name, lobbyCode, socketId: socket.id});
 
             // socket.emit("game-message-channel", "init-game", {gameId, playerId, opponentId, stakeAmount, tournamentId, gameName: game.name});
         }
@@ -431,9 +454,9 @@ io.on('connection', (socket) => {
 //     })
 // })
 
-// const whotNamespace = io.of("/whot");
+const whotNamespace = io.of("/whot");
 
-// Whot.activate(io, whotNamespace);
+Whot.activate(io, whotNamespace, newRooms);
 
 // const chessNameSpace = io.of("/chess");
 
@@ -489,13 +512,24 @@ app.use('/games/:gameName/TemplateData', (req, res, next) => {
     express.static(templatePath)(req, res, next);
 });
 
+// app.use('/game', express.static(__dirname + "/games/Whot", {redirect: false}))
+
+// Serve specific game assets with the correct path mapping
+// app.use('/game/assets', express.static(path.join(__dirname, "/games/Whot/assets")));
+
+// Serve other game files directly from the game directory
+app.use('/game/assets', express.static(path.join(__dirname, "/games/my-Whot/assets")));
+
 // Game route handler
 app.get('/game', (req, res) => {
     console.log('Game route hit');
     console.log('Game parameters:', req.query);
 
     const { gameName } = req.query;
-    const validGames = getValidGames();
+
+    console.log("gamename: ", gameName);
+    // const validGames = getValidGames();
+    const validGames = ["Whot"];
 
     const room = {
         gameId: '1234',
@@ -528,10 +562,10 @@ app.get('/game', (req, res) => {
         return res.sendFile(gamePath);
     }
 
-    // Check if requested game exists and is valid
+    /* // Check if requested game exists and is valid
     if (!validGames.includes(gameName)) {
         return res.status(404).send(`Game "${gameName}" not found or invalid`);
-    }
+    } */
 
     io.emit("game-message-channel", "init-game", room);
 

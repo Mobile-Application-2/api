@@ -5,10 +5,11 @@ import LOBBY from "./models/lobby.model.js"
 import dotenv from "dotenv"
 
 import { publish_to_queue } from "./rabbit.js";
+import { isDev, isProd } from "./config/server.config.js";
 
 dotenv.config();
 
-const url = "https://skyboardgames.com/api"
+const url = "https://main-api-34xd.onrender.com"
 // const url = process.env.NODE_ENV == development ? "http://localhost:5656/api" : "https://skyboardgames.com/api";
 
 async function postData(url, method, data) {
@@ -35,14 +36,29 @@ async function postData(url, method, data) {
 export default class MainServerLayer {
 
     static async getLobbyID(lobbyCode) {
-        console.log("getting lobbyID, code: ", lobbyCode);
-        const currentLobby = await LOBBY.findOne({ code: lobbyCode })
+        try {
+            console.log("getting lobbyID, code: ", lobbyCode);
+            const currentLobby = await LOBBY.findOne({ code: lobbyCode })
 
-        const lobbyID = currentLobby.toObject()._id.toString();
+            if(!currentLobby) {
 
-        console.log("lobbyID: ", lobbyID);
+                console.log(isDev, isProd);
 
-        return lobbyID;
+                if(isDev) console.log("no lobby dev main server layer");
+                else console.log("sneaky");
+
+                return;
+            }
+    
+            const lobbyID = currentLobby.toObject()._id.toString();
+    
+            console.log("lobbyID: ", lobbyID);
+    
+            return lobbyID;    
+        }
+        catch(error) {
+            console.log(error);
+        }
     }
 
     static async wonGame(lobbyId, winnerId) {
@@ -63,22 +79,27 @@ export default class MainServerLayer {
     }
 
     static async startGame(lobbyId) {
-        const data = {
-            lobbyId: lobbyId
+        try {
+            const data = {
+                lobbyId: lobbyId
+            }
+    
+            console.log("sending start game to main server, data: ", JSON.stringify(data));
+    
+            const response = await postData(url + "/game/start", "PATCH", data)
+    
+            if (response.ok) {
+                console.log("game started successfully");;
+            }
+            else {
+                console.log("somthing went wrong");
+                const data = await response.json();
+    
+                console.log(data);
+            }
         }
-
-        console.log("sending start game to main server, data: ", JSON.stringify(data));
-
-        const response = await postData(url + "/game/start", "PATCH", data)
-
-        if (response.ok) {
-            console.log("game started successfully");;
-        }
-        else {
-            console.log("somthing went wrong");
-            const data = await response.json();
-
-            console.log(data);
+        catch (error) {
+            console.log(error);
         }
     }
 

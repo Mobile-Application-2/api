@@ -23,7 +23,26 @@ export default class Whot {
   //   await gameModel.save();
   // }
 
-  static activate(io, whotNamespace) {
+  /**
+   * @typedef {Object} GameData
+   * @property {string} gameId - The unique identifier for the game.
+   * @property {string} playerId - The unique identifier for the player.
+   * @property {string} opponentId - The unique identifier for the opponent.
+   * @property {string} stakeAmount - The amount staked in the game.
+   * @property {string} tournamentId - The unique identifier for tournaments.
+   * @property {string} lobbyCode - The unique lobby code for the game.
+   * @property {string} gameName - The name of the game.
+   * 
+   */
+
+  /**
+   * Activates the game logic for handling WebSocket connections.
+   * 
+   * @param {import("socket.io").Server} io - The main Socket.IO server instance.
+   * @param {import("socket.io").Namespace} whotNamespace - The specific namespace for the Whot game.
+   * @param {Array<GameData>} mainRooms - A map of active game rooms.
+   */
+  static activate(io, whotNamespace, mainRooms) {
     let rooms = [];
 
     whotNamespace.on("connection", (socket) => {
@@ -31,7 +50,11 @@ export default class Whot {
       socket.on('disconnect', () => {
         console.log("user disconnected from whot", socket.id);
 
-        console.log(rooms[0].players);
+        // if(rooms)
+
+        // console.log(rooms[0].players);
+
+        console.log(rooms, socket.id);
 
         const room = rooms.find(room => room.players.includes(room.players.find(player => player.socketId == socket.id)));
 
@@ -40,7 +63,8 @@ export default class Whot {
 
         io.emit('remove', 'whot', room.room_id);
       })
-      socket.on("join_room", async ({ room_id, storedId, username, avatar }) => {
+
+      socket.on("join_room", async ({ room_id, storedId, username, avatar, userId }) => {
         if (room_id?.length != 6) {
           whotNamespace.to(socket.id).emit(
             "error",
@@ -52,127 +76,10 @@ export default class Whot {
         socket.join(room_id);
         let currentRoom = rooms.find((room) => room.room_id == room_id);
         console.log("is there a room?", currentRoom);
-        if (currentRoom) {
-          let currentPlayers = currentRoom.players;
 
-          if (currentPlayers.length == 1) {
-            // If I'm the only player in the room, get playerOneState, and update my socketId
-            if (currentPlayers[0].storedId == storedId) {
-              whotNamespace.to(socket.id).emit("dispatch", {
-                type: "INITIALIZE_DECK",
-                payload: currentRoom.playerOneState,
-              });
+        if (!currentRoom) {
+          console.log("no room, creating one");
 
-              rooms = rooms.map((room) => {
-                if (room.room_id == room_id) {
-                  return {
-                    ...room,
-                    players: [{ storedId, socketId: socket.id, player: "one" }],
-                  };
-                }
-                return room;
-              });
-            }
-            else {
-              console.log("joining already created game");
-              rooms = rooms.map((room) => {
-                if (room.room_id == room_id) {
-                  return {
-                    ...room,
-                    players: [
-                      ...room.players,
-                      { storedId, socketId: socket.id, player: "two", username: username, avatar: avatar },
-                    ],
-                  };
-                }
-                return room;
-              });
-
-              currentRoom = rooms.find((room) => room.room_id == room_id);
-              currentPlayers = currentRoom.players;
-
-              console.log("room after adding new player", currentRoom);
-              console.log("current players", currentPlayers);
-
-              whotNamespace.to(socket.id).emit("dispatch", {
-                type: "INITIALIZE_DECK",
-                payload: reverseState(currentRoom.playerOneState),
-              });
-
-              // Check if my opponent is online
-              socket.broadcast.to(room_id).emit("confirmOnlineState");
-
-              const opponent = currentPlayers.find(player => player.storedId != storedId)
-              console.log("opponent", opponent);
-
-              let opponentSocketId = opponent.socketId;
-              whotNamespace.to(opponentSocketId).emit("opponentOnlineStateChanged", true);
-
-              let playerOneInfo = currentPlayers[0];
-              let playerTwoInfo = currentPlayers[1];
-
-              currentRoom.turn = 1;
-
-              whotNamespace.to(room_id).emit("start", playerOneInfo, playerTwoInfo, currentRoom.turn);
-
-              const lobbyID = await MainServerLayer.getLobbyID(room_id);
-
-              await MainServerLayer.startGame(lobbyID);
-
-              console.log("done sending info to main server");
-            }
-          }
-          else {
-            // Check if player can actually join room, after joining, update his socketId
-            let currentPlayer = currentPlayers.find(
-              (player) => player.storedId == storedId
-            );
-            if (currentPlayer) {
-              whotNamespace.to(socket.id).emit("dispatch", {
-                type: "INITIALIZE_DECK",
-                payload:
-                  currentPlayer.player == "one"
-                    ? currentRoom.playerOneState
-                    : reverseState(currentRoom.playerOneState),
-              });
-
-              rooms = rooms.map((room) => {
-                if (room.room_id == room_id) {
-                  return {
-                    ...room,
-                    players: [...room.players].map((player) => {
-                      if (player.storedId == storedId) {
-                        return {
-                          storedId,
-                          socketId: socket.id,
-                          player: currentPlayer.player,
-                        };
-                      }
-                      return player;
-                    }),
-                  };
-                }
-                return room;
-              });
-
-              let opponentSocketId = currentPlayers.find(
-                (player) => player.storedId != storedId
-              ).socketId;
-
-              whotNamespace.to(opponentSocketId).emit("opponentOnlineStateChanged", true);
-
-              // Check if my opponent is online
-              socket.broadcast.to(room_id).emit("confirmOnlineState");
-            }
-            else {
-              whotNamespace.to(socket.id).emit(
-                "error",
-                "Sorry! There are already two players on this game, just go back and start your own game 🙏🏾."
-              );
-            }
-          }
-        }
-        else {
           // Add room to store
           const { deck, userCards, usedCards, opponentCards, activeCard } = initializeDeck();
 
@@ -197,7 +104,8 @@ export default class Whot {
                 socketId: socket.id,
                 player: "one",
                 username: username,
-                avatar: avatar
+                avatar: avatar,
+                userId: userId
               },
             ],
             playerOneState,
@@ -207,17 +115,156 @@ export default class Whot {
             type: "INITIALIZE_DECK",
             payload: playerOneState,
           });
+
+          return;
+        }
+
+        console.log("theres a room");
+
+        let currentPlayers = currentRoom.players;
+
+        console.log("current players, ", currentPlayers);
+
+        if (currentPlayers.length == 1) {
+          // If I'm the only player in the room, get playerOneState, and update my socketId
+          if (currentPlayers[0].storedId == storedId) {
+            console.log("maybe reconnecting, i dont know");
+            whotNamespace.to(socket.id).emit("dispatch", {
+              type: "INITIALIZE_DECK",
+              payload: currentRoom.playerOneState,
+            });
+
+            rooms = rooms.map((room) => {
+              if (room.room_id == room_id) {
+                return {
+                  ...room,
+                  players: [{ storedId, socketId: socket.id, player: "one" }],
+                };
+              }
+              return room;
+            });
+          }
+          else {
+            console.log("joining already created game");
+            rooms = rooms.map((room) => {
+              if (room.room_id == room_id) {
+                return {
+                  ...room,
+                  players: [
+                    ...room.players,
+                    { storedId, socketId: socket.id, player: "two", username: username, avatar: avatar, userId: userId },
+                  ],
+                };
+              }
+              return room;
+            });
+
+            currentRoom = rooms.find((room) => room.room_id == room_id);
+            currentPlayers = currentRoom.players;
+
+            console.log("room after adding new player", currentRoom);
+            console.log("current players", currentPlayers);
+
+            whotNamespace.to(socket.id).emit("dispatch", {
+              type: "INITIALIZE_DECK",
+              payload: reverseState(currentRoom.playerOneState),
+            });
+
+            // Check if my opponent is online
+            socket.broadcast.to(room_id).emit("confirmOnlineState");
+
+            const opponent = currentPlayers.find(player => player.storedId != storedId)
+            console.log("opponent", opponent);
+
+            let opponentSocketId = opponent.socketId;
+            whotNamespace.to(opponentSocketId).emit("opponentOnlineStateChanged", true);
+
+            let playerOneInfo = currentPlayers[0];
+            let playerTwoInfo = currentPlayers[1];
+
+            currentRoom.turn = 1;
+
+            whotNamespace.to(room_id).emit("start", playerOneInfo, playerTwoInfo, currentRoom.turn);
+
+            const lobbyID = await MainServerLayer.getLobbyID(room_id);
+
+            await MainServerLayer.startGame(lobbyID);
+
+            console.log("done sending info to main server");
+          }
+        }
+        else {
+          // // Check if player can actually join room, after joining, update his socketId
+          // let currentPlayer = currentPlayers.find(
+          //   (player) => player.storedId == storedId
+          // );
+
+          // if(!currentPlayer) {
+          //   whotNamespace.to(socket.id).emit(
+          //     "error",
+          //     "Sorry! There are already two players on this game, just go back and start your own game 🙏🏾."
+          //   );
+
+          //   return;
+          // }
+
+          // whotNamespace.to(socket.id).emit("dispatch", {
+          //   type: "INITIALIZE_DECK",
+          //   payload:
+          //     currentPlayer.player == "one"
+          //       ? currentRoom.playerOneState
+          //       : reverseState(currentRoom.playerOneState),
+          // });
+
+          // rooms = rooms.map((room) => {
+          //   if (room.room_id == room_id) {
+          //     return {
+          //       ...room,
+          //       players: [...room.players].map((player) => {
+          //         if (player.storedId == storedId) {
+          //           return {
+          //             storedId,
+          //             socketId: socket.id,
+          //             player: currentPlayer.player,
+          //           };
+          //         }
+          //         return player;
+          //       }),
+          //     };
+          //   }
+          //   return room;
+          // });
+
+          // let opponentSocketId = currentPlayers.find(
+          //   (player) => player.storedId != storedId
+          // ).socketId;
+
+          // whotNamespace.to(opponentSocketId).emit("opponentOnlineStateChanged", true);
+
+          // // Check if my opponent is online
+          // socket.broadcast.to(room_id).emit("confirmOnlineState");
+
+          // if (currentPlayer) {
+          // }
+          // else {
+
+          // }
+        }
+
+        if (currentRoom) {
+        }
+        else {
+
         }
       });
 
       socket.on("sendUpdatedState", (updatedState, room_id) => {
-        // console.log("update state", room_id);
-        const playerOneState =
-          updatedState.player === "one" ? updatedState : reverseState(updatedState);
+        console.log("update state", room_id, rooms);
+        const playerOneState = updatedState.player === "one" ? updatedState : reverseState(updatedState);
         const playerTwoState = reverseState(playerOneState);
         rooms = rooms.map((room) => {
           if (room.room_id == room_id) {
-            // console.log("is room", room);
+            console.log("room to update player state", room);
             return {
               ...room,
               playerOneState,
@@ -225,6 +272,8 @@ export default class Whot {
           }
           return room;
         });
+
+        console.log("rooms after update state");
 
         socket.broadcast.to(room_id).emit("dispatch", {
           type: "UPDATE_STATE",
@@ -234,8 +283,19 @@ export default class Whot {
           },
         });
 
-        
+        console.log("dispatched update state");
+
+        console.log("rooms to find current room", rooms.map(room => room.room_id));
+
         const currentRoom = rooms.find((room) => room.room_id == room_id);
+
+        if (!currentRoom) {
+          console.log(room_id, rooms);
+
+          console.log("no current room to broadcast too");
+
+          return;
+        }
         currentRoom.turn = playerOneState.infoText == "It's your opponent's turn to make a move now" ? 2 : 1
         // currentRoom.turn = currentRoom.turn == 1 ? 2 : 1;
 
@@ -246,34 +306,66 @@ export default class Whot {
       });
 
       socket.on("game_over", async (room_id, isWinner) => {
-        rooms = rooms.filter((room) => room.room_id != room_id);
+        // rooms = rooms.filter((room) => room.room_id != room_id);
 
         if (isWinner) {
-          const gameModel = new GameModel({
-            game_name: "whot",
-            roomID: room_id,
-            players: [
-              {
-                socketID: socket.id,
-                username: "",
-                winner: true
-              }
-            ]
-          })
+          try {
+            console.log(isWinner);
+            
+            // const 
 
-          await gameModel.save();
+            // io.to(mainRooms)
 
-          const currentRoom = this.rooms.filter(room => room.roomID == room_id)[0];
+            const currentRoom = rooms.filter(room => room.room_id == room_id)[0];
 
-          const winner = currentRoom.players.find(player => player.socketID == socket.id);
+            console.log("winner current room", currentRoom);
 
-          const winnerData = await USER.findOne({username: winner.username})
+            const winner = currentRoom.players.find(player => player.socketId == socket.id);
+            const loser = currentRoom.players.find(player => player.socketId != socket.id);
 
-          const winnerId = winnerData.toObject()._id
+            const winnerId = winner.userId;
+            const loserId = loser.userId;
 
-          const lobbyId = await MainServerLayer.getLobbyID(roomID);
+            const gameModel = new GameModel({
+              game_name: "whot",
+              roomID: room_id,
+              players: [
+                {
+                  socketID: socket.id,
+                  username: "",
+                  winner: true,
+                  userID: winnerId
+                }
+              ]
+            })
 
-          await MainServerLayer.wonGame(lobbyId, winnerId);
+            await gameModel.save();
+
+            const mainFoundRooms = mainRooms.filter(room => room.lobbyCode == room_id);
+
+            console.log("main found rooms", mainFoundRooms);
+            
+            const gameResult = {
+              winner: winnerId,
+              loser: loserId
+            }
+
+            console.log("result whot", gameResult);
+
+            const mainServerRooms = mainFoundRooms.map(room => room.socketId);
+
+            console.log("main server rooms", mainServerRooms);
+            
+
+            io.to(mainServerRooms).emit("gameEnd", gameResult);
+
+            const lobbyId = await MainServerLayer.getLobbyID(room_id);
+
+            await MainServerLayer.wonGame(lobbyId, winnerId);
+          }
+          catch (error) {
+            console.log(error);
+          }
         }
       });
 
