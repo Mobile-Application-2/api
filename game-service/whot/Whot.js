@@ -332,7 +332,7 @@ export default class Whot {
               players: [
                 {
                   socketID: socket.id,
-                  username: "",
+                  username: "kida",
                   winner: true,
                   userID: winnerId
                 }
