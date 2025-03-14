@@ -183,14 +183,18 @@ io.on('connection', (socket) => {
 
     socket.on("joinGame", /** @param {GameData} data */ async (data) => {
         try {
+            console.log("request to join game", data);
+            
             const {gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId} = data;
 
             const game = await GAME.findById(gameId);
 
             if(!game) {
+                console.log("no game found");
+                
                 await ErrorModel.create({error: "No Game Found"});
 
-                return;
+                // return;
             }
 
             newRooms.push({gameId, playerId, opponentId, stakeAmount, tournamentId, gameName: game.name, lobbyCode, socketId: socket.id});
