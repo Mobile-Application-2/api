@@ -187,7 +187,11 @@ export default class Whot {
 
             whotNamespace.to(room_id).emit("start", playerOneInfo, playerTwoInfo, currentRoom.turn);
 
+            logger.info("room id / lobby code: ", room_id);
+
             const lobbyID = await MainServerLayer.getLobbyID(room_id);
+
+            logger.info("lobbyID: ", lobbyID);
 
             await MainServerLayer.startGame(lobbyID);
 

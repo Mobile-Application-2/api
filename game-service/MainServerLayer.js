@@ -37,6 +37,9 @@ async function postData(url, method, data) {
 export default class MainServerLayer {
 
     static async getLobbyID(lobbyCode) {
+        if(!lobbyCode) {
+            logger.warn("no lobby code");
+        }
         try {
             logger.info("getting lobbyID, code: ", lobbyCode);
             const currentLobby = await LOBBY.findOne({ code: lobbyCode })
@@ -86,8 +89,6 @@ export default class MainServerLayer {
             }
     
             logger.info("sending start game to main server, data: ", JSON.stringify(data));
-
-            logger.log(url + "/game/start")
     
             const response = await postData(url + "/game/start", "PATCH", data)
     
@@ -102,6 +103,7 @@ export default class MainServerLayer {
             }
         }
         catch (error) {
+            logger.error("somthing went wrong when sending start notif");
             logger.error(error);
         }
     }
