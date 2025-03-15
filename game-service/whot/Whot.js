@@ -364,7 +364,7 @@ export default class Whot {
             await MainServerLayer.wonGame(lobbyId, winnerId);
           }
           catch (error) {
-            console.log(error);
+            console.error(error);
           }
         }
       });

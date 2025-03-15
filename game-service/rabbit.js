@@ -42,7 +42,7 @@ const init = async (tries = 0) => {
             return;
         }
         else {
-            console.log("error on rabbit mq connection", error);
+            console.error("error on rabbit mq connection", error);
         }
     }
 };
@@ -69,5 +69,5 @@ export const publish_to_queue = async (
 
 // Initialize the connection and channel when the module is loaded
 init().catch(err =>
-    console.log("error connecting: " + err)
+    console.error("error connecting: " + err)
 );

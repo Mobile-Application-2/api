@@ -596,27 +596,27 @@ mongoose.connect(URL)
     server.listen(PORT, () => {
         console.log(`server running at http://localhost:${PORT}`);
 
-        // Log available games and their status
-        const gamesPath = path.join(__dirname, 'games');
-        const allDirectories = fs.readdirSync(gamesPath, { withFileTypes: true })
-            .filter(dirent => dirent.isDirectory())
-            .map(dirent => dirent.name);
+        // // Log available games and their status
+        // const gamesPath = path.join(__dirname, 'games');
+        // const allDirectories = fs.readdirSync(gamesPath, { withFileTypes: true })
+        //     .filter(dirent => dirent.isDirectory())
+        //     .map(dirent => dirent.name);
         
-        console.log('\nAvailable games:');
-        allDirectories.forEach(game => {
-            console.log(`\n${game}:`);
-            const buildPath = path.join(gamesPath, game, 'Build');
-            const indexPath = path.join(gamesPath, game, 'index.html');
+        // console.log('\nAvailable games:');
+        // allDirectories.forEach(game => {
+        //     console.log(`\n${game}:`);
+        //     const buildPath = path.join(gamesPath, game, 'Build');
+        //     const indexPath = path.join(gamesPath, game, 'index.html');
             
-            console.log('Build path:', buildPath);
-            console.log('Index path:', indexPath);
-            console.log('Build exists:', fs.existsSync(buildPath));
-            console.log('Index exists:', fs.existsSync(indexPath));
+        //     console.log('Build path:', buildPath);
+        //     console.log('Index path:', indexPath);
+        //     console.log('Build exists:', fs.existsSync(buildPath));
+        //     console.log('Index exists:', fs.existsSync(indexPath));
             
-            if (fs.existsSync(buildPath)) {
-                console.log('Build contents:', fs.readdirSync(buildPath));
-            }
-        });
+        //     if (fs.existsSync(buildPath)) {
+        //         console.log('Build contents:', fs.readdirSync(buildPath));
+        //     }
+        // });
     });
 
     process.on("SIGTERM", async () => {
