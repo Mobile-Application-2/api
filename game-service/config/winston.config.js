@@ -16,6 +16,7 @@ const logtail = new Logtail(source, {
 // Create a Winston logger - passing in the Logtail transport
 const logger = winston.createLogger({
     format: winston.format.combine(
+        winston.format.errors({ stack: true }),
         winston.format.timestamp(),
         winston.format.json()
     ),
@@ -24,12 +25,19 @@ const logger = winston.createLogger({
 
 console.log("logger created");
 
-if(process.env.NODE_ENV == "production") {
+if (process.env.NODE_ENV == "production") {
+    // Override console methods globally
+    const stringifyArgs = (...args) => {
+        return args.map(arg =>
+            typeof arg === "object" && arg !== null ? JSON.stringify(arg, null, 2) : arg
+        );
+    };
+
     // Override console.log globally
-    console.log = (...args) => logger.info(args.map(String).join(" "));
-    console.error = (...args) => logger.error(args.map(String).join(" "));
-    console.warn = (...args) => logger.warn(args.map(String).join(" "));
-    console.debug = (...args) => logger.debug(args.map(String).join(" "));
+    console.log = (...args) => logger.info(...stringifyArgs(...args));
+    console.error = (...args) => logger.error(...stringifyArgs(...args));
+    console.warn = (...args) => logger.warn(...stringifyArgs(...args));
+    console.debug = (...args) => logger.debug(...stringifyArgs(...args));
 }
 
 export { logger, logtail }

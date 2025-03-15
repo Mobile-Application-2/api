@@ -57,7 +57,7 @@ export default class MainServerLayer {
             return lobbyID;    
         }
         catch(error) {
-            console.log(error);
+            console.error(error);
         }
     }
 
@@ -74,7 +74,7 @@ export default class MainServerLayer {
     
             console.log("winner info sent");
         } catch (error) {
-            console.log(error);
+            console.error(error);
         }
     }
 
@@ -92,14 +92,14 @@ export default class MainServerLayer {
                 console.log("game started successfully");;
             }
             else {
-                console.log("somthing went wrong");
+                console.error("somthing went wrong");
                 const data = await response.json();
     
-                console.log(data);
+                console.error(data);
             }
         }
         catch (error) {
-            console.log(error);
+            console.error(error);
         }
     }
 
