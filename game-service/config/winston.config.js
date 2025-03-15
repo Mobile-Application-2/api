@@ -25,19 +25,15 @@ const logger = winston.createLogger({
 
 console.log("logger created");
 
-if (process.env.NODE_ENV == "production") {
-    // Override console methods globally
-    const stringifyArgs = (...args) => {
-        return args.map(arg =>
-            typeof arg === "object" && arg !== null ? JSON.stringify(arg, null, 2) : arg
-        );
-    };
-
+if (process.env.NODE_ENV != "production") {
+    logger.add(new winston.transports.Console({
+        format: winston.format.simple(),
+    }));
     // Override console.log globally
-    console.log = (...args) => logger.info(...stringifyArgs(...args));
-    console.error = (...args) => logger.error(...stringifyArgs(...args));
-    console.warn = (...args) => logger.warn(...stringifyArgs(...args));
-    console.debug = (...args) => logger.debug(...stringifyArgs(...args));
+    // console.log = (...args) => logger.info(args.map(String).join(" "));
+    // console.error = (...args) => logger.error(args.map(String).join(" "));
+    // console.warn = (...args) => logger.warn(args.map(String).join(" "));
+    // console.debug = (...args) => logger.debug(args.map(String).join(" "));
 }
 
 export { logger, logtail }

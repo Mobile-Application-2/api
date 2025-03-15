@@ -42,13 +42,13 @@ const unityGzipHandler = (req, res, next) => {
     const fullPath = path.join(__dirname, 'games/Ludo/Build', originalUrl);
     const gzippedPath = path.join(__dirname, 'games/Ludo/Build', gzippedUrl);
 
-    console.log('Checking paths:');
-    console.log('Original:', fullPath);
-    console.log('Gzipped:', gzippedPath);
+    logger.info('Checking paths:');
+    logger.info('Original:', fullPath);
+    logger.info('Gzipped:', gzippedPath);
 
     // Check if gzipped version exists
     if (fs.existsSync(gzippedPath)) {
-        console.log(`Found gzipped file: ${gzippedPath}`);
+        logger.info(`Found gzipped file: ${gzippedPath}`);
         res.set('Content-Encoding', 'gzip');
         
         if (originalUrl.endsWith('.js')) {
@@ -63,13 +63,13 @@ const unityGzipHandler = (req, res, next) => {
         res.sendFile(gzippedPath);
         return;
     } else {
-        console.log(`No gzipped file found, checking original: ${fullPath}`);
+        logger.info(`No gzipped file found, checking original: ${fullPath}`);
         if (fs.existsSync(fullPath)) {
-            console.log(`Found original file: ${fullPath}`);
+            logger.info(`Found original file: ${fullPath}`);
             // Let express.static handle it
             next();
         } else {
-            console.log(`File not found: ${fullPath}`);
+            logger.info(`File not found: ${fullPath}`);
             res.status(404).send('File not found');
         }
     }
@@ -147,7 +147,7 @@ async function handleError(error) {
 }
 
 io.on('connection', (socket) => {
-    console.log("user connected to general namespace");
+    logger.info("user connected to general namespace");
 
     active.push({
         socketID: socket.id,
@@ -155,16 +155,16 @@ io.on('connection', (socket) => {
 
     io.emit('get_active', active);
 
-    console.log(active);
+    logger.info(active);
     // sentryLogActive();
 
     socket.on('disconnect', (_) => {
         try {
-            console.log("user disconnected from general namespace", socket.id);
+            logger.info("user disconnected from general namespace", socket.id);
     
             active = active.filter(obj => obj.socketID != socket.id);
     
-            console.log(active);
+            logger.info(active);
             // sentryLogActive();
     
             io.emit('get_active', active);    
@@ -184,14 +184,14 @@ io.on('connection', (socket) => {
 
     socket.on("joinGame", /** @param {GameData} data */ async (data) => {
         try {
-            console.log("request to join game", data);
+            logger.info("request to join game", data);
             
             const {gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId} = data;
 
             const game = await GAME.findById(gameId);
 
             if(!game) {
-                console.log("no game found");
+                logger.info("no game found");
                 
                 await ErrorModel.create({error: "No Game Found"});
 
@@ -213,7 +213,7 @@ io.on('connection', (socket) => {
     
             activeUser.userID = userID;
     
-            console.log("updated active", active);
+            logger.info("updated active", active);
     
             io.emit('get_active', active);
         }
@@ -229,7 +229,7 @@ io.on('connection', (socket) => {
     
             activeUser.userID = userID;
     
-            console.log("updated active", active);
+            logger.info("updated active", active);
     
             io.emit('get_active', active);
     
@@ -244,7 +244,7 @@ io.on('connection', (socket) => {
             const gameName = game.toObject().name;
     
             const opponentToNotify = active.find(activeUser => {
-                console.log(activeUser.userID, creatorID.toString());
+                logger.info(activeUser.userID, creatorID.toString());
     
                 return activeUser.userID == creatorID.toString();
             });
@@ -269,7 +269,7 @@ io.on('connection', (socket) => {
     socket.on('game-message-channel', async (messageName, data) => {
         try {
             if(messageName == "photon-id") {
-                console.log(data);
+                logger.info(data);
 
                 // Sentry.captureMessage(`game-message-channel: ${messageName} = ${data}`);
     
@@ -280,7 +280,7 @@ io.on('connection', (socket) => {
                 await errorModel.save(); */
             }
             if(messageName == "init-game") {
-                console.log(data);
+                logger.info(data);
 
                 const room = {
                     gameId: '1234',
@@ -310,7 +310,7 @@ io.on('connection', (socket) => {
 
     socket.on('created', (gameID, userID, roomID) => {
         try {
-            console.log("lobby created");
+            logger.info("lobby created");
     
             rooms.push({
                 gameID: gameID,
@@ -342,14 +342,14 @@ io.on('connection', (socket) => {
 // ];
 
 // ludoNamespace.on('connection', socket => {
-//     console.log('a user connected to ludo server');
+//     logger.info('a user connected to ludo server');
 
 //     socket.on('disconnect', () => {
-//         console.log("user disconnected from ludo", socket.id);
+//         logger.info("user disconnected from ludo", socket.id);
 
 //         const room = ludoRooms.find(room => room.players.includes(room.players.find(player => player.socketID == socket.id)));
 
-//         console.log(room);
+//         logger.info(room);
 //         if(!room) return;
 
 //         io.emit('remove', 'ludo', room.roomID);
@@ -357,14 +357,14 @@ io.on('connection', (socket) => {
 
 //     socket.on("dice_roll", ({roomID, num, isLocked, lastRolledBy}) => {
 //         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
-//             console.log(num, isLocked, lastRolledBy);
+//             logger.info(num, isLocked, lastRolledBy);
     
 //             socket.broadcast.to(roomID).emit("dice_roll", {num, isLocked, lastRolledBy})
 //         }
 //     })
 
 //     socket.on("coin_played", (roomID, index) => {
-//         // console.log(num, isLocked, lastRolledBy);
+//         // logger.info(num, isLocked, lastRolledBy);
 //         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
 //             socket.broadcast.to(roomID).emit("coin_played", index);
 //         }
@@ -389,7 +389,7 @@ io.on('connection', (socket) => {
 
 //     socket.on("create_room", async (roomID, setup, username, avatar) => {
 //         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
-//             console.log("room found");
+//             logger.info("room found");
 
 //             socket.join(roomID);
 
@@ -417,13 +417,13 @@ io.on('connection', (socket) => {
 
 //             await MainServerLayer.startGame(lobbyID);
 
-//             console.log("done sending info to main server");
+//             logger.info("done sending info to main server");
 //         }
 //         else {
-//             console.log("creating room");
+//             logger.info("creating room");
 //             socket.join(roomID);
     
-//             console.log(roomID);
+//             logger.info(roomID);
     
 //             Ludo.addRoom(roomID, setup, ludoRooms, socket.id, username, avatar);
     
@@ -435,7 +435,7 @@ io.on('connection', (socket) => {
 
 //     socket.on("join_room", (roomID) => {
 //         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
-//             console.log("room found");
+//             logger.info("room found");
 
 //             socket.join(roomID);
 
@@ -451,7 +451,7 @@ io.on('connection', (socket) => {
 //             Ludo.addPlayerToDB(roomID, socket.id);
 //         }
 //         else {
-//             console.log("sorry no room");
+//             logger.info("sorry no room");
 //             // socket.join(roomID);
 
 //             // Ludo.addRoom(roomID, ludoRooms);
@@ -481,7 +481,7 @@ const URL = process.env.MONGO_URL;
 const getValidGames = () => {
     const gamesPath = path.join(__dirname, 'games');
     if (!fs.existsSync(gamesPath)) {
-        console.log('Games directory not found');
+        logger.info('Games directory not found');
         return [];
     }
     
@@ -527,12 +527,12 @@ app.use('/game/assets', express.static(path.join(__dirname, "/games/my-Whot/asse
 
 // Game route handler
 app.get('/game', (req, res) => {
-    console.log('Game route hit');
-    console.log('Game parameters:', req.query);
+    logger.info('Game route hit');
+    logger.info('Game parameters:', req.query);
 
     const { gameName } = req.query;
 
-    console.log("gamename: ", gameName);
+    logger.info("gamename: ", gameName);
     // const validGames = getValidGames();
     const validGames = ["Whot"];
 
@@ -563,7 +563,7 @@ app.get('/game', (req, res) => {
         io.emit("game-message-channel", "init-game", room);
 
         const gamePath = path.join(__dirname, 'games', firstGame, 'index.html');
-        console.log('Serving default game from:', gamePath);
+        logger.info('Serving default game from:', gamePath);
         return res.sendFile(gamePath);
     }
 
@@ -575,7 +575,7 @@ app.get('/game', (req, res) => {
     io.emit("game-message-channel", "init-game", room);
 
     const gamePath = path.join(__dirname, 'games', gameName, 'index.html');
-    console.log('Serving specific game from:', gamePath);
+    logger.info('Serving specific game from:', gamePath);
     res.sendFile(gamePath);
 });
 
@@ -594,7 +594,7 @@ app.get('/', (req, res) => {
 mongoose.connect(URL)
 .then(() => {
     server.listen(PORT, () => {
-        console.log(`server running at http://localhost:${PORT}`);
+        logger.info(`server running at http://localhost:${PORT}`);
 
         // // Log available games and their status
         // const gamesPath = path.join(__dirname, 'games');
@@ -602,19 +602,19 @@ mongoose.connect(URL)
         //     .filter(dirent => dirent.isDirectory())
         //     .map(dirent => dirent.name);
         
-        // console.log('\nAvailable games:');
+        // logger.info('\nAvailable games:');
         // allDirectories.forEach(game => {
-        //     console.log(`\n${game}:`);
+        //     logger.info(`\n${game}:`);
         //     const buildPath = path.join(gamesPath, game, 'Build');
         //     const indexPath = path.join(gamesPath, game, 'index.html');
             
-        //     console.log('Build path:', buildPath);
-        //     console.log('Index path:', indexPath);
-        //     console.log('Build exists:', fs.existsSync(buildPath));
-        //     console.log('Index exists:', fs.existsSync(indexPath));
+        //     logger.info('Build path:', buildPath);
+        //     logger.info('Index path:', indexPath);
+        //     logger.info('Build exists:', fs.existsSync(buildPath));
+        //     logger.info('Index exists:', fs.existsSync(indexPath));
             
         //     if (fs.existsSync(buildPath)) {
-        //         console.log('Build contents:', fs.readdirSync(buildPath));
+        //         logger.info('Build contents:', fs.readdirSync(buildPath));
         //     }
         // });
     });
@@ -622,7 +622,7 @@ mongoose.connect(URL)
     process.on("SIGTERM", async () => {
         try {
             logger.info("all logs sent on graceful shutdown");
-            console.log("all logs sent on graceful shutdown");
+            logger.info("all logs sent on graceful shutdown");
             await logtail.flush();
         }
         catch(error) {
@@ -630,11 +630,11 @@ mongoose.connect(URL)
         }
 
         server.close(async () => {
-            console.log('Express server closed.');
+            logger.info('Express server closed.');
 
             // Close the Mongoose connection
             await mongoose.connection.close();
-            console.log('MongoDB connection closed.');
+            logger.info('MongoDB connection closed.');
 
             // Exit the process
             process.exit(0);
@@ -644,7 +644,7 @@ mongoose.connect(URL)
     process.on("SIGINT", async () => {
         try {
             logger.info("all logs sent on graceful shutdown");
-            console.log("all logs sent on graceful shutdown");
+            logger.info("all logs sent on graceful shutdown");
             await logtail.flush();
         }
         catch(error) {
@@ -652,11 +652,11 @@ mongoose.connect(URL)
         }
 
         server.close(async () => {
-            console.log('Express server closed.');
+            logger.info('Express server closed.');
 
             // Close the Mongoose connection
             await mongoose.connection.close();
-            console.log('MongoDB connection closed.');
+            logger.info('MongoDB connection closed.');
 
             // Exit the process
             process.exit(0);
