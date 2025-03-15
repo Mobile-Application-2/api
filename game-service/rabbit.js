@@ -21,11 +21,16 @@ dotenv.config();
 
 let channel;
 
+const RABBITMQ_DEFAULT_USER = process.env.RABBITMQ_DEFAULT_USER;
+const RABBITMQ_DEFAULT_PASS = process.env.RABBITMQ_DEFAULT_PASS;
+
+const RABBITMQ_URL = `amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672`
+
 const init = async (tries = 0) => {
     console.log("trying");
     try {
         console.log("trying rabitmq connection");
-        const connection = await amqplib.connect(process.env.RABBITMQ_URL);
+        const connection = await amqplib.connect(RABBITMQ_URL);
         channel = await connection.createChannel();
         console.log("connected to channel");
     } catch (error) {
