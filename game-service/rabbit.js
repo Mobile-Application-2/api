@@ -23,8 +23,9 @@ let channel;
 
 const RABBITMQ_DEFAULT_USER = process.env.RABBITMQ_DEFAULT_USER;
 const RABBITMQ_DEFAULT_PASS = process.env.RABBITMQ_DEFAULT_PASS;
+const RABBITMQ_SLUG = process.env.RABBITMQ_SLUG;
 
-const RABBITMQ_URL = `amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672`
+const RABBITMQ_URL = `amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_SLUG}:5672`
 
 const init = async (tries = 0) => {
     console.log("trying");
