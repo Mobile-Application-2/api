@@ -6,10 +6,11 @@ import dotenv from "dotenv"
 
 import { publish_to_queue } from "./rabbit.js";
 import { isDev, isProd } from "./config/server.config.js";
+import { logger } from "./config/winston.config.js";
 
 dotenv.config();
 
-const url = "https://main-api-34xd.onrender.com"
+const url = "https://main-api-34xd.onrender.com/api"
 // const url = process.env.NODE_ENV == development ? "http://localhost:5656/api" : "https://skyboardgames.com/api";
 
 async function postData(url, method, data) {
@@ -19,7 +20,7 @@ async function postData(url, method, data) {
 
     // const calculatedHash = crypto.createHmac('sha512', hashKey).update(JSON.stringify(data, null, 0)).digest('hex');
 
-    // console.log("requestHash: " + requestHash + " calculatedHash: " + calculatedHash);
+    // logger.info("requestHash: " + requestHash + " calculatedHash: " + calculatedHash);
 
     const response = await fetch(url, {
         method: method,
@@ -37,33 +38,33 @@ export default class MainServerLayer {
 
     static async getLobbyID(lobbyCode) {
         try {
-            console.log("getting lobbyID, code: ", lobbyCode);
+            logger.info("getting lobbyID, code: ", lobbyCode);
             const currentLobby = await LOBBY.findOne({ code: lobbyCode })
 
             if(!currentLobby) {
 
-                console.log(isDev, isProd);
+                logger.info(isDev, isProd);
 
-                if(isDev) console.log("no lobby dev main server layer");
-                else console.log("sneaky");
+                if(isDev) logger.info("no lobby dev main server layer");
+                else logger.info("sneaky");
 
                 return;
             }
     
             const lobbyID = currentLobby.toObject()._id.toString();
     
-            console.log("lobbyID: ", lobbyID);
+            logger.info("lobbyID: ", lobbyID);
     
             return lobbyID;    
         }
         catch(error) {
-            console.error(error);
+            logger.error(error);
         }
     }
 
     static async wonGame(lobbyId, winnerId) {
         try {
-            console.log("sending winner info");
+            logger.info("sending winner info");
             
             const data = {
                 lobbyId: lobbyId,
@@ -72,9 +73,9 @@ export default class MainServerLayer {
     
             await publish_to_queue("game-info-win", data, true)
     
-            console.log("winner info sent");
+            logger.info("winner info sent");
         } catch (error) {
-            console.error(error);
+            logger.error(error);
         }
     }
 
@@ -84,22 +85,24 @@ export default class MainServerLayer {
                 lobbyId: lobbyId
             }
     
-            console.log("sending start game to main server, data: ", JSON.stringify(data));
+            logger.info("sending start game to main server, data: ", JSON.stringify(data));
+
+            logger.log(url + "/game/start")
     
             const response = await postData(url + "/game/start", "PATCH", data)
     
             if (response.ok) {
-                console.log("game started successfully");;
+                logger.info("game started successfully");;
             }
             else {
-                console.error("somthing went wrong");
+                logger.error("somthing went wrong");
                 const data = await response.json();
     
-                console.error(data);
+                logger.error(data);
             }
         }
         catch (error) {
-            console.error(error);
+            logger.error(error);
         }
     }
 
