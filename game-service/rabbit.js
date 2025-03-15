@@ -27,12 +27,17 @@ const init = async (tries = 0) => {
         channel = await connection.createChannel();
         console.log("connected to channel");
     } catch (error) {
-        if (error.code === 'ECONNREFUSED' && tries < 10) {
+        if (error.code === 'ECONNREFUSED' && tries < 50) {
             console.log("trying again");
 
-            setTimeout(() => init(tries + 1), 1500);
+            setTimeout(() => init(tries + 1), 3000);
             
             return;
+        }
+        else {
+            console.log(error);
+            
+            throw error;
         }
     }
 };
