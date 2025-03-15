@@ -22,7 +22,9 @@ dotenv.config();
 let channel;
 
 const init = async (tries = 0) => {
+    console.log("trying");
     try {
+        console.log("trying rabitmq connection");
         const connection = await amqplib.connect(process.env.RABBITMQ_URL);
         channel = await connection.createChannel();
         console.log("connected to channel");
@@ -30,14 +32,12 @@ const init = async (tries = 0) => {
         if (error.code === 'ECONNREFUSED' && tries < 50) {
             console.log("trying again");
 
-            setTimeout(() => init(tries + 1), 3000);
+            setTimeout(() => init(tries + 1), 1500);
             
             return;
         }
         else {
-            console.log(error);
-            
-            throw error;
+            console.log("error on rabbit mq connection", error);
         }
     }
 };

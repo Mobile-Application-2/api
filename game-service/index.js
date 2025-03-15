@@ -28,6 +28,7 @@ import LOBBY from "./models/lobby.model.js"
 import GAME from "./models/game.model.js"
 import MainServerLayer from './MainServerLayer.js';
 import ErrorModel from './models/error.model.js';
+import { logger, logtail } from './config/winston.config.js';
 
 const app = express();
 
@@ -617,6 +618,50 @@ mongoose.connect(URL)
             }
         });
     });
+
+    process.on("SIGTERM", async () => {
+        try {
+            logger.info("all logs sent on graceful shutdown");
+            console.log("all logs sent on graceful shutdown");
+            await logtail.flush();
+        }
+        catch(error) {
+            logger.error("Error during flush:", error);
+        }
+
+        server.close(async () => {
+            console.log('Express server closed.');
+
+            // Close the Mongoose connection
+            await mongoose.connection.close();
+            console.log('MongoDB connection closed.');
+
+            // Exit the process
+            process.exit(0);
+        });
+    })
+
+    process.on("SIGINT", async () => {
+        try {
+            logger.info("all logs sent on graceful shutdown");
+            console.log("all logs sent on graceful shutdown");
+            await logtail.flush();
+        }
+        catch(error) {
+            logger.error("Error during flush:", error);
+        }
+
+        server.close(async () => {
+            console.log('Express server closed.');
+
+            // Close the Mongoose connection
+            await mongoose.connection.close();
+            console.log('MongoDB connection closed.');
+
+            // Exit the process
+            process.exit(0);
+        });
+    })
 })
 .catch(error => {
     handleError(error);
