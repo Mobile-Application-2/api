@@ -326,146 +326,180 @@ io.on('connection', (socket) => {
     })
 })
 
-// const ludoNamespace = io.of("/ludo");
+const ludoNamespace = io.of("/ludo");
 
-// const ludoRooms = [
-//     {
-//         roomID: 'main',
-//         setup: {
-//             value: false,
-//             playersList: [],
-//             currentPlayer: "",
-//             roomID: ''
-//         }, 
-//         players: []
-//     }
-// ];
+const ludoRooms = [
+    {
+        roomID: 'main',
+        setup: {
+            value: false,
+            playersList: [],
+            currentPlayer: "",
+            roomID: ''
+        }, 
+        players: []
+    }
+];
 
-// ludoNamespace.on('connection', socket => {
-//     logger.info('a user connected to ludo server');
+ludoNamespace.on('connection', socket => {
+    logger.info('a user connected to ludo server');
 
-//     socket.on('disconnect', () => {
-//         logger.info("user disconnected from ludo", socket.id);
+    socket.on('disconnect', () => {
+        logger.info("user disconnected from ludo", socket.id);
 
-//         const room = ludoRooms.find(room => room.players.includes(room.players.find(player => player.socketID == socket.id)));
+        const room = ludoRooms.find(room => room.players.includes(room.players.find(player => player.socketID == socket.id)));
 
-//         logger.info(room);
-//         if(!room) return;
+        logger.info(room);
+        if(!room) return;
 
-//         io.emit('remove', 'ludo', room.roomID);
-//     })
+        io.emit('remove', 'ludo', room.roomID);
+    })
 
-//     socket.on("dice_roll", ({roomID, num, isLocked, lastRolledBy}) => {
-//         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
-//             logger.info(num, isLocked, lastRolledBy);
+    socket.on("dice_roll", ({roomID, num, isLocked, lastRolledBy}) => {
+        if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
+            logger.info(num, isLocked, lastRolledBy);
     
-//             socket.broadcast.to(roomID).emit("dice_roll", {num, isLocked, lastRolledBy})
-//         }
-//     })
+            socket.broadcast.to(roomID).emit("dice_roll", {num, isLocked, lastRolledBy})
+        }
+    })
 
-//     socket.on("coin_played", (roomID, index) => {
-//         // logger.info(num, isLocked, lastRolledBy);
-//         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
-//             socket.broadcast.to(roomID).emit("coin_played", index);
-//         }
+    socket.on("coin_played", (roomID, index) => {
+        // logger.info(num, isLocked, lastRolledBy);
+        if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
+            socket.broadcast.to(roomID).emit("coin_played", index);
+        }
 
-//     })
+    })
 
-//     socket.on("player_won", async (roomID) => {
-//         Ludo.declareWinner(roomID, socket.id);
+    socket.on("player_won", async (roomID) => {
+        Ludo.declareWinner(roomID, socket.id);
 
-//         const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
+        const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
-//         const winner = currentRoom.players.find(player => player.socketID == socket.id);
+        const winner = currentRoom.players.find(player => player.socketID == socket.id);
 
-//         const winnerData = await USER.findOne({username: winner.username})
+        const winnerData = await USER.findOne({username: winner.username})
 
-//         const winnerId = winnerData.toObject()._id
+        const winnerId = winnerData.toObject()._id
 
-//         const lobbyId = await MainServerLayer.getLobbyID(roomID);
+        const lobbyId = await MainServerLayer.getLobbyID(roomID);
 
-//         await MainServerLayer.wonGame(lobbyId, winnerId);
-//     })
+        await MainServerLayer.wonGame(lobbyId, winnerId);
+    })
 
-//     socket.on("create_room", async (roomID, setup, username, avatar) => {
-//         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
-//             logger.info("room found");
+    /**
+   * @typedef {Object} GameData
+   * @property {string} gameId - The unique identifier for the game.
+   * @property {string} playerId - The unique identifier for the player.
+   * @property {string} opponentId - The unique identifier for the opponent.
+   * @property {string} stakeAmount - The amount staked in the game.
+   * @property {string} tournamentId - The unique identifier for tournaments.
+   * @property {string} lobbyCode - The unique lobby code for the game.
+   * @property {string} gameName - The name of the game.
+   * 
+   */
 
-//             socket.join(roomID);
+  /**
+   * Activates the game logic for handling WebSocket connections.
+   * 
+   * @param {import("socket.io").Server} io - The main Socket.IO server instance.
+   * @param {import("socket.io").Namespace} whotNamespace - The specific namespace for the Whot game.
+   * @param {Array<GameData>} mainRooms - A map of active game rooms.
+   */
 
-//             const currentRoomObject = ludoRooms.filter(roomObject => roomObject.roomID == roomID)[0];
+    socket.on("create_room", /**@param {GameData} data*/async (data) => {
+        logger.info("user wanting to enter chess", data);
 
-//             currentRoomObject.players.push({
-//                 username: username,
-//                 socketID: socket.id,
-//                 avatar: avatar
-//             })
+        const {gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId} = data
+
+        const roomID = lobbyCode;
+
+        if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
+            logger.info("room found");
+
+            socket.join(roomID);
+
+            const currentRoomObject = ludoRooms.filter(roomObject => roomObject.roomID == roomID)[0];
+
+            logger.info("room found: ", currentRoomObject);
+
+            currentRoomObject.players.push({
+                username: username,
+                socketID: socket.id,
+                avatar: avatar
+            })
             
-//             socket.emit("already_created", currentRoomObject.setup);
+            socket.emit("already_created", currentRoomObject.setup);
 
-//             Ludo.addPlayerToDB(roomID, socket.id, username);
+            Ludo.addPlayerToDB(roomID, socket.id, username);
 
-//             let playerOneInfo = currentRoomObject.players[0];
-//             let playerTwoInfo = currentRoomObject.players[1];
+            let playerOneInfo = currentRoomObject.players[0];
+            let playerTwoInfo = currentRoomObject.players[1];
 
-//             // playerOneInfo.socketID = undefined;
-//             // playerTwoInfo.socketID = undefined;
+            logger.info("players infos", playerOneInfo, playerTwoInfo)
 
-//             ludoNamespace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo)
+            // playerOneInfo.socketID = undefined;
+            // playerTwoInfo.socketID = undefined;
 
-//             const lobbyID = await MainServerLayer.getLobbyID(roomID);
+            ludoNamespace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo)
 
-//             await MainServerLayer.startGame(lobbyID);
+            logger.info("starting game");
 
-//             logger.info("done sending info to main server");
-//         }
-//         else {
-//             logger.info("creating room");
-//             socket.join(roomID);
+            const lobbyID = await MainServerLayer.getLobbyID(roomID);
+
+            await MainServerLayer.startGame(lobbyID);
+
+            logger.info("done sending info to main server");
+        }
+        else {
+            logger.info("creating room");
+            socket.join(roomID);
     
-//             logger.info(roomID);
+            logger.info(roomID);
     
-//             Ludo.addRoom(roomID, setup, ludoRooms, socket.id, username, avatar);
+            Ludo.addRoom(roomID, setup, ludoRooms, socket.id, username, avatar);
     
-//             Ludo.addPlayerToDB(roomID, socket.id, username);
+            Ludo.addPlayerToDB(roomID, socket.id, username);
     
-//             socket.emit('created_room');
-//         }
-//     })
+            socket.emit('created_room');
 
-//     socket.on("join_room", (roomID) => {
-//         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
-//             logger.info("room found");
+            logger.info("room created");
+        }
+    })
 
-//             socket.join(roomID);
+    socket.on("join_room", (roomID) => {
+        if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
+            logger.info("room found");
 
-//             const currentRoomObject = ludoRooms.filter(roomObject => roomObject.roomID == roomID)[0];
+            socket.join(roomID);
 
-//             currentRoomObject.players.push({
-//                 username: '',
-//                 socketID: socket.id
-//             })
+            const currentRoomObject = ludoRooms.filter(roomObject => roomObject.roomID == roomID)[0];
+
+            currentRoomObject.players.push({
+                username: '',
+                socketID: socket.id
+            })
             
-//             socket.emit("already_created", currentRoomObject.setup);
+            socket.emit("already_created", currentRoomObject.setup);
 
-//             Ludo.addPlayerToDB(roomID, socket.id);
-//         }
-//         else {
-//             logger.info("sorry no room");
-//             // socket.join(roomID);
+            Ludo.addPlayerToDB(roomID, socket.id);
+        }
+        else {
+            logger.info("sorry no room");
+            // socket.join(roomID);
 
-//             // Ludo.addRoom(roomID, ludoRooms);
-//         }
-//     })
-// })
+            // Ludo.addRoom(roomID, ludoRooms);
+        }
+    })
+})
 
 const whotNamespace = io.of("/whot");
 
 Whot.activate(io, whotNamespace, newRooms);
 
-// const chessNameSpace = io.of("/chess");
+const chessNameSpace = io.of("/chess");
 
-// Chess.activate(io, chessNameSpace);
+Chess.activate(io, chessNameSpace, newRooms);
 
 // const snookerNameSpace = io.of("/snooker");
 
@@ -524,6 +558,7 @@ app.use('/games/:gameName/TemplateData', (req, res, next) => {
 
 // Serve other game files directly from the game directory
 app.use('/game/assets', express.static(path.join(__dirname, "/games/my-Whot/assets")));
+app.use('/game/my-Chess/assets', express.static(path.join(__dirname, "/games/my-Chess/assets")));
 
 // Game route handler
 app.get('/game', (req, res) => {

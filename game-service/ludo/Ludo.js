@@ -7,7 +7,7 @@ export default class Ludo {
             setup: setup,
             players: [
                 {
-                    username: username,
+                    username: "user",
                     socketID: socketID,
                     avatar: avatar
                 }
@@ -33,7 +33,7 @@ export default class Ludo {
         // console.log(currentGame.toObject());
 
         const player = {
-            username: "null",
+            username: "user",
             socketID: socketID,
             winner: false
         }
@@ -44,7 +44,7 @@ export default class Ludo {
         await GameModel.updateOne({roomID: roomID}, {
             $push: {
                 players: {
-                    username: username,
+                    username: "user",
                     socketID: socketID,
                 }
             }

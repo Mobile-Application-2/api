@@ -1,3 +1,4 @@
+import { logger } from "../config/winston.config.js";
 import MainServerLayer from "../MainServerLayer.js";
 import LOBBY from "../models/lobby.model.js";
 import USER from "../models/user.model.js";
@@ -27,14 +28,33 @@ export default class Chess {
         }
     ]
 
-    static async activate(io, chessNameSpace) {
+    /**
+   * @typedef {Object} GameData
+   * @property {string} gameId - The unique identifier for the game.
+   * @property {string} playerId - The unique identifier for the player.
+   * @property {string} opponentId - The unique identifier for the opponent.
+   * @property {string} stakeAmount - The amount staked in the game.
+   * @property {string} tournamentId - The unique identifier for tournaments.
+   * @property {string} lobbyCode - The unique lobby code for the game.
+   * @property {string} gameName - The name of the game.
+   * 
+   */
+
+    /**
+     * Activates the game logic for handling WebSocket connections.
+     * 
+     * @param {import("socket.io").Server} io - The main Socket.IO server instance.
+     * @param {import("socket.io").Namespace} whotNamespace - The specific namespace for the Whot game.
+     * @param {Array<GameData>} mainRooms - A map of active game rooms.
+     */
+    static async activate(io, chessNameSpace, mainRooms) {
         chessNameSpace.on('connection', socket => {
-            console.log("user connected to chess server");
+            logger.info("user connected to chess server");
             // TODO: reconnect player to game if disconnected and game still on
 
             socket.once('create_game', (roomID, state) => this.createGame(socket, roomID, state))
 
-            socket.on('join_game', (roomID, state) => this.joinGame(chessNameSpace, socket, roomID, state));
+            socket.on('join_game', (data, state) => this.joinGame(chessNameSpace, socket, data, state));
 
             socket.on('turn_played', (roomID, indexClicked, newPosition, callback) => {
                 callback({
@@ -44,15 +64,40 @@ export default class Chess {
             })
 
             socket.on('game_over', async (roomID, player_winner) => {
-                await GameModel.updateOne({roomID: roomID, 'players.socketID': socket.id}, {
-                    $set: {'players.$.winner': true}
+                await GameModel.updateOne({ roomID: roomID, 'players.socketID': socket.id }, {
+                    $set: { 'players.$.winner': true }
                 })
+
+                const mainWinner = this.rooms.players.find(player => player.socketID == socket.id);
+                const loser = this.rooms.players.find(player => player.socketID != socket.id);
+
+                io.to(loser.socketID).emit("lost")
+
+                const mainWinnerId = mainWinner.userId;
+                const loserId = loser.userId;
+
+                const mainFoundRooms = mainRooms.filter(room => room.lobbyCode == roomID);
+
+                logger.info("main found rooms", mainFoundRooms);
+
+                const gameResult = {
+                    winner: mainWinnerId,
+                    loser: loserId
+                }
+
+                logger.info("result whot", gameResult);
+
+                const mainServerRooms = mainFoundRooms.map(room => room.socketId);
+
+                logger.info("main server rooms", mainServerRooms);
+
+                io.to(mainServerRooms).emit("gameEnd", gameResult);
 
                 const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
                 const winner = currentRoom.players.find(player => player.socketID == socket.id);
 
-                const winnerData = await USER.findOne({username: winner.username})
+                const winnerData = await USER.findOne({ username: winner.username })
 
                 const winnerId = winnerData.toObject()._id
 
@@ -64,13 +109,13 @@ export default class Chess {
             })
 
             socket.on('disconnect', () => {
-                console.log("user disconnected from chess", socket.id);
+                logger.info("user disconnected from chess", socket.id);
 
                 const room = this.rooms.find(room => room.players.includes(room.players.find(player => player.socketID == socket.id)));
 
-                // console.log(room);
+                // logger.info(room);
 
-                if(!room) return;
+                if (!room) return;
 
                 // TODO: remove player from game lobby not whole lobby
 
@@ -78,11 +123,11 @@ export default class Chess {
             })
 
             socket.on('disconnecting', () => {
-                for(let i = 0; i < this.rooms.length; ++i) {
+                for (let i = 0; i < this.rooms.length; ++i) {
                     const currentRoom = this.rooms[i];
 
-                    if(currentRoom.players.filter(player => player.socketID == socket.id)[0] != undefined) {
-                        console.log("player is disconnecting");
+                    if (currentRoom.players.filter(player => player.socketID == socket.id)[0] != undefined) {
+                        logger.info("player is disconnecting");
 
                         chessNameSpace.to(currentRoom.roomID).emit('pause');
                         // socket.leave(currentRoom.roomID);
@@ -103,35 +148,37 @@ export default class Chess {
     }
 
     static async turnPlayed(socket, roomID, indexClicked, newPosition) {
-        // console.log(newState, this.rooms[0].state);
-        // console.log(newState);
+        // logger.info(newState, this.rooms[0].state);
+        // logger.info(newState);
         const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
-        if(currentRoom) {
+        if (currentRoom) {
             // currentRoom.state = newState;
 
             socket.broadcast.emit('turn_played', indexClicked, newPosition, (err, response) => {
                 // if(err) {
-                //     console.log("no response from client");
-                //     console.log(err);
+                //     logger.info("no response from client");
+                //     logger.info(err);
                 // }
                 // else {
-                //     console.log("client responded");
-                //     console.log(response);
+                //     logger.info("client responded");
+                //     logger.info(response);
                 // }
             });
         }
     }
 
-    static async createGame(socket, roomID, state) {
+    static async createGame(socket, data, state) {
+        const roomID = data.lobbyCode;
+
         socket.join(roomID);
 
-        console.log("state on room create", state);
+        logger.info("state on room create", state);
 
-        const game = await GameModel.findOne({roomID: roomID})
+        const game = await GameModel.findOne({ roomID: roomID })
 
-        if(game != null) {
-            console.log('room id exist');
+        if (game != null) {
+            logger.info('room id exist');
 
             return
         }
@@ -142,6 +189,7 @@ export default class Chess {
                 {
                     username: state.username,
                     socketID: socket.id,
+                    userId: data.playerId
                 }
             ],
             roomID: roomID
@@ -156,22 +204,47 @@ export default class Chess {
                 {
                     username: state.username,
                     socketID: socket.id,
-                    avatar: state.avatar
+                    avatar: state.avatar,
+                    userId: data.playerId
                 }
             ]
         });
 
-        console.log("user created game");
+        logger.info("user created game");
     }
 
-    static async joinGame(chessNameSpace, socket, roomID, state) {
+
+    /**
+   * @typedef {Object} GameData
+   * @property {string} gameId - The unique identifier for the game.
+   * @property {string} playerId - The unique identifier for the player.
+   * @property {string} opponentId - The unique identifier for the opponent.
+   * @property {string} stakeAmount - The amount staked in the game.
+   * @property {string} tournamentId - The unique identifier for tournaments.
+   * @property {string} lobbyCode - The unique lobby code for the game.
+   * @property {string} gameName - The name of the game.
+   * 
+   */
+
+    /**
+     * Activates the game logic for handling WebSocket connections.
+     * 
+     * @param {import("socket.io").Server} io - The main Socket.IO server instance.
+     * @param {import("socket.io").Namespace} whotNamespace - The specific namespace for the Whot game.
+     * @param {Array<GameData>} mainRooms - A map of active game rooms.
+     */
+    static async joinGame(chessNameSpace, socket, data, state) {
+        const { gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId } = data
+
+        const roomID = lobbyCode
+
         const gameRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
-        // console.log(gameRoom);
+        // logger.info(gameRoom);
 
-        if(gameRoom != undefined) {
-            if(gameRoom.players.length > 1) {
-                console.log("room full");
+        if (gameRoom != undefined) {
+            if (gameRoom.players.length > 1) {
+                logger.info("room full");
                 socket.emit(
                     'error',
                     'room full'
@@ -180,37 +253,41 @@ export default class Chess {
             else {
                 socket.join(roomID);
 
-                console.log("state on room join", state);
-        
-                await GameModel.updateOne({roomID: roomID}, {
+                logger.info("state on room join", state);
+
+                await GameModel.updateOne({ roomID: roomID }, {
                     $push: {
                         players: {
                             username: state.username,
                             socketID: socket.id,
+                            userId: playerId
                         }
                     }
                 })
-    
+
                 this.rooms.filter(room => room.roomID == roomID)[0].players.push({
                     username: state.username,
                     socketID: socket.id,
-                    avatar: state.avatar
+                    avatar: state.avatar,
+                    userId: playerId
                 })
-    
+
                 const currentGameState = this.rooms.filter(room => room.roomID == roomID)[0].state;
-    
-                console.log("user joined game");
-    
+
+                logger.info("user joined game, current state:", currentGameState);
+
                 socket.emit('joined_game', currentGameState);
 
                 const playerOneInfo = this.rooms.filter(room => room.roomID == roomID)[0].players.find(playerObject => playerObject.socketID != socket.id);
                 const playerTwoInfo = this.rooms.filter(room => room.roomID == roomID)[0].players.find(playerObject => playerObject.socketID == socket.id);
 
-                if(!playerOneInfo || !playerTwoInfo) {
-                    console.log("cant get info");
+                if (!playerOneInfo || !playerTwoInfo) {
+                    logger.info("cant get info");
 
                     return
                 }
+
+                logger.info("players: ", playerOneInfo, playerTwoInfo)
 
                 // playerOneInfo = playerOneInfo.map(info => {return {username: info.username, avatar: info.avatar}})
                 // playerTwoInfo = playerTwoInfo.map(info => {return {username: info.username, avatar: info.avatar}})
@@ -219,17 +296,17 @@ export default class Chess {
 
                 chessNameSpace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo);
 
-                console.log("sending info to main server");
+                logger.info("sending info to main server");
 
                 const lobbyID = await MainServerLayer.getLobbyID(roomID);
 
                 await MainServerLayer.startGame(lobbyID);
 
-                console.log("done sending info to main server");
+                logger.info("done sending info to main server");
             }
         }
         else {
-            this.createGame(socket, roomID, state);
+            this.createGame(socket, data, state);
         }
 
     }
