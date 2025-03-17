@@ -60,6 +60,7 @@ export default class Chess {
                 callback({
                     status: "ok"
                 })
+                logger.info("turn played", roomID)
                 this.turnPlayed(socket, roomID, indexClicked, newPosition)
             })
 
@@ -152,18 +153,22 @@ export default class Chess {
         // logger.info(newState);
         const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
+        logger.info("current room for turn played", currentRoom);
+
         if (currentRoom) {
             // currentRoom.state = newState;
 
+            logger.info("sending turn played to opponent");
+
             socket.broadcast.emit('turn_played', indexClicked, newPosition, (err, response) => {
-                // if(err) {
-                //     logger.info("no response from client");
-                //     logger.info(err);
-                // }
-                // else {
-                //     logger.info("client responded");
-                //     logger.info(response);
-                // }
+                if(err) {
+                    logger.info("no response from client");
+                    logger.info(err);
+                }
+                else {
+                    logger.info("client responded");
+                    logger.info(response);
+                }
             });
         }
     }
