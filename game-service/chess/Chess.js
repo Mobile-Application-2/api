@@ -86,7 +86,7 @@ export default class Chess {
                     loser: loserId
                 }
 
-                logger.info("result whot", gameResult);
+                logger.info("result chess", gameResult);
 
                 const mainServerRooms = mainFoundRooms.map(room => room.socketId);
 

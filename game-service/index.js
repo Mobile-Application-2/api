@@ -29,6 +29,7 @@ import GAME from "./models/game.model.js"
 import MainServerLayer from './MainServerLayer.js';
 import ErrorModel from './models/error.model.js';
 import { logger, logtail } from './config/winston.config.js';
+import MobileLayer from './MobileLayer.js';
 
 const app = express();
 
@@ -356,31 +357,51 @@ ludoNamespace.on('connection', socket => {
     })
 
     socket.on("dice_roll", ({roomID, num, isLocked, lastRolledBy}) => {
+        logger.info("recieved dice roll", roomID, num, isLocked, lastRolledBy);
+
         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
-            logger.info(num, isLocked, lastRolledBy);
+            logger.info("dice rolled", num, isLocked, lastRolledBy);
     
             socket.broadcast.to(roomID).emit("dice_roll", {num, isLocked, lastRolledBy})
+        }
+        else {
+            logger.info("no room found", roomID, ludoRooms)
         }
     })
 
     socket.on("coin_played", (roomID, index) => {
+        logger.info("coin played", roomID, index)
         // logger.info(num, isLocked, lastRolledBy);
         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
+            logger.info("coin played");
+
             socket.broadcast.to(roomID).emit("coin_played", index);
         }
-
+        else {
+            logger.info("no room found", roomID, ludoRooms)
+        }
     })
 
     socket.on("player_won", async (roomID) => {
         Ludo.declareWinner(roomID, socket.id);
 
-        const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
-
+        const currentRoom = ludoRooms.filter(room => room.roomID == roomID)[0];
+        
         const winner = currentRoom.players.find(player => player.socketID == socket.id);
+        const loser = currentRoom.players.find(player => player.socketID != socket.id);
 
-        const winnerData = await USER.findOne({username: winner.username})
+        socket.to(loser.socketID).emit("lost")
+        
+        logger.info(`player won ludo: ${winner.userId}`);
 
-        const winnerId = winnerData.toObject()._id
+        const winnerId = winner.userId;
+        const loserId = loser.userId;
+
+        MobileLayer.sendGameWon(io, newRooms, winnerId, loserId);
+
+        // const winnerData = await USER.findOne({username: winner.username})
+
+        // const winnerId = winnerData.toObject()._id
 
         const lobbyId = await MainServerLayer.getLobbyID(roomID);
 
@@ -407,8 +428,8 @@ ludoNamespace.on('connection', socket => {
    * @param {Array<GameData>} mainRooms - A map of active game rooms.
    */
 
-    socket.on("create_room", /**@param {GameData} data*/async (data) => {
-        logger.info("user wanting to enter chess", data);
+    socket.on("create_room", async (_roomID, setup, username, avatar, data) => {
+        logger.info("user wanting to enter ludo", data);
 
         const {gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId} = data
 
@@ -426,12 +447,13 @@ ludoNamespace.on('connection', socket => {
             currentRoomObject.players.push({
                 username: username,
                 socketID: socket.id,
-                avatar: avatar
+                avatar: avatar,
+                userId: playerId
             })
             
             socket.emit("already_created", currentRoomObject.setup);
 
-            Ludo.addPlayerToDB(roomID, socket.id, username);
+            Ludo.addPlayerToDB(roomID, socket.id, username, playerId);
 
             let playerOneInfo = currentRoomObject.players[0];
             let playerTwoInfo = currentRoomObject.players[1];
@@ -457,9 +479,9 @@ ludoNamespace.on('connection', socket => {
     
             logger.info(roomID);
     
-            Ludo.addRoom(roomID, setup, ludoRooms, socket.id, username, avatar);
+            Ludo.addRoom(roomID, setup, ludoRooms, socket.id, username, avatar, playerId);
     
-            Ludo.addPlayerToDB(roomID, socket.id, username);
+            Ludo.addPlayerToDB(roomID, socket.id, username, playerId);
     
             socket.emit('created_room');
 
@@ -467,30 +489,30 @@ ludoNamespace.on('connection', socket => {
         }
     })
 
-    socket.on("join_room", (roomID) => {
-        if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
-            logger.info("room found");
+    // socket.on("join_room", (roomID) => {
+    //     if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
+    //         logger.info("room found");
 
-            socket.join(roomID);
+    //         socket.join(roomID);
 
-            const currentRoomObject = ludoRooms.filter(roomObject => roomObject.roomID == roomID)[0];
+    //         const currentRoomObject = ludoRooms.filter(roomObject => roomObject.roomID == roomID)[0];
 
-            currentRoomObject.players.push({
-                username: '',
-                socketID: socket.id
-            })
+    //         currentRoomObject.players.push({
+    //             username: '',
+    //             socketID: socket.id
+    //         })
             
-            socket.emit("already_created", currentRoomObject.setup);
+    //         socket.emit("already_created", currentRoomObject.setup);
 
-            Ludo.addPlayerToDB(roomID, socket.id);
-        }
-        else {
-            logger.info("sorry no room");
-            // socket.join(roomID);
+    //         Ludo.addPlayerToDB(roomID, socket.id);
+    //     }
+    //     else {
+    //         logger.info("sorry no room");
+    //         // socket.join(roomID);
 
-            // Ludo.addRoom(roomID, ludoRooms);
-        }
-    })
+    //         // Ludo.addRoom(roomID, ludoRooms);
+    //     }
+    // })
 })
 
 const whotNamespace = io.of("/whot");
@@ -559,6 +581,7 @@ app.use('/games/:gameName/TemplateData', (req, res, next) => {
 // Serve other game files directly from the game directory
 app.use('/game/assets', express.static(path.join(__dirname, "/games/my-Whot/assets")));
 app.use('/game/my-Chess/assets', express.static(path.join(__dirname, "/games/my-Chess/assets")));
+app.use('/game/my-Ludo/assets', express.static(path.join(__dirname, "/games/my-Ludo/assets")));
 
 // Game route handler
 app.get('/game', (req, res) => {

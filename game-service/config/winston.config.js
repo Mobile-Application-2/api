@@ -18,7 +18,8 @@ const logger = winston.createLogger({
     format: winston.format.combine(
         winston.format.errors({ stack: true }),
         winston.format.timestamp(),
-        winston.format.json()
+        winston.format.json(),
+        winston.format.metadata()
     ),
 });
 
@@ -26,7 +27,12 @@ console.log("logger created");
 
 if (process.env.NODE_ENV != "production") {
     logger.add(new winston.transports.Console({
-        format: winston.format.simple(),
+        format: winston.format.combine(
+            winston.format.errors({ stack: true }),
+            winston.format.timestamp(),
+            winston.format.json(),
+            winston.format.metadata()
+        ),
     }));
 
     // Override console.log globally
