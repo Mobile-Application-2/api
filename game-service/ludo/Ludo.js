@@ -1,9 +1,10 @@
 import GameModel from "./models/game.model.js";
 
 export default class Ludo {
-    static async addRoom(roomID, setup, ludoRooms, socketID, username, avatar, userId) {
+    static async addRoom(roomID, setup, ludoRooms, socketID, username, avatar, userId, tournamentId) {
         const roomObject = {
             roomID: roomID,
+            tournamentId: tournamentId,
             setup: setup,
             players: [
                 {

@@ -37,30 +37,30 @@ async function postData(url, method, data) {
 export default class MainServerLayer {
 
     static async getLobbyID(lobbyCode) {
-        if(!lobbyCode) {
+        if (!lobbyCode) {
             logger.warn("no lobby code");
         }
         try {
             logger.info("getting lobbyID, code: ", lobbyCode);
             const currentLobby = await LOBBY.findOne({ code: lobbyCode })
 
-            if(!currentLobby) {
+            if (!currentLobby) {
 
                 logger.info(isDev, isProd);
 
-                if(isDev) logger.info("no lobby dev main server layer");
+                if (isDev) logger.info("no lobby dev main server layer");
                 else logger.info("sneaky");
 
                 return;
             }
-    
+
             const lobbyID = currentLobby.toObject()._id.toString();
-    
+
             logger.info("lobbyID: ", lobbyID);
-    
-            return lobbyID;    
+
+            return lobbyID;
         }
-        catch(error) {
+        catch (error) {
             logger.error(error);
         }
     }
@@ -68,14 +68,14 @@ export default class MainServerLayer {
     static async wonGame(lobbyId, winnerId) {
         try {
             logger.info("sending winner info");
-            
+
             const data = {
                 lobbyId: lobbyId,
                 winnerId: winnerId
             }
-    
+
             await publish_to_queue("game-info-win", data, true)
-    
+
             logger.info("winner info sent");
         } catch (error) {
             logger.error(error);
@@ -87,18 +87,18 @@ export default class MainServerLayer {
             const data = {
                 lobbyId: lobbyId
             }
-    
+
             logger.info("sending start game to main server, data: ", JSON.stringify(data));
-    
+
             const response = await postData(url + "/game/start", "PATCH", data)
-    
+
             if (response.ok) {
                 logger.info("game started successfully");;
             }
             else {
                 logger.error("somthing went wrong");
                 const data = await response.json();
-    
+
                 logger.error(data);
             }
         }
@@ -112,8 +112,47 @@ export default class MainServerLayer {
 
     }
 
-    static async startTournamentGame() {
+    static async startTournamentGame(fixtureId) {
+        try {
+            const data = {
+                fixtureId: fixtureId
+            }
 
+            logger.info("sending start game to main server, data: ", JSON.stringify(data));
+
+            const response = await postData(url + "/tournament/start-fixture-game", "PATCH", data)
+
+            if (response.ok) {
+                logger.info("game fixture started successfully");;
+            }
+            else {
+                logger.error("somthing went wrong");
+                const data = await response.json();
+
+                logger.error(data);
+            }
+        }
+        catch (error) {
+            logger.error("somthing went wrong when sending start notif");
+            logger.error(error);
+        }
+    }
+
+    static async wonTournamentGame(fixtureId, winnerId) {
+        try {
+            logger.info("sending winner info (tournament)");
+
+            const data = {
+                fixtureId: fixtureId,
+                winnerId: winnerId
+            }
+
+            await publish_to_queue("tournament-info-win", data, true)
+
+            logger.info("winner info sent (tournament)");
+        } catch (error) {
+            logger.error(error);
+        }
     }
 
     static async cancelTournamentGame() {

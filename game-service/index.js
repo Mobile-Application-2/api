@@ -30,6 +30,7 @@ import MainServerLayer from './MainServerLayer.js';
 import ErrorModel from './models/error.model.js';
 import { logger, logtail } from './config/winston.config.js';
 import MobileLayer from './MobileLayer.js';
+import WaitingRoomManager from './WaitingRoomManager.js';
 
 const app = express();
 
@@ -104,6 +105,8 @@ let rooms = [
 
 rooms.splice(0);
 
+const TournamentWaitingRoom = new WaitingRoomManager(io, active)
+
 // function sentryLogActive() {
 //     // Sentry.setContext("active_users", active);
 
@@ -149,9 +152,11 @@ async function handleError(error) {
 
 io.on('connection', (socket) => {
     logger.info("user connected to general namespace");
+    const userId = socket.handshake.query.userId;
 
     active.push({
         socketID: socket.id,
+        userID: userId
     });
 
     io.emit('get_active', active);
@@ -174,6 +179,18 @@ io.on('connection', (socket) => {
             // Sentry.captureException(error);
             handleError(error);
         }
+    })
+
+    socket.on('join-tournament-waiting-room', async (playerId, lobbyCode) => {        
+        await TournamentWaitingRoom.joinWaitingRoom(socket, playerId, lobbyCode);
+
+        logger.info("player joined tournament waiting room");
+    })
+
+    socket.on('leave-tournament-waiting-room', async (playerId, lobbyCode) => {        
+        await TournamentWaitingRoom.leaveWaitingRoom(playerId, lobbyCode);
+
+        logger.info("player left tournament waiting room");
     })
 
     // FOR MOBILE GAME END
@@ -332,6 +349,7 @@ const ludoNamespace = io.of("/ludo");
 const ludoRooms = [
     {
         roomID: 'main',
+        tournamentId: '',
         setup: {
             value: false,
             playersList: [],
@@ -402,6 +420,10 @@ ludoNamespace.on('connection', socket => {
         // const winnerData = await USER.findOne({username: winner.username})
 
         // const winnerId = winnerData.toObject()._id
+
+        if(currentRoom.tournamentId) {
+            await MainServerLayer.wonTournamentGame(currentRoom.tournamentId, winnerId)
+        }
 
         const lobbyId = await MainServerLayer.getLobbyID(roomID);
 
@@ -479,7 +501,7 @@ ludoNamespace.on('connection', socket => {
     
             logger.info(roomID);
     
-            Ludo.addRoom(roomID, setup, ludoRooms, socket.id, username, avatar, playerId);
+            Ludo.addRoom(roomID, setup, ludoRooms, socket.id, username, avatar, playerId, tournamentId);
     
             Ludo.addPlayerToDB(roomID, socket.id, username, playerId);
     

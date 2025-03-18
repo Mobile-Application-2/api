@@ -13,6 +13,7 @@ export default class Chess {
     static rooms = [
         {
             roomID: '',
+            tournamentId: '',
             state: {
                 squares: [],
                 whiteFallenSoldiers: [],
@@ -60,7 +61,7 @@ export default class Chess {
                 callback({
                     status: "ok"
                 })
-                logger.info("turn played", roomID)
+                logger.info("turn played", {roomID})
                 this.turnPlayed(socket, roomID, indexClicked, newPosition)
             })
 
@@ -101,6 +102,10 @@ export default class Chess {
                 const winnerData = await USER.findOne({ username: winner.username })
 
                 const winnerId = winnerData.toObject()._id
+
+                if(currentRoom.tournamentId) {
+                    await MainServerLayer.wonTournamentGame(currentRoom.tournamentId, winnerId)
+                }
 
                 const lobbyId = await MainServerLayer.getLobbyID(roomID);
 
@@ -204,6 +209,7 @@ export default class Chess {
 
         this.rooms.push({
             roomID: roomID,
+            tournamentId: data.tournamentId,
             state: state,
             players: [
                 {
