@@ -4,8 +4,8 @@
  * @property {String} userID
  */
 
-import { logger } from "./config/winston.config";
-import TOURNAMENTFIXTURES from "./models/tournament-fixtures.model";
+import { logger } from "./config/winston.config.js";
+import TOURNAMENTFIXTURES from "./models/tournament-fixtures.model.js";
 
 /**
  * Manages the game tournament waiting room.
