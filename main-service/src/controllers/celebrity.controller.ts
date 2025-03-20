@@ -12,6 +12,7 @@ import crypto from 'crypto';
 import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
 import {publish_to_queue} from '../utils/rabbitmq';
 import TOURNAMENTTTL from '../models/tournament-ttl.model';
+import { agenda } from '../agenda/agenda';
 const ObjectId = mongoose.Types.ObjectId;
 
 export async function get_my_tournaments(req: Request, res: Response) {
@@ -218,6 +219,7 @@ export async function create_tournament(req: Request, res: Response) {
       'noOfGamesToPlay',
       'noOfWinners',
       'hasGateFee',
+      'startDate'
     ];
 
     if (tournamentInfo.hasGateFee) {
@@ -294,6 +296,11 @@ export async function create_tournament(req: Request, res: Response) {
         );
 
         await session.commitTransaction();
+
+        // Schedule the tournament start
+        await agenda.schedule(new Date(newTournament[0].startDate), "start_tournament", {
+          tournamentId: newTournament[0]._id.toString(),
+        });
 
         res.status(201).json({
           message: 'Tournament created successfully',

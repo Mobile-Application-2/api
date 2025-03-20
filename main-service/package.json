@@ -38,6 +38,7 @@
     "@sentry/cli": "^2.31.2",
     "@sentry/node": "^8.2.1",
     "@sentry/profiling-node": "^8.2.1",
+    "agenda": "^5.0.0",
     "amqplib": "^0.10.4",
     "axios": "^1.7.2",
     "bcrypt": "^5.1.1",

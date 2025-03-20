@@ -86,6 +86,14 @@ const tournamentSchema = new mongoose.Schema(
         message: 'Please specify a deadline date in the future',
       },
     },
+    startDate: {
+      type: Date,
+      required: [true, 'Please provide a start date for this tournament'],
+      validate: {
+        validator: (date: Date) => Date.now() < new Date(date).getTime(),
+        message: 'Please specify a deadline date in the future',
+      },
+    },
     noOfGamesToPlay: {
       type: Number,
       required: [
