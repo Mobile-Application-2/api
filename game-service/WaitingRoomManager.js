@@ -52,6 +52,8 @@ export default class WaitingRoomManager {
 
             this.addPlayerToLobbyCodeWaiting(lobbyCode, playerId, socket.id);
 
+            this.emitNumbers();
+
             const opponentId = fixture.players.find(playerID => playerID != playerId) // OPPONENT
 
             if (!opponentId) {
@@ -88,10 +90,13 @@ export default class WaitingRoomManager {
                 this.io.to(playersSocketIds).emit("start-tournament-fixture");
 
                 logger.info("starting tournament fixture, lobbyCode: ", { lobbyCode });
+
+                // REMOVE FROM LOBBY
+                this.lobbyCodeWaiting.delete(lobbyCode);
             }
         }
         catch (error) {
-            logger.error("something went wrong joining tournament waiting room, lobbyCode: ", { lobbyCode }, { playerId })
+            logger.error("something went wrong joining tournament waiting room, lobbyCode: ", { error })
         }
     }
 
@@ -294,6 +299,19 @@ export default class WaitingRoomManager {
         if (this.timers.get(opponentId)) {
             logger.info("Opponent has a timer set, seeing if can cancel", { opponentId })
             this.cancelOpponentTimer(opponentId);
+        }
+    }
+
+    emitNumbers() {
+        try {
+            const lobbyCodeWaiting = this.lobbyCodeWaiting;
+
+            const players = Array.from(lobbyCodeWaiting.values()).flat()
+    
+            this.io.emit("total-players", players.length)
+        }
+        catch(error) {
+            console.log("could not emit", error);
         }
     }
 

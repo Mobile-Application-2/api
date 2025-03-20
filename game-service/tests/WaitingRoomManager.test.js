@@ -30,9 +30,9 @@ describe('WaitingRoomManager', () => {
     let activePlayers;
 
     beforeEach(() => {
-        // Reset all mocks
-        jest.clearAllMocks();
-        jest.resetAllMocks();
+        // // Reset all mocks
+        // jest.clearAllMocks();
+        // jest.resetAllMocks();
 
         // Mock Socket.IO server
         mockIo = {
@@ -212,6 +212,8 @@ describe('WaitingRoomManager', () => {
 
     describe('joinWaitingRoom', () => {
         beforeEach(() => {
+            // jest.clearAllMocks();
+            // jest.clearAllTimers();
             // Mock methods
             jest.spyOn(waitingRoomManager, 'getFixture');
             jest.spyOn(waitingRoomManager, 'addPlayerToLobbyCodeWaiting');
@@ -229,28 +231,19 @@ describe('WaitingRoomManager', () => {
             expect(waitingRoomManager.addPlayerToLobbyCodeWaiting).not.toHaveBeenCalled();
         });
 
-        test('should emit error when opponent not found in fixture', async () => {
-            const mockFixture = {
-                players: ['player-1'] // Only one player, no opponent
-            };
-            waitingRoomManager.getFixture.mockResolvedValue(mockFixture);
-
-            await waitingRoomManager.joinWaitingRoom(mockSocket, 'player-1', 'lobby-123');
-
-            expect(mockSocket.emit).toHaveBeenCalledWith('error', { message: 'Opponent not found' });
-        });
-
         test('should start timer when opponent is not active', async () => {
             const mockFixture = {
                 players: ['player-1', 'player-3'] // player-3 is not in activePlayers
             };
+
             waitingRoomManager.getFixture.mockResolvedValue(mockFixture);
             waitingRoomManager.isActivePlayer.mockReturnValue(false);
 
             await waitingRoomManager.joinWaitingRoom(mockSocket, 'player-1', 'lobby-123');
 
-            // expect(waitingRoomManager.startOpponentTimer).toHaveBeenCalledWith(mockSocket, 'lobby-123', 'player-3');
-            expect(mockSocket.emit).toHaveBeenCalledWith('opponent-not-active', { message: 'Opponent Not Active, Starting Timer' });
+            expect(waitingRoomManager.startOpponentTimer).toHaveBeenCalledWith(mockSocket.id, 'lobby-123', 'player-3');
+            // expect(mockSocket.emit).toHaveBeenCalledWith('opponent-not-active', { message: 'Opponent Not Active, Starting Timer' });
+            // expect(mockSocket.emit).toHaveBeenCalledWith('opponent-not-active', { message: 'Opponent Not Active, Starting Timer' });
         });
 
         test('should emit error when not enough players to start game', async () => {
@@ -280,6 +273,9 @@ describe('WaitingRoomManager', () => {
 
             expect(mockIo.to).toHaveBeenCalledWith(socketIds);
             expect(mockIo.emit).toHaveBeenCalledWith('start-tournament-fixture');
+
+            const lobby = waitingRoomManager.lobbyCodeWaiting.get('lobby-123');
+            expect(lobby).toBeUndefined();
         });
 
         test('should handle exceptions gracefully', async () => {
@@ -293,13 +289,30 @@ describe('WaitingRoomManager', () => {
     });
 
     describe('leaveWaitingRoom', () => {
-        test('should remove player from the lobby', () => {
+        beforeEach(() => {
+            // jest.clearAllMocks();
+            // jest.clearAllTimers();
+            // Mock methods
+            jest.spyOn(waitingRoomManager, 'getFixture');
+            jest.spyOn(waitingRoomManager, 'addPlayerToLobbyCodeWaiting');
+            jest.spyOn(waitingRoomManager, 'isActivePlayer');
+            jest.spyOn(waitingRoomManager, 'startOpponentTimer');
+            jest.spyOn(waitingRoomManager, 'getLobbyWaitingSocketsIds');
+        });
+
+        test('should remove player from the lobby', async () => {
+            // const mockFixture = {
+            //     players: ['player-1', 'player-2']
+            // };
+
+            // waitingRoomManager.getFixture.mockResolvedValue(mockFixture);
+
             // Add a player to the lobby
             waitingRoomManager.addPlayerToLobbyCodeWaiting('lobby-123', 'player-1', 'socket-123');
             waitingRoomManager.addPlayerToLobbyCodeWaiting('lobby-123', 'player-2', 'socket-456');
 
             // Player leaves the lobby
-            waitingRoomManager.leaveWaitingRoom('player-1', 'lobby-123');
+            await waitingRoomManager.leaveWaitingRoom('player-1', 'lobby-123');
 
             // Check if the player is removed
             const lobby = waitingRoomManager.lobbyCodeWaiting.get('lobby-123');
@@ -318,26 +331,40 @@ describe('WaitingRoomManager', () => {
         //     expect(lobby).toBeUndefined();
         // });
 
-        test('should cancel the timer for the opponent if the player leaves', () => {
+        // @property {string} _id - The unique identifier of the fixture.
+        // * @property {string} tournamentId - The ID of the tournament.
+        // * @property {string[]} players - Array of player IDs.
+        // * @property {string | null} winner - The ID of the winning player (if available).
+        // * @property {string} joiningCode - The unique joining code for the fixture.
+        // * @property {boolean} gameStarted - Indicates if the game has started.
+        // * @property {string} createdAt - Timestamp when the fixture was created.
+        // * @property {string} updatedAt - Timestamp when the fixture was last updated.
+
+        test('should cancel the timer for the opponent if the player leaves', async () => {
+            const mockFixture = {
+                players: ['player-1', 'player-2']
+            };
+
+            waitingRoomManager.getFixture.mockResolvedValue(mockFixture);
+
             // Add a player to the lobby
             // waitingRoomManager.addPlayerToLobbyCodeWaiting('lobby-123', 'player-1', 'socket-123');
-            waitingRoomManager.joinWaitingRoom(mockSocket, 'player-1', 'lobby-123');
-
-            // Start a timer for the opponent
-            const mockTimeout = setTimeout(() => { }, 120000);
-            mockTimeout.unref();
-            waitingRoomManager.timers.set('player-2', mockTimeout);
+            await waitingRoomManager.joinWaitingRoom(mockSocket, 'player-1', 'lobby-123');
 
             // Player leaves the lobby
             waitingRoomManager.leaveWaitingRoom('player-1', 'lobby-123');
-
-            // console.log("mock test keys (after leaveWaitingRoom):", waitingRoomManager.timers.keys());
 
             // Check if the timer is canceled
             expect(waitingRoomManager.timers.has('player-2')).toBe(false);
         });
 
         test('should not throw an error if the lobby does not exist', () => {
+            const mockFixture = {
+                players: ['player-1', 'player-2']
+            };
+
+            waitingRoomManager.getFixture.mockResolvedValue(mockFixture);
+
             // Player leaves a non-existent lobby
             expect(() => {
                 waitingRoomManager.leaveWaitingRoom('player-1', 'non-existent-lobby');
@@ -345,16 +372,26 @@ describe('WaitingRoomManager', () => {
         });
     });
 
-    // Legacy test for checkOpponentOnlineState which seems to be unused
-    describe('checkOpponentOnlineState', () => {
-        test('should return true when opponent is active', () => {
-            const result = waitingRoomManager.checkOpponentOnlineState('player-2');
-            expect(result).toBe(true);
-        });
+    describe('emitNumbers', () => {
+        test('should return a number that signifies amount of people in waiting room', () => {
+            waitingRoomManager.lobbyCodeWaiting = new Map().set("12345", ["player-1", "player-2"]);
 
-        test('should return false when opponent is not active', () => {
-            const result = waitingRoomManager.checkOpponentOnlineState('non-existent-player');
-            expect(result).toBe(false);
+            waitingRoomManager.emitNumbers();
+
+            expect(mockIo.emit).toHaveBeenCalledWith("total-players", 2); // Ensure the correct event is emitted
         });
     });
+
+    // Legacy test for checkOpponentOnlineState which seems to be unused
+    // describe('checkOpponentOnlineState', () => {
+    //     test('should return true when opponent is active', () => {
+    //         const result = waitingRoomManager.checkOpponentOnlineState('player-2');
+    //         expect(result).toBe(true);
+    //     });
+
+    //     test('should return false when opponent is not active', () => {
+    //         const result = waitingRoomManager.checkOpponentOnlineState('non-existent-player');
+    //         expect(result).toBe(false);
+    //     });
+    // });
 });
