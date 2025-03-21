@@ -986,6 +986,7 @@ app.use('/game/assets', express.static(path.join(__dirname, "/games/my-Whot/asse
 app.use('/game/my-Chess/assets', express.static(path.join(__dirname, "/games/my-Chess/assets")));
 app.use('/game/my-Ludo/assets', express.static(path.join(__dirname, "/games/my-Ludo/assets")));
 app.use('/game/my-Word', express.static(path.join(__dirname, "/games/my-Word")));
+app.use('/game/my-Scrabble', express.static(path.join(__dirname, "/games/my-Scrabble")));
 
 // Game route handler
 app.get('/game', (req, res) => {
