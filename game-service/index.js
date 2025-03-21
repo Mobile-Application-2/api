@@ -415,7 +415,7 @@ ludoNamespace.on('connection', socket => {
         const winnerId = winner.userId;
         const loserId = loser.userId;
 
-        MobileLayer.sendGameWon(io, newRooms, winnerId, loserId);
+        MobileLayer.sendGameWon(io, newRooms, winnerId, loserId, roomID);
 
         // const winnerData = await USER.findOne({username: winner.username})
 
@@ -537,6 +537,387 @@ ludoNamespace.on('connection', socket => {
     // })
 })
 
+const wordNamespace = io.of('/word')
+
+const games = {};
+const letterPool = {
+    'A': { count: 9, value: 1 },
+    'B': { count: 2, value: 3 },
+    'C': { count: 2, value: 3 },
+    'D': { count: 4, value: 2 },
+    'E': { count: 12, value: 1 },
+    'I': { count: 9, value: 1 },
+    'L': { count: 4, value: 1 },
+    'M': { count: 2, value: 3 },
+    'N': { count: 6, value: 1 },
+    'O': { count: 8, value: 1 },
+    'P': { count: 2, value: 3 },
+    'R': { count: 6, value: 1 },
+    'S': { count: 4, value: 1 },
+    'T': { count: 6, value: 1 },
+    'U': { count: 4, value: 1 },
+    'V': { count: 2, value: 4 },
+    'W': { count: 2, value: 4 },
+    'X': { count: 1, value: 8 },
+    'Y': { count: 2, value: 4 },
+    'Z': { count: 1, value: 10 },
+    'F': { count: 2, value: 4 },
+    'G': { count: 3, value: 2 },
+    'H': { count: 2, value: 4 },
+    'J': { count: 1, value: 8 },
+    'K': { count: 1, value: 5 },
+    'Q': { count: 1, value: 10 }
+};
+
+// Generate letter pool
+function generateLetterPool() {
+    let pool = [];
+    for (const [letter, info] of Object.entries(letterPool)) {
+        for (let i = 0; i < info.count; i++) {
+            pool.push({ letter, value: info.value });
+        }
+    }
+    return pool;
+}
+
+// Shuffle array (Fisher-Yates algorithm)
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+// Deal 7 random letters to a player
+function dealLetters(gameId, playerId, count = 7) {
+    const game = games[gameId];
+    if (!game) return [];
+    
+    let letters = [];
+    for (let i = 0; i < count; i++) {
+        if (game.letterPool.length > 0) {
+            const letterObj = game.letterPool.pop();
+            letters.push(letterObj);
+        }
+    }
+    
+    return letters;
+}
+
+// Create a new game
+function createGame(gameId) {
+    games[gameId] = {
+        players: {},
+        letterPool: shuffleArray(generateLetterPool()),
+        active: false,
+        timeRemaining: 120,
+        timer: null,
+        usedWords: [],
+        lobbyCode: null
+    };
+    return games[gameId];
+}
+
+wordNamespace.on("connection", (socket) => {
+    console.log('New client connected:', socket.id);
+    
+    // Create or join a game
+    socket.on('joinGame', async ({ gameId, playerName, playerId: playerID, opponentId, stakeAmount, tournamentId, lobbyCode, gameName }) => {
+        logger.info("client emitted joinGame", {gameId, playerName});
+
+        let game = games[gameId];
+
+        if (!game) {
+            logger.info("no game, creating...");
+
+            game = createGame(gameId);
+        }
+        
+        // Check if game is full
+        if (Object.keys(game.players).length >= 2) {
+            logger.info("game is full");
+
+            socket.emit('gameError', { message: 'Game is full' });
+            return;
+        }
+        
+        // Check if game already started
+        if (game.active) {
+            logger.info("game is active");
+
+            socket.emit('gameError', { message: 'Game already in progress' });
+            return;
+        }
+        
+        // Add player to game
+        const playerId = socket.id;
+
+        game.players[playerId] = {
+            id: socket.id,
+            userId: playerID,
+            name: playerName,
+            rack: [],
+            score: 0,
+            words: []
+        };
+        
+        // Join socket to game room
+        socket.join(gameId);
+
+        logger.info("joined game room");
+        
+        // Deal initial letters
+        game.players[playerId].rack = dealLetters(gameId, playerId);
+        
+        // Notify player
+        socket.emit('gameJoined', {
+            gameId,
+            playerId,
+            rack: game.players[playerId].rack
+        });
+
+        logger.info("emitted gameJoined event");
+        
+        // Update all players in the game
+        wordNamespace.to(gameId).emit('gameState', {
+            players: Object.values(game.players).map(p => ({
+                id: p.id,
+                name: p.name,
+                score: p.score,
+                wordCount: p.words.length
+            })),
+            active: game.active,
+            timeRemaining: game.timeRemaining
+        });
+
+        logger.info("updated game state");
+        
+        // Start game if we have 2 players
+        if (Object.keys(game.players).length === 2 && !game.active) {
+            startGame(gameId);
+            logger.info("starting game due to 2 players");
+
+            const lobbyID = await MainServerLayer.getLobbyID(gameId);
+
+            await MainServerLayer.startGame(lobbyID);
+        }
+    });
+    
+    // Submit a word
+    socket.on('submitWord', ({ gameId, word }) => {
+        logger.info("client submitted word", {gameId, word});
+
+        const game = games[gameId];
+        if (!game || !game.active) {
+            logger.info("no game or game not active");
+            return
+        };
+        
+        const playerId = socket.id;
+        const player = game.players[playerId];
+        if (!player) {
+            logger.info("no player");
+
+            return
+        };
+        
+        // Check if word is valid (not already used and at least 2 letters)
+        if (word.length < 2 || game.usedWords.includes(word.toLowerCase())) {
+            logger.info("client word rejected ");
+
+            socket.emit('wordRejected', { word, reason: 'Word is too short or already used' });
+            return;
+        }
+        
+        // In a real game, you would verify against a dictwordNamespacenary here
+        
+        // Calculate word score
+        let wordScore = 0;
+        for (const letter of word) {
+            const letterInfo = letterPool[letter.toUpperCase()];
+            if (letterInfo) {
+                wordScore += letterInfo.value;
+            }
+        }
+        
+        // Update player score
+        player.score += wordScore;
+        player.words.push({ word, score: wordScore });
+        game.usedWords.push(word.toLowerCase());
+        
+        // Notify player of word acceptance
+        socket.emit('wordAccepted', {
+            word,
+            score: wordScore,
+            totalScore: player.score
+        });
+        
+        // Update all players in the game
+        wordNamespace.to(gameId).emit('gameState', {
+            players: Object.values(game.players).map(p => ({
+                id: p.id,
+                name: p.name,
+                score: p.score,
+                wordCount: p.words.length
+            })),
+            active: game.active,
+            timeRemaining: game.timeRemaining,
+            lastWord: {
+                playerId: playerId,
+                playerName: player.name,
+                word: word,
+                score: wordScore
+            }
+        });
+    });
+    
+    // Handle disconnect
+    socket.on('disconnect', () => {
+        logger.info('Client disconnected:', {sockerId: socket.id});
+        
+        // Find game with this player
+        Object.keys(games).forEach(gameId => {
+            const game = games[gameId];
+            if (game.players[socket.id]) {
+                // Remove player
+                delete game.players[socket.id];
+                
+                // End game if in progress
+                if (game.active) {
+                    endGame(gameId, 'Player disconnected');
+                }
+                
+                // Remove game if empty
+                if (Object.keys(game.players).length === 0) {
+                    delete games[gameId];
+                } else {
+                    // Notify remaining players
+                    wordNamespace.to(gameId).emit('playerLeft', { playerId: socket.id });
+                    wordNamespace.to(gameId).emit('gameState', {
+                        players: Object.values(game.players).map(p => ({
+                            id: p.id,
+                            name: p.name,
+                            score: p.score,
+                            wordCount: p.words.length
+                        })),
+                        active: game.active,
+                        timeRemaining: game.timeRemaining
+                    });
+                }
+            }
+        });
+    });
+})
+
+// Start a game
+function startGame(gameId) {
+    const game = games[gameId];
+    if (!game || game.active) return;
+    
+    game.active = true;
+    game.timeRemaining = process.env.NODE_ENV == "production" ? 120 : 30; // 2 minutes
+    
+    // Start timer
+    game.timer = setInterval(() => {
+        game.timeRemaining--;
+        
+        // Update clients with time
+        wordNamespace.to(gameId).emit('timeUpdate', { timeRemaining: game.timeRemaining });
+        
+        if (game.timeRemaining <= 0) {
+            endGame(gameId, 'Time expired');
+        }
+    }, 1000);
+    
+    // Notify players that game started
+    wordNamespace.to(gameId).emit('gameStarted', {
+        timeRemaining: game.timeRemaining,
+        players: Object.values(game.players).map(p => ({
+            id: p.id,
+            name: p.name,
+            score: p.score
+        }))
+    });
+}
+
+// End a game
+async function endGame(gameId, reason) {
+    const game = games[gameId];
+    if (!game) return;
+    
+    // Stop timer
+    if (game.timer) {
+        clearInterval(game.timer);
+        game.timer = null;
+    }
+
+    logger.info("game ended");
+    
+    game.active = false;
+    
+    // Determine winner
+    let winner = null;
+    let loser = null;
+    let highestScore = -1;
+    
+    Object.values(game.players).forEach(player => {
+        if (player.score > highestScore) {
+            highestScore = player.score;
+            winner = player;
+        } else if (player.score === highestScore) {
+            winner = null; // Tie
+        }
+    });
+
+    logger.info("winner", {winner});
+    
+    // Notify players of game end
+    wordNamespace.to(gameId).emit('gameEnded', {
+        reason,
+        winner: winner ? {
+            id: winner.id,
+            name: winner.name,
+            score: winner.score
+        } : null,
+        isTie: winner === null && highestScore > -1,
+        players: Object.values(game.players).map(p => ({
+            id: p.id,
+            name: p.name,
+            score: p.score,
+            words: p.words
+        }))
+    });
+
+    wordNamespace.to(winner.id).emit('you-won')
+
+    Object.values(game.players).forEach(player => {
+        if(player.id != winner.id) {
+            wordNamespace.to(player.id).emit("you-lost")
+            loser = player;
+        }
+    })
+
+    logger.info("loser", {loser});
+
+    const winnerId = winner.userId;
+    const loserId = loser.userId;
+
+    MobileLayer.sendGameWon(io, newRooms, winnerId, loserId, gameId);
+
+    const lobbyId = await MainServerLayer.getLobbyID(gameId);
+
+    await MainServerLayer.wonGame(lobbyId, winnerId)
+
+    // wordNamespace.to(winner.id).emit('you-won')
+
+    // Object.values(game.players).forEach(player => {
+    //     if(player.id != winner.id) {
+    //         wordNamespace.to(player.id).emit("you-lost")
+    //     }
+    // })
+}
+
 const whotNamespace = io.of("/whot");
 
 Whot.activate(io, whotNamespace, newRooms);
@@ -604,6 +985,7 @@ app.use('/games/:gameName/TemplateData', (req, res, next) => {
 app.use('/game/assets', express.static(path.join(__dirname, "/games/my-Whot/assets")));
 app.use('/game/my-Chess/assets', express.static(path.join(__dirname, "/games/my-Chess/assets")));
 app.use('/game/my-Ludo/assets', express.static(path.join(__dirname, "/games/my-Ludo/assets")));
+app.use('/game/my-Word', express.static(path.join(__dirname, "/games/my-Word")));
 
 // Game route handler
 app.get('/game', (req, res) => {

@@ -395,3 +395,405 @@ describe('WaitingRoomManager', () => {
     //     });
     // });
 });
+
+
+// <!DOCTYPE html>
+// <html lang="en">
+// <head>
+//     <meta charset="UTF-8">
+//     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//     <title>Word Game</title>
+//     <style>
+//         body {
+//             font-family: Arial, sans-serif;
+//             text-align: center;
+//             margin: 20px;
+//         }
+//         .game-container {
+//             display: flex;
+//             justify-content: space-around;
+//             margin-top: 30px;
+//         }
+//         .player-area {
+//             width: 45%;
+//             padding: 20px;
+//             border: 2px solid #333;
+//             border-radius: 10px;
+//         }
+//         .letter-rack {
+//             display: flex;
+//             justify-content: center;
+//             margin: 20px 0;
+//             min-height: 60px;
+//         }
+//         .word-area {
+//             min-height: 60px;
+//             margin: 20px 0;
+//             padding: 10px;
+//             border: 1px dashed #666;
+//             border-radius: 5px;
+//             display: flex;
+//             justify-content: center;
+//         }
+//         .letter-tile {
+//             width: 40px;
+//             height: 40px;
+//             margin: 0 5px;
+//             background-color: #f5d742;
+//             border-radius: 5px;
+//             display: flex;
+//             justify-content: center;
+//             align-items: center;
+//             font-weight: bold;
+//             font-size: 20px;
+//             cursor: grab;
+//             box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
+//         }
+//         .timer {
+//             font-size: 24px;
+//             font-weight: bold;
+//             margin: 20px 0;
+//         }
+//         .submit-btn {
+//             padding: 8px 16px;
+//             background-color: #4CAF50;
+//             color: white;
+//             border: none;
+//             border-radius: 5px;
+//             cursor: pointer;
+//             font-size: 16px;
+//         }
+//         .score {
+//             font-size: 20px;
+//             font-weight: bold;
+//             margin: 10px 0;
+//         }
+//         .game-over {
+//             font-size: 28px;
+//             color: #d32f2f;
+//             margin: 20px 0;
+//             font-weight: bold;
+//             display: none;
+//         }
+//         .word-history {
+//             margin-top: 15px;
+//             text-align: left;
+//             padding-left: 20px;
+//         }
+//     </style>
+// </head>
+// <body>
+//     <h1>Word Game</h1>
+//     <p>Drag letters to form words and submit them for points. Player with most points after 2 minutes wins!</p>
+    
+//     <div class="timer">Time: 2:00</div>
+//     <div class="game-over">Game Over!</div>
+    
+//     <div class="game-container">
+//         <div class="player-area">
+//             <h2>Player 1</h2>
+//             <div class="score">Score: 0</div>
+//             <div class="letter-rack" id="rack1"></div>
+//             <div class="word-area" id="word1"></div>
+//             <button class="submit-btn" id="submit1">Submit Word</button>
+//             <div class="word-history" id="history1">
+//                 <h3>Words Created:</h3>
+//                 <ul id="wordList1"></ul>
+//             </div>
+//         </div>
+        
+//         <div class="player-area">
+//             <h2>Player 2</h2>
+//             <div class="score">Score: 0</div>
+//             <div class="letter-rack" id="rack2"></div>
+//             <div class="word-area" id="word2"></div>
+//             <button class="submit-btn" id="submit2">Submit Word</button>
+//             <div class="word-history" id="history2">
+//                 <h3>Words Created:</h3>
+//                 <ul id="wordList2"></ul>
+//             </div>
+//         </div>
+//     </div>
+
+//     <script>
+//         // Letter frequencies and point values (simplified Scrabble-like)
+//         const letterPool = {
+//             'A': { count: 9, value: 1 },
+//             'B': { count: 2, value: 3 },
+//             'C': { count: 2, value: 3 },
+//             'D': { count: 4, value: 2 },
+//             'E': { count: 12, value: 1 },
+//             'I': { count: 9, value: 1 },
+//             'L': { count: 4, value: 1 },
+//             'M': { count: 2, value: 3 },
+//             'N': { count: 6, value: 1 },
+//             'O': { count: 8, value: 1 },
+//             'P': { count: 2, value: 3 },
+//             'R': { count: 6, value: 1 },
+//             'S': { count: 4, value: 1 },
+//             'T': { count: 6, value: 1 },
+//             'U': { count: 4, value: 1 },
+//             'V': { count: 2, value: 4 },
+//             'W': { count: 2, value: 4 },
+//             'X': { count: 1, value: 8 },
+//             'Y': { count: 2, value: 4 },
+//             'Z': { count: 1, value: 10 },
+//             'F': { count: 2, value: 4 },
+//             'G': { count: 3, value: 2 },
+//             'H': { count: 2, value: 4 },
+//             'J': { count: 1, value: 8 },
+//             'K': { count: 1, value: 5 },
+//             'Q': { count: 1, value: 10 }
+//         };
+
+//         // Game state
+//         let gameActive = true;
+//         let scores = [0, 0];
+//         let usedWords = [[], []];
+//         let totalSeconds = 120;
+//         let timerInterval;
+
+//         // Generate a pool of letters based on frequency
+//         function generateLetterPool() {
+//             let pool = [];
+//             for (const [letter, info] of Object.entries(letterPool)) {
+//                 for (let i = 0; i < info.count; i++) {
+//                     pool.push(letter);
+//                 }
+//             }
+//             return pool;
+//         }
+
+//         // Shuffle array (Fisher-Yates algorithm)
+//         function shuffleArray(array) {
+//             for (let i = array.length - 1; i > 0; i--) {
+//                 const j = Math.floor(Math.random() * (i + 1));
+//                 [array[i], array[j]] = [array[j], array[i]];
+//             }
+//             return array;
+//         }
+
+//         // Deal 7 random letters to a player
+//         function dealLetters(playerId) {
+//             const rackElement = document.getElementById(`rack${playerId}`);
+//             rackElement.innerHTML = '';
+            
+//             let pool = generateLetterPool();
+//             pool = shuffleArray(pool);
+            
+//             for (let i = 0; i < 7; i++) {
+//                 if (pool.length > 0) {
+//                     const letter = pool.pop();
+//                     const tile = createLetterTile(letter, playerId);
+//                     rackElement.appendChild(tile);
+//                 }
+//             }
+//         }
+
+//         // Create a draggable letter tile
+//         function createLetterTile(letter, playerId) {
+//             const tile = document.createElement('div');
+//             tile.className = 'letter-tile';
+//             tile.textContent = letter;
+//             tile.dataset.letter = letter;
+//             tile.dataset.value = letterPool[letter].value;
+//             tile.draggable = true;
+            
+//             // Add drag events
+//             tile.addEventListener('dragstart', (e) => {
+//                 e.dataTransfer.setData('text/plain', JSON.stringify({
+//                     letter: letter,
+//                     value: letterPool[letter].value,
+//                     id: tile.id,
+//                     playerId: playerId
+//                 }));
+//                 setTimeout(() => {
+//                     tile.style.opacity = '0.4';
+//                 }, 0);
+//             });
+            
+//             tile.addEventListener('dragend', () => {
+//                 tile.style.opacity = '1';
+//             });
+            
+//             return tile;
+//         }
+
+//         // Set up drop zones
+//         function setupDropZones() {
+//             const wordAreas = document.querySelectorAll('.word-area');
+            
+//             wordAreas.forEach(area => {
+//                 area.addEventListener('dragover', (e) => {
+//                     e.preventDefault();
+//                 });
+                
+//                 area.addEventListener('drop', (e) => {
+//                     e.preventDefault();
+//                     if (!gameActive) return;
+                    
+//                     const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+//                     const playerId = parseInt(area.id.replace('word', ''));
+                    
+//                     // Only allow dropping in the player's own word area
+//                     if (data.playerId === playerId) {
+//                         const originalTile = document.querySelector(`.letter-tile[data-letter="${data.letter}"]`);
+//                         if (originalTile && originalTile.parentNode.id === `rack${playerId}`) {
+//                             const tile = createLetterTile(data.letter, playerId);
+//                             area.appendChild(tile);
+//                             originalTile.remove();
+//                         }
+//                     }
+//                 });
+                
+//                 // Allow dropping back to rack
+//                 const racks = document.querySelectorAll('.letter-rack');
+//                 racks.forEach(rack => {
+//                     rack.addEventListener('dragover', (e) => {
+//                         e.preventDefault();
+//                     });
+                    
+//                     rack.addEventListener('drop', (e) => {
+//                         e.preventDefault();
+//                         if (!gameActive) return;
+                        
+//                         const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+//                         const playerId = parseInt(rack.id.replace('rack', ''));
+                        
+//                         // Only allow dropping in the player's own rack
+//                         if (data.playerId === playerId) {
+//                             const originalTile = document.querySelector(`.letter-tile[data-letter="${data.letter}"]`);
+//                             if (originalTile && originalTile.parentNode.id === `word${playerId}`) {
+//                                 const tile = createLetterTile(data.letter, playerId);
+//                                 rack.appendChild(tile);
+//                                 originalTile.remove();
+//                             }
+//                         }
+//                     });
+//                 });
+//             });
+//         }
+
+//         // Initialize game
+//         function initGame() {
+//             // Deal letters to both players
+//             dealLetters(1);
+//             dealLetters(2);
+            
+//             // Set up drop zones
+//             setupDropZones();
+            
+//             // Set up submit buttons
+//             document.getElementById('submit1').addEventListener('click', () => submitWord(1));
+//             document.getElementById('submit2').addEventListener('click', () => submitWord(2));
+            
+//             // Start timer
+//             startTimer();
+//         }
+
+//         // Submit word and calculate score
+//         function submitWord(playerId) {
+//             if (!gameActive) return;
+            
+//             const wordArea = document.getElementById(`word${playerId}`);
+//             const tiles = wordArea.querySelectorAll('.letter-tile');
+            
+//             if (tiles.length === 0) return;
+            
+//             // Construct word and calculate score
+//             let word = '';
+//             let wordScore = 0;
+            
+//             tiles.forEach(tile => {
+//                 word += tile.dataset.letter;
+//                 wordScore += parseInt(tile.dataset.value);
+//             });
+            
+//             // Check if word is valid (length > 1 and not used before)
+//             if (word.length > 1 && !usedWords[playerId - 1].includes(word.toLowerCase())) {
+//                 // In a real game, you would verify against a dictionary here
+                
+//                 // Add score
+//                 scores[playerId - 1] += wordScore;
+//                 document.querySelector(`.player-area:nth-child(${playerId}) .score`).textContent = `Score: ${scores[playerId - 1]}`;
+                
+//                 // Add to word history
+//                 usedWords[playerId - 1].push(word.toLowerCase());
+//                 const wordList = document.getElementById(`wordList${playerId}`);
+//                 const listItem = document.createElement('li');
+//                 listItem.textContent = `${word} (${wordScore} points)`;
+//                 wordList.appendChild(listItem);
+                
+//                 // Clear word area
+//                 wordArea.innerHTML = '';
+                
+//                 // Deal new letters
+//                 const rackElement = document.getElementById(`rack${playerId}`);
+//                 const currentLetters = rackElement.querySelectorAll('.letter-tile').length;
+//                 const neededLetters = 7 - currentLetters;
+                
+//                 if (neededLetters > 0) {
+//                     let pool = generateLetterPool();
+//                     pool = shuffleArray(pool);
+                    
+//                     for (let i = 0; i < neededLetters; i++) {
+//                         if (pool.length > 0) {
+//                             const letter = pool.pop();
+//                             const tile = createLetterTile(letter, playerId);
+//                             rackElement.appendChild(tile);
+//                         }
+//                     }
+//                 }
+//             } else {
+//                 // Return letters to rack
+//                 const rackElement = document.getElementById(`rack${playerId}`);
+//                 tiles.forEach(tile => {
+//                     const letter = tile.dataset.letter;
+//                     const newTile = createLetterTile(letter, playerId);
+//                     rackElement.appendChild(newTile);
+//                 });
+//                 wordArea.innerHTML = '';
+//             }
+//         }
+
+//         // Timer function
+//         function startTimer() {
+//             timerInterval = setInterval(() => {
+//                 totalSeconds--;
+                
+//                 const minutes = Math.floor(totalSeconds / 60);
+//                 const seconds = totalSeconds % 60;
+                
+//                 document.querySelector('.timer').textContent = `Time: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                
+//                 if (totalSeconds <= 0) {
+//                     clearInterval(timerInterval);
+//                     endGame();
+//                 }
+//             }, 1000);
+//         }
+
+//         // End game and determine winner
+//         function endGame() {
+//             gameActive = false;
+//             document.querySelector('.game-over').style.display = 'block';
+            
+//             // Determine winner
+//             if (scores[0] > scores[1]) {
+//                 document.querySelector('.game-over').textContent = 'Game Over! Player 1 Wins!';
+//             } else if (scores[1] > scores[0]) {
+//                 document.querySelector('.game-over').textContent = 'Game Over! Player 2 Wins!';
+//             } else {
+//                 document.querySelector('.game-over').textContent = 'Game Over! It\'s a tie!';
+//             }
+            
+//             // Disable submit buttons
+//             document.getElementById('submit1').disabled = true;
+//             document.getElementById('submit2').disabled = true;
+//         }
+
+//         // Initialize the game when the page loads
+//         window.addEventListener('load', initGame);
+//     </script>
+// </body>
+// </html>

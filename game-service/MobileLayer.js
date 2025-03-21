@@ -1,7 +1,7 @@
 import { logger } from "./config/winston.config.js";
 
 export default class MobileLayer {
-    static async sendGameWon(io, mainRooms, winnerId, loserId) {
+    static async sendGameWon(io, mainRooms, winnerId, loserId, room_id) {
         const mainFoundRooms = mainRooms.filter(room => room.lobbyCode == room_id);
         
         logger.info("main found rooms", mainFoundRooms);
