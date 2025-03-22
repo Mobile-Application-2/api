@@ -1,4 +1,8 @@
-import jest from "jest"
+import {
+    describe,
+    test,
+    expect
+} from "vitest"
 
 describe("Test", () => {
     test("test", () => {
