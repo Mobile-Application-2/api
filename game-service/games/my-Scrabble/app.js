@@ -48,7 +48,7 @@ function connectToServer(cb) {
     socket.on('you-lost', () => {
         alert("you lost")
     });
-    socket.on('playerLeft', handlePlayerLeft);
+    // socket.on('playerLeft', handlePlayerLeft);
     socket.on('gameError', handleGameError);
 }
 

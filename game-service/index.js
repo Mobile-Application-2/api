@@ -619,6 +619,22 @@ function createGame(gameId) {
     return games[gameId];
 }
 
+/**
+ * @typedef {Object} Player
+ * @property {string} id
+ * @property {string} userId
+ * @property {string} name
+ * @property {Array<any>} rack
+ * @property {number} score
+ * @property {Array<any>} words
+ * @property {Array<any>} disconnected
+ */
+
+/**
+ * @type {Record<string, Player>}
+ */
+const persistStore = {}
+
 wordNamespace.on("connection", (socket) => {
     console.log('New client connected:', socket.id);
     

@@ -23,53 +23,100 @@ let currentRack = [];
 let currentWord = [];
 
 // Connect to Socket.io server
-function connectToServer(cb) {
-    socket = io("/word");
+function connectToServer() {
+    socket = io();
+
+    function removeAllListeners() {
+        socket.off('gameJoined', handleGameJoined);
+        socket.off('gameState', handleGameState);
+        socket.off('gameStarted', handleGameStarted);
+        socket.off('timeUpdate', handleTimeUpdate);
+        socket.off('wordAccepted', handleWordAccepted);
+        socket.off('wordRejected', handleWordRejected);
+        socket.off('gameEnded', handleGameEnded);
+        socket.off('playerLeft', handlePlayerLeft);
+    
+        socket.off('you-won', () => {
+            alert("you won")
+        });
+    
+        socket.off('you-lost', () => {
+            alert("you lost")
+        });
+        
+        socket.off('reconnected', handleReconnected);
+    
+        socket.off('gameError', handleGameError);
+    }
+
+    function addListeners() {
+        socket.on('gameJoined', handleGameJoined);
+        socket.on('gameState', handleGameState);
+        socket.on('gameStarted', handleGameStarted);
+        socket.on('timeUpdate', handleTimeUpdate);
+        socket.on('wordAccepted', handleWordAccepted);
+        socket.on('wordRejected', handleWordRejected);
+        socket.on('gameEnded', handleGameEnded);
+        socket.on('playerLeft', handlePlayerLeft);
+    
+        socket.on('you-won', () => {
+            alert("you won")
+        });
+    
+        socket.on('you-lost', () => {
+            alert("you lost")
+        });
+        
+        socket.on('reconnected', handleReconnected);
+    
+        socket.on('gameError', handleGameError);
+    }
+
+    const url = new URL(window.location)
+
+    const data = getSearchParams(url.search)
     
     // Socket event handlers
     socket.on('connect', () => {
         console.log('Connected to server with ID:', socket.id);
 
-        cb()
-    });
-    
-    socket.on('gameJoined', handleGameJoined);
-    socket.on('gameState', handleGameState);
-    socket.on('gameStarted', handleGameStarted);
-    socket.on('timeUpdate', handleTimeUpdate);
-    socket.on('wordAccepted', handleWordAccepted);
-    socket.on('wordRejected', handleWordRejected);
-    socket.on('gameEnded', handleGameEnded);
-    socket.on('playerLeft', handlePlayerLeft);
-    socket.on('you-won', () => {
-        alert("you won")
+        removeAllListeners();
+
+        addListeners();
+
+        joinGame(data);
     });
 
-    socket.on('you-lost', () => {
-        alert("you lost")
-    });
-    socket.on('playerLeft', handlePlayerLeft);
-    socket.on('gameError', handleGameError);
+    // window.addEventListener("keydown", (e) => {
+    //     // console.log(e.key);
+    //     if(e.key == " ") {
+    //         console.log("disconnected");
+    //         socket.disconnect()
+    //     }
+    //     else if(e.key == "Enter") {
+    //         console.log("connecting");
+    //         socket.connect();
+    //         // socket.emit("joinGame", {});
+    //     }
+    // })
+}
+
+function handleReconnected(data) {
+    console.log("player reconnected: ", data);
+
+    playerId = data.playerId;
+    gameId = data.gameId;
+    currentRack = data.rack;
+    currentWord = []
+
+    renderPlayers(data.gameState.players)
+
+    returnLettersToRack();
 }
 
 // Join or create a game
 function joinGame(data) {
-    // event.preventDefault();
-    
-    // gameId = gameIdInput.value.trim();
-    // const playerName = playerNameInput.value.trim();
     const playerName = "player-" + data.playerId;
-    
-    // if (!gameId || !playerName) {
-    //     alert('Please enter both game ID and your name');
-    //     return;
-    // }
-    
-    // Generate random game ID if not provided
-    // if (gameId === '') {
-    //     gameId = Math.random().toString(36).substring(2, 8);
-    //     gameIdInput.value = gameId;
-    // }
     
     socket.emit('joinGame', {
         ...data,
@@ -77,9 +124,7 @@ function joinGame(data) {
         playerName
     });
 
-    // waitingScreen.querySelector('.game-id-display').textContent = data.lobbyCode;
-    // joinForm.style.display = 'none';
-    waitingScreen.style.display = 'block';
+    console.log("emitting join game");
 }
 
 // Handle successful game join
@@ -191,7 +236,7 @@ function handlePlayerLeft(data) {
 // Handle game error
 function handleGameError(data) {
     alert('Game error: ' + data.message);
-    joinForm.style.display = 'block';
+    // joinForm.style.display = 'block';
     waitingScreen.style.display = 'none';
 }
 
@@ -321,7 +366,6 @@ function returnLettersToRack() {
 
 // Submit the current word
 function submitWord() {
-    console.log("submit word");
     if (currentWord.length === 0) return;
     
     const word = currentWord.map(letterObj => letterObj.letter).join('');
@@ -372,23 +416,12 @@ function getSearchParams(searchParams) {
 
 // Initialize the app
 async function init() {
-    const url = new URL(window.location)
+    connectToServer();
 
-    const data = getSearchParams(url.search)
-
-    connectToServer(() => joinGame(data));
     setupDropZones();
 
+    waitingScreen.style.display = 'block';
 
-    // joinGame(data)
-    // await new Promise(resolve => {
-    //     setTimeout(() => {
-
-    //         resolve()
-    //     }, 5000)
-    // })
-    
-    // Event listeners
     // joinForm.addEventListener('submit', joinGame);
     submitBtn.addEventListener('click', submitWord);
     
