@@ -952,7 +952,9 @@ async function endGame(gameId, reason) {
 
     const lobbyId = await MainServerLayer.getLobbyID(gameId);
 
-    await MainServerLayer.wonGame(lobbyId, winnerId)
+    await MainServerLayer.wonGame(lobbyId, winnerId);
+
+    delete games[gameId];
 }
 
 const whotNamespace = io.of("/whot");
