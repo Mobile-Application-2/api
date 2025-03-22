@@ -41,7 +41,7 @@ export default class MainServerLayer {
             logger.warn("no lobby code");
         }
         try {
-            logger.info("getting lobbyID, code: ", lobbyCode);
+            logger.info("getting lobbyID, code: ", {lobbyCode});
             const currentLobby = await LOBBY.findOne({ code: lobbyCode })
 
             if (!currentLobby) {

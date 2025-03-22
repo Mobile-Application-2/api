@@ -24,7 +24,7 @@ let currentWord = [];
 
 // Connect to Socket.io server
 function connectToServer() {
-    socket = io();
+    socket = io("/word");
 
     function removeAllListeners() {
         socket.off('gameJoined', handleGameJoined);

@@ -635,12 +635,14 @@ function createGame(gameId) {
  */
 const persistStore = {}
 
+// http://localhost:5657/game?gameName=my-Word&lobbyCode=123456&playerId=21hjshdsj
+
 wordNamespace.on("connection", (socket) => {
     console.log('New client connected:', socket.id);
     
     // Create or join a game
     socket.on('joinGame', async ({ gameId, playerName, playerId: playerID, opponentId, stakeAmount, tournamentId, lobbyCode, gameName }) => {
-        logger.info("client emitted joinGame", {gameId, playerName});
+        logger.info("client emitted joinGame", {gameId, id: socket.id, playerName});
 
         let game = games[gameId];
 
@@ -648,6 +650,48 @@ wordNamespace.on("connection", (socket) => {
             logger.info("no game, creating...");
 
             game = createGame(gameId);
+        }
+
+        if (persistStore[playerID]) {
+            logger.info(`Restoring player ${playerID} to game ${gameId}`);
+
+            const persistPlayer = persistStore[playerID]
+
+            logger.info(`Player data: `, {persistPlayer});
+            
+            delete game.players[persistPlayer.id];
+            
+            persistPlayer.disconnected = false;
+
+            game.players[socket.id] = persistPlayer;
+
+            game.players[socket.id].id = socket.id;
+
+            delete persistStore[playerID];
+
+            logger.info("restored data: ", {data: game.players[socket.id]});
+
+            socket.join(gameId);
+
+            logger.info("emitting reconnected");
+            
+            wordNamespace.to(socket.id).emit('reconnected', {
+                gameId,
+                playerId: socket.id,
+                rack: game.players[socket.id].rack,
+                gameState: {
+                    players: Object.values(game.players).map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        score: p.score,
+                        wordCount: p.words.length
+                    })),
+                    active: game.active,
+                    timeRemaining: game.timeRemaining
+                }
+            });
+
+            return;
         }
         
         // Check if game is full
@@ -670,12 +714,13 @@ wordNamespace.on("connection", (socket) => {
         const playerId = socket.id;
 
         game.players[playerId] = {
-            id: socket.id,
+            id: playerId,
             userId: playerID,
             name: playerName,
             rack: [],
             score: 0,
-            words: []
+            words: [],
+            disconnected: false
         };
         
         // Join socket to game room
@@ -746,7 +791,7 @@ wordNamespace.on("connection", (socket) => {
             return;
         }
         
-        // In a real game, you would verify against a dictwordNamespacenary here
+        // In a real game, you would verify against a dictionary here
         
         // Calculate word score
         let wordScore = 0;
@@ -797,30 +842,14 @@ wordNamespace.on("connection", (socket) => {
             const game = games[gameId];
             if (game.players[socket.id]) {
                 // Remove player
-                delete game.players[socket.id];
-                
-                // End game if in progress
-                if (game.active) {
-                    endGame(gameId, 'Player disconnected');
-                }
-                
-                // Remove game if empty
-                if (Object.keys(game.players).length === 0) {
-                    delete games[gameId];
-                } else {
-                    // Notify remaining players
-                    wordNamespace.to(gameId).emit('playerLeft', { playerId: socket.id });
-                    wordNamespace.to(gameId).emit('gameState', {
-                        players: Object.values(game.players).map(p => ({
-                            id: p.id,
-                            name: p.name,
-                            score: p.score,
-                            wordCount: p.words.length
-                        })),
-                        active: game.active,
-                        timeRemaining: game.timeRemaining
-                    });
-                }
+                // delete game.players[socket.id];
+                game.players[socket.id].disconnected = true;
+
+                const pl = game.players[socket.id]
+
+                persistStore[pl.userId] = { ...pl }
+
+                logger.info("saved to persist store: ", persistStore);
             }
         });
     });
@@ -924,14 +953,6 @@ async function endGame(gameId, reason) {
     const lobbyId = await MainServerLayer.getLobbyID(gameId);
 
     await MainServerLayer.wonGame(lobbyId, winnerId)
-
-    // wordNamespace.to(winner.id).emit('you-won')
-
-    // Object.values(game.players).forEach(player => {
-    //     if(player.id != winner.id) {
-    //         wordNamespace.to(player.id).emit("you-lost")
-    //     }
-    // })
 }
 
 const whotNamespace = io.of("/whot");
