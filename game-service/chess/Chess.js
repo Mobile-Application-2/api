@@ -225,17 +225,20 @@ export default class Chess {
     }
 
 
-    /**
-   * @typedef {Object} GameData
-   * @property {string} gameId - The unique identifier for the game.
-   * @property {string} playerId - The unique identifier for the player.
-   * @property {string} opponentId - The unique identifier for the opponent.
-   * @property {string} stakeAmount - The amount staked in the game.
-   * @property {string} tournamentId - The unique identifier for tournaments.
-   * @property {string} lobbyCode - The unique lobby code for the game.
-   * @property {string} gameName - The name of the game.
-   * 
-   */
+   /**
+    * @typedef {Object} GameData
+    * @property {string} gameId - The unique identifier for the game.
+    * @property {string} playerId - The unique identifier for the player.
+    * @property {string} opponentId - The unique identifier for the opponent.
+    * @property {string} stakeAmount - The amount staked in the game.
+    * @property {string} tournamentId - The unique identifier for tournaments.
+    * @property {string} lobbyCode - The unique lobby code for the game.
+    * @property {string} gameName - The name of the game.
+    * 
+    */
+
+    // http://localhost:5173/game/my-Chess?lobbyCode=123456&playerId=2178bhjsbdhus
+    // http://localhost:5657/game?gameName=my-Chess&lobbyCode=123456&playerId=2178bhjsbdhus
 
     /**
      * Activates the game logic for handling WebSocket connections.
