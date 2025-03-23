@@ -32,50 +32,12 @@ import { logger, logtail } from './config/winston.config.js';
 import MobileLayer from './MobileLayer.js';
 import WaitingRoomManager from './WaitingRoomManager.js';
 
+import scrabbleDict from "./games/my-Scrabble/words_dictionary.json";
+
 const app = express();
 
 // Enable CORS
 app.use(cors());
-
-// Custom middleware to handle gzipped Unity files
-const unityGzipHandler = (req, res, next) => {
-    const originalUrl = req.url;
-    const gzippedUrl = `${originalUrl}.gz`;
-    const fullPath = path.join(__dirname, 'games/Ludo/Build', originalUrl);
-    const gzippedPath = path.join(__dirname, 'games/Ludo/Build', gzippedUrl);
-
-    logger.info('Checking paths:');
-    logger.info('Original:', fullPath);
-    logger.info('Gzipped:', gzippedPath);
-
-    // Check if gzipped version exists
-    if (fs.existsSync(gzippedPath)) {
-        logger.info(`Found gzipped file: ${gzippedPath}`);
-        res.set('Content-Encoding', 'gzip');
-        
-        if (originalUrl.endsWith('.js')) {
-            res.set('Content-Type', 'application/javascript');
-        } else if (originalUrl.endsWith('.wasm')) {
-            res.set('Content-Type', 'application/wasm');
-        } else if (originalUrl.endsWith('.data')) {
-            res.set('Content-Type', 'application/octet-stream');
-        }
-        
-        // Serve the gzipped file directly
-        res.sendFile(gzippedPath);
-        return;
-    } else {
-        logger.info(`No gzipped file found, checking original: ${fullPath}`);
-        if (fs.existsSync(fullPath)) {
-            logger.info(`Found original file: ${fullPath}`);
-            // Let express.static handle it
-            next();
-        } else {
-            logger.info(`File not found: ${fullPath}`);
-            res.status(404).send('File not found');
-        }
-    }
-};
 
 const server = createServer(app);
 
@@ -663,6 +625,76 @@ function createGame(gameId) {
  */
 const persistStore = {}
 
+
+// Convert object keys to a Set, filtering out words shorter than 3 letters
+const scrabbleDictionary = new Set(Object.keys(scrabbleDict).filter(word => word.length > 2));
+
+/**
+ * 
+ * @param {string} word 
+ * @returns 
+ */
+function isValidWord(word) {
+    return scrabbleDictionary.has(word.toLowerCase());
+}
+
+/**
+ * Creates a frequency map of available letters.
+ * @param {Array<{ letter: string, value: number }>} letters - Array of letter objects with their value.
+ * @returns {Object} A frequency map of available letters (e.g., { A: 2, P: 1, L: 1 }).
+ */
+function getLetterFrequency(letters) {
+    const freq = {};
+    for (const letterObj of letters) {
+        const letter = letterObj.letter.toUpperCase();
+        freq[letter] = (freq[letter] || 0) + 1;
+    }
+    return freq;
+}
+
+/**
+ * Checks if a word can be formed using the available letter frequencies.
+ * @param {string} word - The word to check.
+ * @param {Object} availableFreq - A frequency map of available letters.
+ * @returns {boolean} True if the word can be formed, false otherwise.
+ */
+function canFormWord(word, availableFreq) {
+    const wordFreq = {};
+    for (const char of word.toUpperCase()) {
+        wordFreq[char] = (wordFreq[char] || 0) + 1;
+        if (wordFreq[char] > (availableFreq[char] || 0)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Finds up to `limit` words from the dictionary that can be formed with the given letters.
+ * @param {Array<{ letter: string, value: number }>} letters - The available letters for the game round.
+ * @param {Object<string, number>} dictionary - An object where keys are valid words (e.g., { "apple": 1, "plea": 1 }).
+ * @param {number} [limit=10] - The maximum number of words to return.
+ * @returns {string[]} An array of words that can be formed with the given letters.
+ */
+function generateWordsForLetters(letters, dictionary, limit = 20) {
+    const availableFreq = getLetterFrequency(letters);
+    const validWords = [];
+
+    for (const word of Object.keys(dictionary)) {
+        if (canFormWord(word, availableFreq) && isValidWord(word)) {
+            validWords.push(word);
+        }
+    }
+
+    // Shuffle valid words to introduce randomness
+    for (let i = validWords.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [validWords[i], validWords[j]] = [validWords[j], validWords[i]];
+    }
+
+    return validWords.slice(0, limit);
+}
+
 // http://localhost:5657/game?gameName=my-Word&lobbyCode=123456&playerId=21hjshdsj
 
 wordNamespace.on("connection", (socket) => {
@@ -793,9 +825,15 @@ wordNamespace.on("connection", (socket) => {
             await MainServerLayer.startGame(lobbyID);
         }
     });
+
+    /**
+     * @typedef {Object} SubmittedWord
+     * @property {string} gameId
+     * @property {string} word
+     */
     
     // Submit a word
-    socket.on('submitWord', ({ gameId, word }) => {
+    socket.on('submitWord', /** @param {SubmittedWord} */({ gameId, word }) => {
         logger.info("client submitted word", {gameId, word});
 
         const game = games[gameId];
@@ -817,6 +855,13 @@ wordNamespace.on("connection", (socket) => {
             logger.info("client word rejected ");
 
             socket.emit('wordRejected', { word, reason: 'Word is too short or already used' });
+            return;
+        }
+
+        if (!isValidWord(word)) {
+            logger.info("client word rejected ");
+
+            socket.emit('wordRejected', { word, reason: 'Word is not a valid word' });
             return;
         }
         
