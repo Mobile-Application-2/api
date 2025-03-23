@@ -605,9 +605,14 @@ function dealLetters(gameId, playerId, count = 7) {
     return letters;
 }
 
-// Create a new game
+/**
+ * Create a new game
+ * @param {string} gameId 
+ * @returns {Game}
+ */
 function createGame(gameId) {
     games[gameId] = {
+        /**@type {Player} */
         players: {},
         letterPool: shuffleArray(generateLetterPool()),
         active: false,
@@ -620,14 +625,37 @@ function createGame(gameId) {
 }
 
 /**
+ * @typedef {Object} Tile
+ * @property {string} letter - The letter on the tile.
+ * @property {number} value - The point value of the tile.
+ */
+
+/**
+ * @typedef {Object} WordScore
+ * @property {string} word - The word played by the player.
+ * @property {number} score - The score for the word.
+ */
+
+/**
  * @typedef {Object} Player
- * @property {string} id
- * @property {string} userId
- * @property {string} name
- * @property {Array<any>} rack
- * @property {number} score
- * @property {Array<any>} words
- * @property {Array<any>} disconnected
+ * @property {string} id - The unique identifier for the player session.
+ * @property {string} userId - The unique identifier of the user.
+ * @property {string} name - The player's display name.
+ * @property {Array<Tile>} rack - The set of letter tiles the player currently has.
+ * @property {number} score - The player's total score.
+ * @property {Array<WordScore>} words - The words the player has played and their scores.
+ * @property {boolean} disconnected - Whether the player is disconnected.
+ */
+
+/**
+ * @typedef {Object} Game
+ * @property {Object.<string, Player>} players - A dictionary of players, indexed by their player IDs.
+ * @property {Array<Tile>} letterPool - The pool of available letter tiles.
+ * @property {boolean} active - Whether the game is currently active.
+ * @property {number} timeRemaining - Time left in the game (in seconds).
+ * @property {NodeJS.Timeout} timer - The game timer object.
+ * @property {Array<string> } usedWords - List of words that have already been played.
+ * @property {string|null} lobbyCode - The code for joining the game, or null if not set.
  */
 
 /**
@@ -735,6 +763,7 @@ wordNamespace.on("connection", (socket) => {
         socket.emit('gameJoined', {
             gameId,
             playerId,
+            name: playerName,
             rack: game.players[playerId].rack
         });
 
@@ -835,7 +864,7 @@ wordNamespace.on("connection", (socket) => {
     
     // Handle disconnect
     socket.on('disconnect', () => {
-        logger.info('Client disconnected:', {sockerId: socket.id});
+        logger.info('Client disconnected:', {socketId: socket.id});
         
         // Find game with this player
         Object.keys(games).forEach(gameId => {
@@ -885,6 +914,12 @@ function startGame(gameId) {
         }))
     });
 }
+
+/**
+ * @typedef WordGameResult 
+ * @property {Array<Player>} players
+ * @property {string} winnerId
+ */
 
 // End a game
 async function endGame(gameId, reason) {

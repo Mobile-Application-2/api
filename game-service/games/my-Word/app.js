@@ -15,6 +15,32 @@ const playersList = document.getElementById('players-list');
 const wordHistory = document.getElementById('word-history');
 const gameStatus = document.getElementById('game-status');
 
+const playerScore = document.querySelector('.player-score');
+
+const myGameResult = document.querySelector(".my-game-result");
+
+const winnerName = document.querySelector("#winner .result-name h2");
+const winnerWords = document.querySelector("#winner .result-words");
+
+const loserName = document.querySelector("#loser .result-name h2");
+const loserWords = document.querySelector("#loser .result-words");
+
+function addWinnerInfo(name, words) {
+    winnerName.innerHTML = name;
+
+    words.forEach(word => {
+        winnerWords.innerHTML += `<p>${word.word}: ${word.score}</p>`
+    })
+}
+
+function addLoserInfo(name, words) {
+    loserName.innerHTML = name;
+
+    words.forEach(word => {
+        loserWords.innerHTML += `<p>${word.word}: ${word.score}</p>`
+    })
+}
+
 // Game state
 let socket;
 let gameId;
@@ -22,9 +48,19 @@ let playerId;
 let currentRack = [];
 let currentWord = [];
 
+const GlobalData = {
+    socket: null,
+    gameId: "",
+    playerId: "",
+    playerName: '',
+    currentRack: [],
+    currentWord: []
+}
+
 // Connect to Socket.io server
 function connectToServer() {
     socket = io("/word");
+    GlobalData.socket = socket;
 
     function removeAllListeners() {
         socket.off('gameJoined', handleGameJoined);
@@ -101,6 +137,11 @@ function connectToServer() {
     // })
 }
 
+function emitMessage(message, data) {
+    GlobalData.socket.emit(message, data);
+    // socket.emit(message, data);
+}
+
 function handleReconnected(data) {
     console.log("player reconnected: ", data);
 
@@ -108,6 +149,14 @@ function handleReconnected(data) {
     gameId = data.gameId;
     currentRack = data.rack;
     currentWord = []
+
+    GlobalData.playerId = data.playerId;
+    GlobalData.gameId = data.gameId;
+    GlobalData.currentRack = [...data.rack];
+    GlobalData.currentWord = []
+    GlobalData.playerName = data.playerName;
+
+    gameStatus.textContent = GlobalData.playerName;
 
     renderPlayers(data.gameState.players)
 
@@ -118,7 +167,13 @@ function handleReconnected(data) {
 function joinGame(data) {
     const playerName = "player-" + data.playerId;
     
-    socket.emit('joinGame', {
+    // socket.emit('joinGame', {
+    //     ...data,
+    //     gameId: data.lobbyCode,
+    //     playerName
+    // });
+
+    emitMessage('joinGame', {
         ...data,
         gameId: data.lobbyCode,
         playerName
@@ -129,9 +184,15 @@ function joinGame(data) {
 
 // Handle successful game join
 function handleGameJoined(data) {
+    console.log(data);
+
     playerId = data.playerId;
     gameId = data.gameId;
     currentRack = data.rack;
+
+    GlobalData.playerId = data.playerId;
+    GlobalData.gameId = data.gameId;
+    GlobalData.currentRack = [...data.rack];
     
     renderRack();
 }
@@ -149,7 +210,7 @@ function handleGameState(data) {
 function handleGameStarted(data) {
     waitingScreen.style.display = 'none';
     gameScreen.style.display = 'block';
-    gameStatus.textContent = 'Game in progress';
+    gameStatus.textContent = GlobalData.playerId;
     handleTimeUpdate(data);
 }
 
@@ -166,10 +227,16 @@ function handleWordAccepted(data) {
     const listItem = document.createElement('li');
     listItem.textContent = `${data.word} (${data.score} points)`;
     document.getElementById('my-words').appendChild(listItem);
+
+    // playerScore.innerHTML = `Points: ${data.score}`
     
     // Return letters to rack and clear word area
     currentRack = currentRack.concat(currentWord);
+    GlobalData.currentRack = GlobalData.currentRack.concat(GlobalData.currentWord);
+
     currentWord = [];
+    GlobalData.currentWord = [];
+
     wordArea.innerHTML = '';
     
     renderRack();
@@ -185,7 +252,16 @@ function handleWordRejected(data) {
 
 // Handle game ended
 function handleGameEnded(data) {
-    gameStatus.textContent = 'Game Over';
+    myGameResult.style.display = "block"
+
+    const playerWinner = data.players.find(p => p.id == data.winner.id)
+    const playerLoser = data.players.find(p => p.id != data.winner.id)
+
+    addWinnerInfo(playerWinner.name, playerWinner.words)
+    addLoserInfo(playerLoser.name, playerLoser.words)
+
+    gameContainer.style.display = "none"
+    // gameStatus.textContent = 'Game Over';
     submitBtn.disabled = true;
     
     let resultMessage = '';
@@ -244,7 +320,12 @@ function handleGameError(data) {
 function renderRack() {
     letterRack.innerHTML = '';
     
-    currentRack.forEach((letterObj, index) => {
+    // currentRack.forEach((letterObj, index) => {
+    //     const tile = createLetterTile(letterObj.letter, letterObj.value, index);
+    //     letterRack.appendChild(tile);
+    // });
+
+    GlobalData.currentRack.forEach((letterObj, index) => {
         const tile = createLetterTile(letterObj.letter, letterObj.value, index);
         letterRack.appendChild(tile);
     });
@@ -301,6 +382,8 @@ function setupDropZones() {
         const rackIndex = currentRack.findIndex((_, i) => i.toString() === data.index);
         if (rackIndex !== -1) {
             const letterObj = currentRack[rackIndex];
+
+            // console.log(letterObj);
             
             // Create a new tile in the word area
             const tile = createLetterTile(letterObj.letter, letterObj.value, 'word-' + currentWord.length);
@@ -308,9 +391,11 @@ function setupDropZones() {
             
             // Add to current word
             currentWord.push(letterObj);
+            GlobalData.currentWord.push(letterObj);
             
             // Remove from rack
             currentRack.splice(rackIndex, 1);
+            GlobalData.currentRack.splice(rackIndex, 1);
             renderRack();
         }
     });
@@ -334,9 +419,11 @@ function setupDropZones() {
                 
                 // Add back to rack
                 currentRack.push(letterObj);
+                GlobalData.currentRack.push(letterObj);
                 
                 // Remove from current word
                 currentWord.splice(wordIndex, 1);
+                GlobalData.currentWord.splice(wordIndex, 1);
                 
                 // Rerender
                 renderRack();
@@ -350,7 +437,12 @@ function setupDropZones() {
 function renderWord() {
     wordArea.innerHTML = '';
     
-    currentWord.forEach((letterObj, index) => {
+    // currentWord.forEach((letterObj, index) => {
+    //     const tile = createLetterTile(letterObj.letter, letterObj.value, 'word-' + index);
+    //     wordArea.appendChild(tile);
+    // });
+
+    GlobalData.currentWord.forEach((letterObj, index) => {
         const tile = createLetterTile(letterObj.letter, letterObj.value, 'word-' + index);
         wordArea.appendChild(tile);
     });
@@ -359,17 +451,27 @@ function renderWord() {
 // Return letters to rack
 function returnLettersToRack() {
     currentRack = currentRack.concat(currentWord);
+    GlobalData.currentRack = GlobalData.currentRack.concat(GlobalData.currentWord);
+
     currentWord = [];
+    GlobalData.currentWord = [];
+
     renderRack();
     renderWord();
 }
 
 // Submit the current word
 function submitWord() {
+    // console.log("submit word");
     if (currentWord.length === 0) return;
     
-    const word = currentWord.map(letterObj => letterObj.letter).join('');
-    socket.emit('submitWord', { gameId, word });
+    // const word = currentWord.map(letterObj => letterObj.letter).join('');
+    // // socket.emit('submitWord', { gameId, word });
+    // emitMessage('submitWord', { gameId, word });
+
+    if (GlobalData.currentWord.length === 0) return;
+    const word = GlobalData.currentWord.map(letterObj => letterObj.letter).join('');
+    emitMessage('submitWord', { gameId: GlobalData.gameId, word });
 }
 
 // Render players list
@@ -383,6 +485,7 @@ function renderPlayers(players) {
         
         if (player.id === playerId) {
             playerItem.classList.add('current-player');
+            playerScore.innerHTML = `Points: ${player.score}`
         }
         
         playersList.appendChild(playerItem);
