@@ -1121,9 +1121,30 @@ app.get('/', (req, res) => {
     res.send("<h2>Welcome</h2>");
 })
 
-// app.get('/', (req, res) => {
-//     res.send("<h2>Welcome</h2>");
-// })
+app.get('/user-details/:userId', async (req, res) => {
+    const {userId} = req.params;
+
+    try {
+        const userGameDetails = await MainServerLayer.getUserGameDetails(userId)
+
+        if(!userGameDetails) {
+            res.status(404).json({message: "not found"})
+
+            return;
+        }
+    
+        if(!userGameDetails.avatar) {
+            userGameDetails.avatar = "https://game-service-uny2.onrender.com/game/my-Word/a1.png"
+        }
+    
+        res.status(200).json({message: "successful", userGameDetails});
+    }
+    catch(error) {
+        logger.error(error);
+
+        res.status(500).json({message: "unsuccessful"});
+    }
+})
 
 /* app.get("/debug-sentry", function mainHandler(req, res) {
     throw new Error("My first Sentry error!");
