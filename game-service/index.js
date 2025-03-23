@@ -32,7 +32,7 @@ import { logger, logtail } from './config/winston.config.js';
 import MobileLayer from './MobileLayer.js';
 import WaitingRoomManager from './WaitingRoomManager.js';
 
-import scrabbleDict from "./games/my-Scrabble/words_dictionary.json";
+import scrabbleDict from "./games/my-Scrabble/words_dictionary.json" assert {type: "json"};
 
 const app = express();
 
