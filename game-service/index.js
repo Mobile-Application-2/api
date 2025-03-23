@@ -10,7 +10,7 @@ import mongoose from 'mongoose';
 dotenv.config();
 
 import cors from "cors";
-import fs from "fs";
+import fs, { readFileSync } from "fs";
 
 import path from "path"
 import { dirname } from 'path';
@@ -32,7 +32,9 @@ import { logger, logtail } from './config/winston.config.js';
 import MobileLayer from './MobileLayer.js';
 import WaitingRoomManager from './WaitingRoomManager.js';
 
-import scrabbleDict from "./games/my-Scrabble/words_dictionary.json" assert {type: "json"};
+import { URL as fileURL } from 'url';
+
+const scrabbleDict = JSON.parse(readFileSync(new fileURL("./games/my-Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
 
 const app = express();
 
