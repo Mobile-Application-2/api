@@ -7,6 +7,7 @@ import dotenv from "dotenv"
 import { publish_to_queue } from "./rabbit.js";
 import { isDev, isProd } from "./config/server.config.js";
 import { logger } from "./config/winston.config.js";
+import USER from "./models/user.model.js";
 
 dotenv.config();
 
@@ -35,13 +36,33 @@ async function postData(url, method, data) {
 }
 
 export default class MainServerLayer {
+    static async getUserGameDetails(userId) {
+        if (!userId) {
+            return null
+        }
+
+        try {
+            const user = await USER.findById(userId).lean()
+
+            if (!user) {
+                return null
+            }
+
+            const { username, avatar } = user
+
+            return {username, avatar};
+        }
+        catch (error) {
+            logger.error(error)
+        }
+    }
 
     static async getLobbyID(lobbyCode) {
         if (!lobbyCode) {
             logger.warn("no lobby code");
         }
         try {
-            logger.info("getting lobbyID, code: ", {lobbyCode});
+            logger.info("getting lobbyID, code: ", { lobbyCode });
             const currentLobby = await LOBBY.findOne({ code: lobbyCode })
 
             if (!currentLobby) {

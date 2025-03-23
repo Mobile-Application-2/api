@@ -222,8 +222,11 @@ export async function create_tournament(req: Request, res: Response) {
       'startDate'
     ];
 
-    if (tournamentInfo.hasGateFee) {
-      allowedFields.push('gateFee');
+    if (!Object.prototype.hasOwnProperty.call(tournamentInfo, 'hasGateFee')) {
+      tournamentInfo.hasGateFee = false;
+    }
+    else {
+      allowedFields.push("gateFee");
     }
 
     const fields = Object.keys(tournamentInfo);
@@ -323,7 +326,7 @@ export async function update_prizes_to_tournament(req: Request, res: Response) {
   try {
     const {userId} = req;
     const {tournamentId} = req.params;
-    const {prizes} = req.body;
+    const {prizes, hasGateFee, gateFee} = req.body;
 
     if (!isValidObjectId(tournamentId)) {
       res.status(400).json({message: 'Invalid tournament id'});
@@ -442,8 +445,14 @@ export async function update_prizes_to_tournament(req: Request, res: Response) {
 
         const update = {
           prizes,
+          gateFee: null,
           isFullyCreated: false,
+          hasGateFee: hasGateFee
         };
+
+        if(hasGateFee) {
+          update.gateFee = gateFee;
+        }
 
         // so the order doesn't matter
         if (tournamentInfo.joiningCode) {
