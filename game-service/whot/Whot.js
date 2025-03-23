@@ -46,6 +46,9 @@ export default class Whot {
   static activate(io, whotNamespace, mainRooms) {
     let rooms = [];
 
+    // http://localhost:5657/game?gameName=my-Whot&lobbyCode=123456&playerId=21hjshdsj
+    // http://localhost:5173/game?gameName=my-Whot&lobbyCode=123456&playerId=21hjshdsj
+
     whotNamespace.on("connection", (socket) => {
       logger.info("a user connected to whot server");
       socket.on('disconnect', () => {
