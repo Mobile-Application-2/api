@@ -34,7 +34,7 @@ import WaitingRoomManager from './WaitingRoomManager.js';
 
 import { URL as fileURL } from 'url';
 
-const scrabbleDict = JSON.parse(readFileSync(new fileURL("./games/my-Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
+const scrabbleDict = JSON.parse(readFileSync(new fileURL("./games/Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
 
 const app = express();
 
@@ -1078,24 +1078,24 @@ const getValidGames = () => {
         .map(dirent => dirent.name);
 };
 
-// Serve static files directly from game directories
-app.use('/games/:gameName/Build', (req, res, next) => {
-    const gameName = req.params.gameName;
-    const buildPath = path.join(__dirname, 'games', gameName, 'Build');
+// // Serve static files directly from game directories
+// app.use('/games/:gameName/Build', (req, res, next) => {
+//     const gameName = req.params.gameName;
+//     const buildPath = path.join(__dirname, 'games', gameName, 'Build');
     
-    // Handle gzipped content
-    if (req.url.endsWith('.gz')) {
-        res.set('Content-Encoding', 'gzip');
-    }
+//     // Handle gzipped content
+//     if (req.url.endsWith('.gz')) {
+//         res.set('Content-Encoding', 'gzip');
+//     }
     
-    express.static(buildPath)(req, res, next);
-});
+//     express.static(buildPath)(req, res, next);
+// });
 
-app.use('/games/:gameName/TemplateData', (req, res, next) => {
-    const gameName = req.params.gameName;
-    const templatePath = path.join(__dirname, 'games', gameName, 'TemplateData');
-    express.static(templatePath)(req, res, next);
-});
+// app.use('/games/:gameName/TemplateData', (req, res, next) => {
+//     const gameName = req.params.gameName;
+//     const templatePath = path.join(__dirname, 'games', gameName, 'TemplateData');
+//     express.static(templatePath)(req, res, next);
+// });
 
 // app.use('/game', express.static(__dirname + "/games/Whot", {redirect: false}))
 
@@ -1108,6 +1108,12 @@ app.use('/game/my-Chess/assets', express.static(path.join(__dirname, "/games/my-
 app.use('/game/my-Ludo/assets', express.static(path.join(__dirname, "/games/my-Ludo/assets")));
 app.use('/game/my-Word', express.static(path.join(__dirname, "/games/my-Word")));
 app.use('/game/my-Scrabble', express.static(path.join(__dirname, "/games/my-Scrabble")));
+
+app.use('/game/Whot/assets', express.static(path.join(__dirname, "/games/Whot/assets")));
+app.use('/game/Chess/assets', express.static(path.join(__dirname, "/games/Chess/assets")));
+app.use('/game/Ludo/assets', express.static(path.join(__dirname, "/games/Ludo/assets")));
+app.use('/game/Word', express.static(path.join(__dirname, "/games/Word")));
+app.use('/game/Scrabble', express.static(path.join(__dirname, "/games/Scrabble")));
 
 // Game route handler
 app.get('/game', (req, res) => {

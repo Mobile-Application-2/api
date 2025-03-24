@@ -1,4 +1,5 @@
 import { logger } from "../config/winston.config.js";
+import { gameSessionManager } from "../GameSessionManager.js";
 import MainServerLayer from "../MainServerLayer.js";
 import LOBBY from "../models/lobby.model.js";
 import USER from "../models/user.model.js";
@@ -179,6 +180,8 @@ export default class Chess {
     }
 
     static async createGame(socket, data, state) {
+        gameSessionManager.createGame(roomID);
+        
         const roomID = data.lobbyCode;
 
         socket.join(roomID);
@@ -309,6 +312,8 @@ export default class Chess {
                 // playerTwoInfo.socketID = undefined;
 
                 chessNameSpace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo);
+
+                gameSessionManager.getGame(roomID).createTimer(1000 * 60, () => {console.log("timer stop")})
 
                 logger.info("sending info to main server");
 

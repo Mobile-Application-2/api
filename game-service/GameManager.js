@@ -5,12 +5,13 @@ import GameTimer from "./GameTimer.js";
  */
 export default class GameManager {
     /**
-     * Creates a new Game instance.
+     * Creates a game timer.
+     * 
      * @param {number} duration - The game timer duration in milliseconds.
      * @param {Function} onTimerEnd - Function to call when the timer ends.
      */
-    constructor(duration, onTimerEnd) {
-        this.timer = new GameTimer(duration, onTimerEnd);
+    createTimer(duration, onTimerEnd) {
+        this.timer = new GameTimer(duration, onTimerEnd)
     }
 
     /**
@@ -23,7 +24,15 @@ export default class GameManager {
     /**
      * Cancels the game timer.
      */
-    cancel() {
+    cancelTimer() {
         this.timer.cancel();
+    }
+
+    /**
+    * Gets the time remaining in seconds.
+    * @returns {number} Remaining time in seconds.
+    */
+    getTimeRemaining() {
+        return this.timer.getTimeRemaining();
     }
 }
