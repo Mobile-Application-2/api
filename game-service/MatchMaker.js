@@ -1,15 +1,22 @@
-const EventEmitter = require('events');
+import EventEmitter from "events"
 
 /**
  * A class representing a matchmaker for pairing players.
  */
-class MatchMaker extends EventEmitter {
+export default class MatchMaker extends EventEmitter {
     constructor() {
         super();
         /** @type {Array<string>} */
         this.waitingPlayers = [];
         /** @type {Set<string>} */
         this.matchedPairs = new Set();
+
+        // Listen for "matchCompleted" event to restart matching.
+        this.on('matchCompleted', ({ playerA, playerB }) => {
+            console.log(`Match completed: ${playerA} vs ${playerB}. Returning players.`);
+            this.returnPlayer(playerA);
+            this.returnPlayer(playerB);
+        });
     }
 
     /**
@@ -18,6 +25,7 @@ class MatchMaker extends EventEmitter {
      */
     addPlayer(playerId) {
         this.waitingPlayers.push(playerId);
+        console.log(this.waitingPlayers);
         // Try matching as soon as a new player is added.
         this.tryMatch();
     }
@@ -38,6 +46,8 @@ class MatchMaker extends EventEmitter {
      * If a match is found, it is removed from the waiting pool and emitted.
      */
     tryMatch() {
+        if (this.waitingPlayers.length < 2) return;
+
         // We use a simple nested loop to check each pair.
         for (let i = 0; i < this.waitingPlayers.length; i++) {
             for (let j = i + 1; j < this.waitingPlayers.length; j++) {
@@ -77,7 +87,7 @@ class MatchMaker extends EventEmitter {
     }
 }
 
-module.exports = MatchMaker;
+// module.exports = MatchMaker;
 
 /* ----- Example Usage -----
 const matchMaker = new MatchMaker();
