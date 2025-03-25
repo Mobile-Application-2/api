@@ -50,63 +50,72 @@ export async function startTournamentLogic(tournamentId: string) {
     }
 
     const session = await mongoose.startSession();
+
     await session.withTransaction(async (session) => {
-      await TOURNAMENT.updateOne(
-        { _id: tournamentId },
-        { $set: { hasStarted: true } },
-        { session }
-      );
+      try {
+        await TOURNAMENT.updateOne(
+          { _id: tournamentId },
+          { $set: { hasStarted: true } },
+          { session }
+        );
 
-      const fixtures = generate_tournament_fixtures(
-        tournamentInfo.participants.map((id) => id.toString()),
-        tournamentInfo.noOfGamesToPlay
-      ).flat();
+        const fixtures = generate_tournament_fixtures(
+          tournamentInfo.participants.map((id) => id.toString()),
+          tournamentInfo.noOfGamesToPlay
+        ).flat();
 
-      const fixtureNotifications: Record<string, { opponent: string; joiningCode: string; tournamentId: string }[]> = {};
+        const fixtureNotifications: Record<string, { opponent: string; joiningCode: string; tournamentId: string }[]> = {};
 
-      const bulkEntry = fixtures.map((fixture) => {
-        const joiningCode = crypto.createHash("sha256").update(fixture.join("")).digest("base64").slice(0, 6);
+        const bulkEntry = fixtures.map((fixture) => {
+          const joiningCode = crypto.createHash("sha256").update(fixture.join("")).digest("base64").slice(0, 6);
 
-        fixture.forEach((player) => {
-          if (!fixtureNotifications[player]) fixtureNotifications[player] = [];
-          const opponent = fixture.find((p) => p !== player);
-          fixtureNotifications[player].push({
-            tournamentId,
-            opponent: opponent as string,
-            joiningCode,
+          fixture.forEach((player) => {
+            if (!fixtureNotifications[player]) fixtureNotifications[player] = [];
+            const opponent = fixture.find((p) => p !== player);
+            fixtureNotifications[player].push({
+              tournamentId,
+              opponent: opponent as string,
+              joiningCode,
+            });
           });
+
+          return { tournamentId, joiningCode, players: fixture };
         });
 
-        return { tournamentId, joiningCode, players: fixture };
-      });
+        await TOURNAMENTFIXTURES.create(bulkEntry, { session });
 
-      await TOURNAMENTFIXTURES.create(bulkEntry, { session });
+        const playerData = await USER.find({ _id: { $in: Object.keys(fixtureNotifications) } }, { username: 1, email: 1 });
 
-      const playerData = await USER.find({ _id: { $in: Object.keys(fixtureNotifications) } }, { username: 1, email: 1 });
+        const playerMap = Object.fromEntries(playerData.map((user) => [user._id.toString(), { username: user.username, email: user.email }]));
 
-      const playerMap = Object.fromEntries(playerData.map((user) => [user._id.toString(), { username: user.username, email: user.email }]));
+        const notifications: Record<string, string> = {};
+        Object.keys(fixtureNotifications).forEach((playerId) => {
+          const playerEmail = playerMap[playerId].email;
+          let message = `Hello ${playerMap[playerId].username},<br><br>The tournament <b>${tournamentInfo.name}</b> has started. Your fixtures:<br>`;
 
-      const notifications: Record<string, string> = {};
-      Object.keys(fixtureNotifications).forEach((playerId) => {
-        const playerEmail = playerMap[playerId].email;
-        let message = `Hello ${playerMap[playerId].username},<br><br>The tournament <b>${tournamentInfo.name}</b> has started. Your fixtures:<br>`;
+          fixtureNotifications[playerId].forEach(({ opponent, joiningCode }) => {
+            message += `<br><br><b>Opponent:</b> ${playerMap[opponent].username}<br><b>Joining code:</b> ${joiningCode}`;
+          });
 
-        fixtureNotifications[playerId].forEach(({ opponent, joiningCode }) => {
-          message += `<br><br><b>Opponent:</b> ${playerMap[opponent].username}<br><b>Joining code:</b> ${joiningCode}`;
+          message += "<br><br>Good luck!";
+          notifications[playerEmail] = message;
         });
 
-        message += "<br><br>Good luck!";
-        notifications[playerEmail] = message;
-      });
+        Object.keys(notifications).forEach(async (email) => {
+          await publish_to_queue("tournament-started-notification", { email, message: notifications[email] }, true);
+        });
 
-      Object.keys(notifications).forEach(async (email) => {
-        await publish_to_queue("tournament-started-notification", { email, message: notifications[email] }, true);
-      });
-
-      await session.commitTransaction();
+        await session.commitTransaction();
+      }
+      catch (error) {
+        await session.abortTransaction();
+        
+        throw error
+      }
+      finally {
+        await session.endSession();
+      }
     });
-
-    await session.endSession();
   }
   catch (error) {
     console.log("error when starting tournament", error);
