@@ -108,6 +108,12 @@ export default class Tournament {
             socket.on('tournament-fixture-completed', async (playerId) => {
                 const tournamentMatcher = this.tournaments.get(tournamentId);
 
+                if(!tournamentMatcher) {
+                    logger.info("tournament matcher not found");
+
+                    return;
+                }
+
                 tournamentMatcher.emit("playerMatchCompleted", { player: playerId });
 
                 logger.info("tournament fixture completed");
