@@ -10,7 +10,7 @@ export default class Tournament {
     static playersSocketIds = new Map([["test", "jskdjsk"]]);
     static activatedTournaments = new Set();
     static tournamentNamespace;
-    static activeTournamentPlayers = [{userID: "", socketID: ""}];
+    static activeTournamentPlayers = [{ userID: "", socketID: "" }];
     static tournamentWaitingRoom;
 
     /**
@@ -82,16 +82,18 @@ export default class Tournament {
         const maker = new MatchMaker();
 
         maker.on("match", async ({ playerOneId, playerTwoId }) => {
+            const playerOneSocketId = this.playersSocketIds.get(playerOneId);
+            const playerTwoSocketId = this.playersSocketIds.get(playerTwoId);
+
             try {
                 const lobbyCode = await this.createFixture(tournamentId, playerOneId, playerTwoId);
-
-                const playerOneSocketId = this.playersSocketIds.get(playerOneId);
-                const playerTwoSocketId = this.playersSocketIds.get(playerTwoId);
 
                 this.tournamentNamespace.to([playerOneSocketId, playerTwoSocketId]).emit("matched", { lobbyCode })
             }
             catch (error) {
-                logger.error(error)
+                logger.error(error);
+
+                this.tournamentNamespace.to([playerOneSocketId, playerTwoSocketId]).emit("error", { message: `something went wrong with matching ${lobbyCode}` });
             }
         })
 
@@ -111,7 +113,7 @@ export default class Tournament {
             return;
         }
 
-        this.activeTournamentPlayers.push({userID: playerId, socketID: socket.id});
+        this.activeTournamentPlayers.push({ userID: playerId, socketID: socket.id });
 
         this.playersSocketIds.set(playerId, socket.id);
 

@@ -97,6 +97,8 @@ export default class WaitingRoomManager {
         }
         catch (error) {
             logger.error("something went wrong joining tournament waiting room, lobbyCode: ", { error })
+
+            socket.emit("error", { message: "Something went wrong with joining the tournament waiting room" });
         }
     }
 
@@ -147,7 +149,7 @@ export default class WaitingRoomManager {
                 return key; // This will correctly exit the function
             }
         }
-        
+
         return ""; // Default return if no match is found
     }
 
@@ -254,61 +256,66 @@ export default class WaitingRoomManager {
      * @param {string} lobbyCode - The tournament lobby code.
      */
     async leaveWaitingRoom(playerId, lobbyCode) {
-        logger.info("player leaving waiting room", { playerId, lobbyCode })
-        const waiting = this.lobbyCodeWaiting.get(lobbyCode);
+        try {
+            logger.info("player leaving waiting room", { playerId, lobbyCode })
+            const waiting = this.lobbyCodeWaiting.get(lobbyCode);
 
-        if (!waiting) {
-            logger.warn("lobby not found, lobbyCode: ", { lobbyCode });
+            if (!waiting) {
+                logger.warn("lobby not found, lobbyCode: ", { lobbyCode });
 
-            return;
+                return;
+            }
+
+            const playerToRemoveSocketId = waiting.filter(p => p.userID == playerId)[0].socketID;
+
+            // Remove the player from the lobby
+            const updatedWaiting = waiting.filter((player) => player.userID !== playerId);
+
+            // if (updatedWaiting.length === 0) {
+            //     // If the lobby is empty, delete it
+            //     this.lobbyCodeWaiting.delete(lobbyCode);
+            //     logger.info("lobby is now empty, deleted lobby, lobbyCode: ", { lobbyCode });
+            // }
+
+            // Update the lobby with the remaining players
+            this.lobbyCodeWaiting.set(lobbyCode, updatedWaiting);
+
+            logger.info("removed player from waiting", { playerId, lobbyCode });
+
+            const playersToEmit = updatedWaiting.map(p => p.socketID);
+
+            this.io.to([...playersToEmit]).emit("opponent-not-active", { message: "Opponent left the room, Starting Timer" })
+
+            logger.info("player left waiting room, lobbyCode: ", { lobbyCode });
+
+            this.startOpponentTimer(playersToEmit[0], lobbyCode, playerToRemoveSocketId);
+
+            // socket.emit("opponent-not-active", { message: "Opponent Not Active, Starting Timer" });
+
+            logger.info("getting fixture to see if opponent has timer");
+
+            const fixture = await this.getFixture(lobbyCode, playerId);
+
+            logger.info("fixture", { fixture });
+
+            if (!fixture) {
+                logger.info("somehow no fixture")
+
+                return;
+            }
+
+            // Cancel the timer for the player's opponent (if any)
+            const opponentId = fixture.players.find(playerID => playerID != playerId) // OPPONENT
+
+            logger.info("opponent to check if has a timer", { opponentId })
+
+            if (this.timers.get(opponentId)) {
+                logger.info("Opponent has a timer set, seeing if can cancel", { opponentId })
+                this.cancelOpponentTimer(opponentId);
+            }
         }
-
-        const playerToRemoveSocketId = waiting.filter(p => p.userID == playerId)[0].socketID;
-
-        // Remove the player from the lobby
-        const updatedWaiting = waiting.filter((player) => player.userID !== playerId);
-
-        // if (updatedWaiting.length === 0) {
-        //     // If the lobby is empty, delete it
-        //     this.lobbyCodeWaiting.delete(lobbyCode);
-        //     logger.info("lobby is now empty, deleted lobby, lobbyCode: ", { lobbyCode });
-        // }
-        
-        // Update the lobby with the remaining players
-        this.lobbyCodeWaiting.set(lobbyCode, updatedWaiting);
-
-        logger.info("removed player from waiting", { playerId, lobbyCode });
-
-        const playersToEmit = updatedWaiting.map(p => p.socketID);
-
-        this.io.to([...playersToEmit]).emit("opponent-not-active", { message: "Opponent left the room, Starting Timer" })
-
-        logger.info("player left waiting room, lobbyCode: ", { lobbyCode });
-
-        this.startOpponentTimer(playersToEmit[0], lobbyCode, playerToRemoveSocketId);
-
-        // socket.emit("opponent-not-active", { message: "Opponent Not Active, Starting Timer" });
-
-        logger.info("getting fixture to see if opponent has timer");
-
-        const fixture = await this.getFixture(lobbyCode, playerId);
-
-        logger.info("fixture", { fixture });
-
-        if (!fixture) {
-            logger.info("somehow no fixture")
-
-            return;
-        }
-
-        // Cancel the timer for the player's opponent (if any)
-        const opponentId = fixture.players.find(playerID => playerID != playerId) // OPPONENT
-
-        logger.info("opponent to check if has a timer", { opponentId })
-
-        if (this.timers.get(opponentId)) {
-            logger.info("Opponent has a timer set, seeing if can cancel", { opponentId })
-            this.cancelOpponentTimer(opponentId);
+        catch (error) {
+            socket.emit("error", { message: "Something went wrong with leaving the tournament waiting room" });
         }
     }
 
@@ -317,10 +324,10 @@ export default class WaitingRoomManager {
             const lobbyCodeWaiting = this.lobbyCodeWaiting;
 
             const players = Array.from(lobbyCodeWaiting.values()).flat()
-    
+
             this.io.emit("total-players", players.length)
         }
-        catch(error) {
+        catch (error) {
             console.log("could not emit", error);
         }
     }
