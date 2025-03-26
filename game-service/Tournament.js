@@ -10,9 +10,11 @@ export default class Tournament {
     static playersSocketIds = new Map([["test", "jskdjsk"]]);
     static activatedTournaments = new Set();
     static tournamentNamespace;
-    static activeTournamentPlayers = [{ userID: "", socketID: "" }];
-    static tournamentWaitingRoom;
+    static activeTournamentPlayers = new Map([["test", [{ userID: "", socketID: "" }]]]);
+    static tournamentWaitingRoom = new Map();
     static fixtures = new Map([["test", ["ndjsk", "njkds"]]]);
+    static owners = new Map([["test", "djskdjnsk"]])
+    static mainIo;
 
     /**
      * Activates the game logic for handling WebSocket connections.
@@ -23,7 +25,8 @@ export default class Tournament {
      */
     static activate(io, tournamentNamespace, mainRooms) {
         this.tournamentNamespace = tournamentNamespace;
-        this.tournamentWaitingRoom = new WaitingRoomManager(tournamentNamespace, this.activeTournamentPlayers);
+        this.mainIo = io;
+        // this.tournamentWaitingRoom = new WaitingRoomManager(tournamentNamespace, this.activeTournamentPlayers, io);
 
         this.tournamentNamespace.on('connection', socket => {
             this.tournaments.delete("test");
@@ -32,6 +35,7 @@ export default class Tournament {
 
             const tournamentId = socket.handshake.query.tournamentId;
             const userId = socket.handshake.query.userId;
+            const isOwner = socket.handshake.query.isOwner;
 
             // TODO: ADD TOURNAMENT CHECK
             if (!this.isValidTournament(tournamentId)) {
@@ -40,26 +44,71 @@ export default class Tournament {
                 return;
             }
 
+            if (!userId) {
+                logger.warn("no user", { userId });
+
+                return;
+            }
+
+            if (isOwner) {
+                logger.info("a celebrity");
+
+                this.owners.set(tournamentId, socket.id);
+
+                // MAY BE CELEBRITY
+                return;
+            }
+
             this.addTournament(tournamentId);
 
             this.addPlayerToTournament(userId, tournamentId, socket);
 
             socket.on('join-tournament-waiting-room', async (playerId, lobbyCode) => {
-                await this.tournamentWaitingRoom.joinWaitingRoom(socket, playerId, lobbyCode);
+                const currentTournamentWaiting = this.tournamentWaitingRoom.get(tournamentId);
+
+                if (!currentTournamentWaiting) {
+                    logger.warn("no waiting room to join", { tournamentId })
+
+                    return;
+                }
+
+                await currentTournamentWaiting.joinWaitingRoom(socket, playerId, lobbyCode);
+
+                const ownerSocketId = this.owners.get(tournamentId);
+
+                if (ownerSocketId) {
+                    this.tournamentNamespace.to(ownerSocketId).emit("total-players", currentTournamentWaiting.getTotalPlayersInWaitingRoom())
+                }
 
                 logger.info("player joined tournament waiting room");
             })
 
             socket.on('leave-tournament-waiting-room', async (playerId, lobbyCode) => {
-                await this.tournamentWaitingRoom.leaveWaitingRoom(playerId, lobbyCode);
+                const currentTournamentWaiting = this.tournamentWaitingRoom.get(tournamentId);
+
+                if (!currentTournamentWaiting) {
+                    logger.warn("no waiting room to leave", { tournamentId });
+
+                    return;
+                }
+
+                await currentTournamentWaiting.leaveWaitingRoom(playerId, lobbyCode);
+
+                const ownerSocketId = this.owners.get(tournamentId);
+
+                if (ownerSocketId) {
+                    this.tournamentNamespace.to(ownerSocketId).emit("total-players", currentTournamentWaiting.getTotalPlayersInWaitingRoom())
+                }
 
                 logger.info("player left tournament waiting room");
+
+                this.removePlayerFromTournament(userId, tournamentId);
             })
 
             socket.on('tournament-fixture-completed', async (playerId) => {
                 const tournamentMatcher = this.tournaments.get(tournamentId);
 
-                tournamentMatcher.emit("playerMatchCompleted", {player: playerId});
+                tournamentMatcher.emit("playerMatchCompleted", { player: playerId });
 
                 logger.info("tournament fixture completed");
             })
@@ -67,9 +116,29 @@ export default class Tournament {
             socket.on("disconnect", async (_) => {
                 logger.info("user disconnected from tournament namespace", socket.id);
 
-                const lobbyCode = this.tournamentWaitingRoom.getLobbyCode(userId);
+                const currentTournamentWaiting = this.tournamentWaitingRoom.get(tournamentId);
+                
+                if (!currentTournamentWaiting) {
+                    logger.warn("no waiting room to leave", { tournamentId });
 
-                await this.tournamentWaitingRoom.leaveWaitingRoom(userId, lobbyCode);
+                    return;
+                }
+
+                const lobbyCode = currentTournamentWaiting.getLobbyCode(userId);
+
+                if (!lobbyCode) {
+                    logger.warn("user not in lobby, may be the owner");
+
+                    return;
+                }
+
+                await currentTournamentWaiting.leaveWaitingRoom(userId, lobbyCode);
+
+                const ownerSocketId = this.owners.get(tournamentId);
+
+                if (ownerSocketId) {
+                    this.tournamentNamespace.to(ownerSocketId).emit("total-players", currentTournamentWaiting.getTotalPlayersInWaitingRoom())
+                }
 
                 logger.info("player left tournament waiting room");
 
@@ -88,6 +157,16 @@ export default class Tournament {
 
         this.activatedTournaments.add(tournamentId);
 
+        const tournamentNamespace = this.tournamentNamespace;
+
+        const currentTournamentPlayers = this.activeTournamentPlayers.get(tournamentId);
+
+        if(!currentTournamentPlayers) {
+            this.activeTournamentPlayers.set(tournamentId, [])
+        }
+
+        this.tournamentWaitingRoom.set(tournamentId, new WaitingRoomManager(tournamentNamespace, this.activeTournamentPlayers.get(tournamentId), this.mainIo));
+
         const maker = new MatchMaker();
 
         maker.on("match", async ({ playerOneId, playerTwoId }) => {
@@ -104,7 +183,7 @@ export default class Tournament {
             catch (error) {
                 logger.error(error);
 
-                this.tournamentNamespace.to([playerOneSocketId, playerTwoSocketId]).emit("error", { message: `something went wrong with matching ${lobbyCode}` });
+                this.tournamentNamespace.to([playerOneSocketId, playerTwoSocketId]).emit("error", { message: `something went wrong with matching` });
             }
         })
 
@@ -113,6 +192,8 @@ export default class Tournament {
 
     static addPlayerToTournament(playerId, tournamentId, socket) {
         if (!this.activatedTournaments.has(tournamentId)) {
+            logger.warn("not activated", { tournamentId })
+
             return;
         }
 
@@ -124,7 +205,9 @@ export default class Tournament {
             return;
         }
 
-        this.activeTournamentPlayers.push({ userID: playerId, socketID: socket.id });
+        this.activeTournamentPlayers.get(tournamentId).push({ userID: playerId, socketID: socket.id });
+
+        // this.activeTournamentPlayers.push({ userID: playerId, socketID: socket.id });
 
         this.playersSocketIds.set(playerId, socket.id);
 
@@ -146,7 +229,11 @@ export default class Tournament {
             return;
         }
 
-        this.activeTournamentPlayers = this.activeTournamentPlayers.filter(value => value.userID != playerId);
+        // this.activeTournamentPlayers = this.activeTournamentPlayers.filter(value => value.userID != playerId);
+
+        const updatedPlayers = this.activeTournamentPlayers.get(tournamentId).filter(value => value.userID != playerId);
+
+        this.activeTournamentPlayers.set(tournamentId, updatedPlayers);
 
         tournamentMatcher.removePlayer(playerId);
 

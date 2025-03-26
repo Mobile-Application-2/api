@@ -23,9 +23,11 @@ export default class WaitingRoomManager {
     /**
      * @param {import("socket.io").Server} io - The Socket.IO server instance.
      * @param {Array<ActivePlayer>} activePlayers - Active players
+     * @param {import("socket.io").Server} mainIo - The Socket.IO server instance.
      */
-    constructor(io, activePlayers) {
+    constructor(io, activePlayers, mainIo) {
         this.io = io;
+        this.mainIo = mainIo;
         this.activePlayers = activePlayers;
         // this.fixtures = [];
     }
@@ -317,6 +319,14 @@ export default class WaitingRoomManager {
         catch (error) {
             socket.emit("error", { message: "Something went wrong with leaving the tournament waiting room" });
         }
+    }
+
+    getTotalPlayersInWaitingRoom() {
+        const lobbyCodeWaiting = this.lobbyCodeWaiting;
+
+        const players = Array.from(lobbyCodeWaiting.values()).flat();
+
+        return players.length;
     }
 
     emitNumbers() {
