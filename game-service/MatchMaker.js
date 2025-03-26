@@ -18,6 +18,12 @@ export default class MatchMaker extends EventEmitter {
             this.returnPlayer(playerA);
             this.returnPlayer(playerB);
         });
+
+        this.on('playerMatchCompleted', ({ player }) => {
+            logger.info(`Player Match completed: ${player}, Returning player.`);
+
+            this.returnPlayer(player);
+        });
     }
 
     /**
@@ -93,6 +99,10 @@ export default class MatchMaker extends EventEmitter {
      * @param {string} playerId 
      */
     returnPlayer(playerId) {
+        // prevent duplicate
+        if (this.waitingPlayers.find(player => player == playerId)) {
+            return;
+        }
         // You can add additional logic here if needed.
         this.addPlayer(playerId);
     }

@@ -12,6 +12,7 @@ export default class Tournament {
     static tournamentNamespace;
     static activeTournamentPlayers = [{ userID: "", socketID: "" }];
     static tournamentWaitingRoom;
+    static fixtures = new Map([["test", ["ndjsk", "njkds"]]]);
 
     /**
      * Activates the game logic for handling WebSocket connections.
@@ -55,6 +56,14 @@ export default class Tournament {
                 logger.info("player left tournament waiting room");
             })
 
+            socket.on('tournament-fixture-completed', async (playerId) => {
+                const tournamentMatcher = this.tournaments.get(tournamentId);
+
+                tournamentMatcher.emit("playerMatchCompleted", {player: playerId});
+
+                logger.info("tournament fixture completed");
+            })
+
             socket.on("disconnect", async (_) => {
                 logger.info("user disconnected from tournament namespace", socket.id);
 
@@ -89,6 +98,8 @@ export default class Tournament {
                 const lobbyCode = await this.createFixture(tournamentId, playerOneId, playerTwoId);
 
                 this.tournamentNamespace.to([playerOneSocketId, playerTwoSocketId]).emit("matched", { lobbyCode })
+
+                this.fixtures.set(lobbyCode, [playerOneId, playerTwoId]);
             }
             catch (error) {
                 logger.error(error);
