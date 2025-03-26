@@ -1854,6 +1854,105 @@ export async function fetch_my_fixtures_in_tournament(
   }
 }
 
+export async function fetch_my_fixtures_in_tournament_lobby_code(
+  req: Request,
+  res: Response
+) {
+  try {
+    const {userId} = req;
+    const {tournamentId, lobbyCode} = req.params;
+
+    if (!isValidObjectId(tournamentId)) {
+      res.status(400).json({message: 'Invalid tournament id'});
+      return;
+    }
+
+    if (!lobbyCode) {
+      res.status(400).json({message: 'invalid lobby code'});
+      return;
+    }
+
+    const tournamentInfo = await TOURNAMENT.findOne({
+      participants: userId,
+      _id: tournamentId,
+    });
+
+    if (!tournamentInfo) {
+      res
+        .status(404)
+        .json({message: 'Tournament not found, or you are not in it'});
+      return;
+    }
+
+    // for each player in the players array fetch thier avatar and username from users
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          tournamentId: new ObjectId(tournamentId),
+          players: new ObjectId(userId),
+          joiningCode: lobbyCode
+        },
+      },
+      {
+        $unwind: '$players',
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'players',
+          foreignField: '_id',
+          as: 'playerDetails',
+        },
+      },
+      {
+        $unwind: '$playerDetails',
+      },
+      {
+        $group: {
+          _id: '$_id',
+          players: {
+            $push: {
+              _id: '$players',
+              username: '$playerDetails.username',
+              avatar: '$playerDetails.avatar',
+            },
+          },
+          joiningCode: {
+            $first: '$joiningCode',
+          },
+          gameStarted: {
+            $first: '$gameStarted',
+          },
+          createdAt: {
+            $first: '$createdAt',
+          },
+          updatedAt: {
+            $first: '$updatedAt',
+          },
+          __v: {
+            $first: '$__v',
+          },
+          tournamentId: {
+            $first: '$tournamentId',
+          },
+          winner: {
+            $first: '$winner',
+          },
+        },
+      },
+    ];
+
+    const fixtures = await TOURNAMENTFIXTURES.aggregate(pipeline);
+
+    res.status(200).json({
+      message: 'Tournament fixtures retrieved successfully',
+      data: fixtures,
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
 export async function join_tournament_lobby(req: Request, res: Response) {
   try {
     // join a tournament's fixture/lobby no payment

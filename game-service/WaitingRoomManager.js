@@ -54,7 +54,7 @@ export default class WaitingRoomManager {
 
             this.addPlayerToLobbyCodeWaiting(lobbyCode, playerId, socket.id);
 
-            this.emitNumbers();
+            // this.emitNumbers();
 
             const opponentId = fixture.players.find(playerID => playerID != playerId) // OPPONENT
 

@@ -1194,7 +1194,7 @@ app.get('/user-details/:userId', async (req, res) => {
         }
     
         if(!userGameDetails.avatar) {
-            userGameDetails.avatar = "https://game-service-uny2.onrender.com/game/my-Word/a1.png"
+            userGameDetails.avatar = "https://game-service-uny2.onrender.com/game/Scrabble/a1.png"
         }
     
         res.status(200).json({message: "successful", userGameDetails});
