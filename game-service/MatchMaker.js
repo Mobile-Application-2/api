@@ -1,4 +1,5 @@
 import EventEmitter from "events"
+import { logger } from "./config/winston.config.js";
 
 /**
  * A class representing a matchmaker for pairing players.
@@ -13,7 +14,7 @@ export default class MatchMaker extends EventEmitter {
 
         // Listen for "matchCompleted" event to restart matching.
         this.on('matchCompleted', ({ playerA, playerB }) => {
-            console.log(`Match completed: ${playerA} vs ${playerB}. Returning players.`);
+            logger.info(`Match completed: ${playerA} vs ${playerB}. Returning players.`);
             this.returnPlayer(playerA);
             this.returnPlayer(playerB);
         });
@@ -25,8 +26,18 @@ export default class MatchMaker extends EventEmitter {
      */
     addPlayer(playerId) {
         this.waitingPlayers.push(playerId);
-        console.log(this.waitingPlayers);
+        logger.info("Waiting players: ", {waitingPlayers: this.waitingPlayers});
         // Try matching as soon as a new player is added.
+        this.tryMatch();
+    }
+
+    /**
+     * Removes a player to from the waiting pool.
+     * @param {string} playerId - The unique identifier of the player.
+     */
+    removePlayer(playerId) {
+        this.waitingPlayers = this.waitingPlayers.filter(id => playerId != id);
+
         this.tryMatch();
     }
 
@@ -94,11 +105,11 @@ const matchMaker = new MatchMaker();
 
 // Listen for new matches.
 matchMaker.on('match', ({ playerA, playerB }) => {
-  console.log(`Matched: ${playerA} with ${playerB}`);
+  logger.info(`Matched: ${playerA} with ${playerB}`);
   
   // Simulate match process then returning players back to the pool.
   setTimeout(() => {
-    console.log(`Returning ${playerA} and ${playerB} to the waiting pool.`);
+    logger.info(`Returning ${playerA} and ${playerB} to the waiting pool.`);
     matchMaker.returnPlayer(playerA);
     matchMaker.returnPlayer(playerB);
   }, 5000); // Assume match takes 5 seconds.

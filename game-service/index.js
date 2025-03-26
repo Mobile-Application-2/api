@@ -30,9 +30,10 @@ import MainServerLayer from './MainServerLayer.js';
 import ErrorModel from './models/error.model.js';
 import { logger, logtail } from './config/winston.config.js';
 import MobileLayer from './MobileLayer.js';
-import WaitingRoomManager from './WaitingRoomManager.js';
+// import WaitingRoomManager from './WaitingRoomManager.js';
 
 import { URL as fileURL } from 'url';
+import Tournament from './Tournament.js';
 
 const scrabbleDict = JSON.parse(readFileSync(new fileURL("./games/Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
 
@@ -69,7 +70,7 @@ let rooms = [
 
 rooms.splice(0);
 
-const TournamentWaitingRoom = new WaitingRoomManager(io, active)
+// const TournamentWaitingRoom = new WaitingRoomManager(io, active)
 
 // function sentryLogActive() {
 //     // Sentry.setContext("active_users", active);
@@ -145,17 +146,17 @@ io.on('connection', (socket) => {
         }
     })
 
-    socket.on('join-tournament-waiting-room', async (playerId, lobbyCode) => {        
-        await TournamentWaitingRoom.joinWaitingRoom(socket, playerId, lobbyCode);
+    // socket.on('join-tournament-waiting-room', async (playerId, lobbyCode) => {        
+    //     await TournamentWaitingRoom.joinWaitingRoom(socket, playerId, lobbyCode);
 
-        logger.info("player joined tournament waiting room");
-    })
+    //     logger.info("player joined tournament waiting room");
+    // })
 
-    socket.on('leave-tournament-waiting-room', async (playerId, lobbyCode) => {        
-        await TournamentWaitingRoom.leaveWaitingRoom(playerId, lobbyCode);
+    // socket.on('leave-tournament-waiting-room', async (playerId, lobbyCode) => {        
+    //     await TournamentWaitingRoom.leaveWaitingRoom(playerId, lobbyCode);
 
-        logger.info("player left tournament waiting room");
-    })
+    //     logger.info("player left tournament waiting room");
+    // })
 
     // FOR MOBILE GAME END
     
@@ -1055,6 +1056,12 @@ Chess.activate(io, chessNameSpace, newRooms);
 
 // Scrabble.activate(io, scrabbleNameSpace);
 
+const tournamentNamespace = io.of("/tournament");
+
+// const TournamentWaitingRoom = new WaitingRoomManager(tournamentNamespace, active);
+
+Tournament.activate(io, tournamentNamespace, newRooms);
+
 const URL = process.env.MONGO_URL;
 
 // Get valid games (only directories with both Build folder and index.html)
@@ -1245,6 +1252,9 @@ mongoose.connect(URL)
         }
 
         server.close(async () => {
+            await io.close();
+            logger.info("socket server closed")
+
             logger.info('Express server closed.');
 
             // Close the Mongoose connection
@@ -1267,6 +1277,9 @@ mongoose.connect(URL)
         }
 
         server.close(async () => {
+            await io.close();
+            logger.info("socket server closed")
+
             logger.info('Express server closed.');
 
             // Close the Mongoose connection

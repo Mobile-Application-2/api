@@ -43,7 +43,7 @@ export default class WaitingRoomManager {
             if (!fixture) {
                 socket.emit("error", { message: "Fixture not found" });
 
-                logger.error("Fixture not found, LobbyCode: ", { lobbyCode })
+                logger.error("Fixture not found, LobbyCode: ", { lobbyCode });
 
                 return;
             }
@@ -141,12 +141,22 @@ export default class WaitingRoomManager {
         }
     }
 
+    async getLobbyCode(playerId) {
+        for (const [key, value] of this.lobbyCodeWaiting.entries()) {
+            if (value.includes(playerId)) {
+                return key; // This will correctly exit the function
+            }
+        }
+        
+        return ""; // Default return if no match is found
+    }
+
     /**
      * Cancels the timer for a specific opponent.
      * @param {string} opponentId - The ID of the opponent.
      */
     cancelOpponentTimer(opponentId) {
-        logger.info("keys to timers", { keys: this.timers.keys() })
+        // logger.info("keys to timers", { keys: this.timers.keys() })
 
         if (this.timers.has(opponentId)) {
             clearTimeout(this.timers.get(opponentId)); // Cancel the timer

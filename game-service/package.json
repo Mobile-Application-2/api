@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest",
-    "start": "pm2-runtime start index.js"
+    "start": "node index.js"
   },
   "author": "",
   "license": "ISC",
