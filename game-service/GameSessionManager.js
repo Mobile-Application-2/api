@@ -16,7 +16,7 @@ class GameSessionManager {
      */
     createGame(lobbyCode) {
         if (this.games.has(lobbyCode)) {
-            throw new Error(`Game with lobby code ${lobbyCode} already exists.`);
+            return null
         }
 
         const game = new GameManager();
@@ -33,32 +33,6 @@ class GameSessionManager {
     getGame(lobbyCode) {
         return this.games.get(lobbyCode)
     }
-
-    // /**
-    //  * Starts the game associated with the given lobby code.
-    //  * @param {string} lobbyCode - The lobby code of the game.
-    //  */
-    // startGame(lobbyCode) {
-    //     const game = this.games.get(lobbyCode);
-
-    //     if (!game) throw new Error(`No game found with lobby code ${lobbyCode}.`);
-
-    //     game.startTimer();
-    // }
-
-    // /**
-    //  * Cancels the game associated with the given lobby code.
-    //  * @param {string} lobbyCode - The lobby code of the game.
-    //  */
-    // cancelGame(lobbyCode) {
-    //     const game = this.games.get(lobbyCode);
-
-    //     if (!game) throw new Error(`No game found with lobby code ${lobbyCode}.`);
-
-    //     game.cancelTimer();
-
-    //     this.games.delete(lobbyCode);
-    // }
 
     /**
      * Removes a game from the manager.

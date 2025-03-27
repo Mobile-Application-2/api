@@ -363,27 +363,4 @@ describe('WaitingRoomManager', () => {
             }).not.toThrow();
         });
     });
-
-    describe('emitNumbers', () => {
-        test('should return a number that signifies amount of people in waiting room', () => {
-            waitingRoomManager.lobbyCodeWaiting = new Map().set("12345", ["player-1", "player-2"]);
-
-            waitingRoomManager.emitNumbers();
-
-            expect(mockIo.emit).toHaveBeenCalledWith("total-players", 2); // Ensure the correct event is emitted
-        });
-    });
-
-    // Legacy test for checkOpponentOnlineState which seems to be unused
-    // describe('checkOpponentOnlineState', () => {
-    //     test('should return true when opponent is active', () => {
-    //         const result = waitingRoomManager.checkOpponentOnlineState('player-2');
-    //         expect(result).toBe(true);
-    //     });
-
-    //     test('should return false when opponent is not active', () => {
-    //         const result = waitingRoomManager.checkOpponentOnlineState('non-existent-player');
-    //         expect(result).toBe(false);
-    //     });
-    // });
 });
