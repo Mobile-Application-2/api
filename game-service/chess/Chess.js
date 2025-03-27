@@ -143,6 +143,8 @@ export default class Chess {
                 })
                 logger.info("turn played", { roomID })
                 this.turnPlayed(socket, roomID, indexClicked, newPosition)
+                
+                this.resetTimer(roomID)
             })
 
             socket.on('game_over', async (roomID, player_winner) => {
