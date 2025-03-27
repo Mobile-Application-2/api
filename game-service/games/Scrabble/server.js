@@ -413,6 +413,8 @@ function startGame(gameId) {
             endGame(gameId, 'Time expired');
         }
     }, 1000);
+
+    game.timer.unref();
     
     // Notify players that game started
     wordNamespace.to(gameId).emit('gameStarted', {

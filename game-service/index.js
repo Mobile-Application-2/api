@@ -1243,6 +1243,8 @@ mongoose.connect(URL)
 
     process.on("SIGTERM", async () => {
         try {
+            await io.close();
+            logger.info("socket server closed")
             logger.info("all logs sent on graceful shutdown");
             logger.info("all logs sent on graceful shutdown");
             await logtail.flush();
@@ -1252,8 +1254,6 @@ mongoose.connect(URL)
         }
 
         server.close(async () => {
-            await io.close();
-            logger.info("socket server closed")
 
             logger.info('Express server closed.');
 
@@ -1268,6 +1268,8 @@ mongoose.connect(URL)
 
     process.on("SIGINT", async () => {
         try {
+            await io.close();
+            logger.info("socket server closed")
             logger.info("all logs sent on graceful shutdown");
             logger.info("all logs sent on graceful shutdown");
             await logtail.flush();
@@ -1277,8 +1279,6 @@ mongoose.connect(URL)
         }
 
         server.close(async () => {
-            await io.close();
-            logger.info("socket server closed")
 
             logger.info('Express server closed.');
 

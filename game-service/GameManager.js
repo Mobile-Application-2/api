@@ -1,4 +1,5 @@
 import GameTimer from "./GameTimer.js";
+import { logger } from "./config/winston.config.js";
 
 /**
  * Represents a game instance that manages its own timer.
@@ -18,6 +19,12 @@ export default class GameManager {
      * Starts the game timer.
      */
     startTimer() {
+        if(!this.timer) {
+            logger.warn("no timer created");
+
+            return;
+        }
+
         this.timer.start();
     }
 
@@ -25,14 +32,26 @@ export default class GameManager {
      * Cancels the game timer.
      */
     cancelTimer() {
+        if(!this.timer) {
+            logger.warn("no timer created");
+
+            return;
+        }
+
         this.timer.cancel();
     }
 
     /**
     * Gets the time remaining in seconds.
-    * @returns {number} Remaining time in seconds.
+    * @returns {number | null} Remaining time in seconds.
     */
     getTimeRemaining() {
+        if(!this.timer) {
+            logger.warn("no timer created");
+
+            return null;
+        }
+
         return this.timer.getTimeRemaining();
     }
 }

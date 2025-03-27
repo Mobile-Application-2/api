@@ -1,5 +1,6 @@
 import { logger } from "../config/winston.config.js";
 import { gameSessionManager } from "../GameSessionManager.js";
+import { emitTimeRemaining } from "../gameUtils.js";
 import MainServerLayer from "../MainServerLayer.js";
 import LOBBY from "../models/lobby.model.js";
 import USER from "../models/user.model.js";
@@ -10,6 +11,9 @@ export default class Chess {
     static black = 2;
 
     static winner = "";
+
+    /**@type {Map<string, NodeJS.Timeout>} */
+    static intervals = new Map()
 
     static rooms = [
         {
@@ -46,7 +50,7 @@ export default class Chess {
      * Activates the game logic for handling WebSocket connections.
      * 
      * @param {import("socket.io").Server} io - The main Socket.IO server instance.
-     * @param {import("socket.io").Namespace} whotNamespace - The specific namespace for the Whot game.
+     * @param {import("socket.io").Namespace} chessNameSpace - The specific namespace for the Whot game.
      * @param {Array<GameData>} mainRooms - A map of active game rooms.
      */
     static async activate(io, chessNameSpace, mainRooms) {
@@ -54,27 +58,120 @@ export default class Chess {
             logger.info("user connected to chess server");
             // TODO: reconnect player to game if disconnected and game still on
 
-            socket.once('create_game', (roomID, state) => this.createGame(socket, roomID, state))
+            socket.once('create_game', (roomID, state) => {
+                this.createGame(socket, roomID, state);
 
-            socket.on('join_game', (data, state) => this.joinGame(chessNameSpace, socket, data, state));
+                const game = gameSessionManager.createGame(data.roomID);
+
+                const lobbyCode = data.roomID
+
+                if (!game) {
+                    logger.warn("couldnt create game with game session manager", { lobbyCode });
+
+                    return;
+                }
+
+                game.createTimer(1000 * 5, () => {
+                    this.elapsedTimer(roomID, chessNameSpace)
+                })
+
+                logger.info("created game timer", { lobbyCode })
+            })
+
+            socket.on('join_game', async (data, state) => {
+                await this.joinGame(chessNameSpace, socket, data, state);
+
+                const roomID = data.lobbyCode;
+
+                const lobbyCode = data.lobbyCode;
+
+                const game = gameSessionManager.getGame(roomID);
+
+                if(!game) {
+                    // CREATE
+                    const createdGame = gameSessionManager.createGame(lobbyCode);
+
+                    if (!createdGame) {
+                        logger.warn("couldnt create game with game session manager", { lobbyCode });
+    
+                        return;
+                    }
+    
+                    createdGame.createTimer(1000 * 5, () => {
+                        // console.log(this, roomID)
+                        logger.info("timer details", {roomID})
+                        this.elapsedTimer(roomID, chessNameSpace)
+                    })
+    
+                    logger.info("created game timer", { lobbyCode })
+                    
+                    logger.info("created game for game session", {lobbyCode})
+
+                    return;
+                }
+
+                if (!game.timer) {
+                    logger.warn("no game timer found for room.", { lobbyCode })
+
+                    return;
+                }
+
+                game.startTimer();
+
+                logger.info("started game timer", { lobbyCode })
+
+                const interval = setInterval(() => {
+                    if (!game.timer) {
+                        logger.warn("no game timer found for interval.")
+
+                        return
+                    };
+
+                    // logger.info("emitting time remaining");
+
+                    emitTimeRemaining(chessNameSpace, roomID, game);
+                }, 1000)
+
+                interval.unref();
+
+                this.intervals.set(roomID, interval);
+            });
 
             socket.on('turn_played', (roomID, indexClicked, newPosition, callback) => {
                 callback({
                     status: "ok"
                 })
-                logger.info("turn played", {roomID})
+                logger.info("turn played", { roomID })
                 this.turnPlayed(socket, roomID, indexClicked, newPosition)
             })
 
             socket.on('game_over', async (roomID, player_winner) => {
-                await GameModel.updateOne({ roomID: roomID, 'players.socketID': socket.id }, {
-                    $set: { 'players.$.winner': true }
-                })
+                // const gameModel = new GameModel({
+                //     game_name: "chess",
+                //     players: [
+                //         {
+                //             username: "any",
+                //             socketID: socket.id,
+                //             userId: data.playerId
+                //         }
+                //     ],
+                //     roomID: roomID
+                // })
+                // await GameModel.updateOne({ roomID: roomID, 'players.socketID': socket.id }, {
+                //     $set: { 'players.$.winner': true }
+                // })
 
                 const mainWinner = this.rooms.players.find(player => player.socketID == socket.id);
                 const loser = this.rooms.players.find(player => player.socketID != socket.id);
 
                 io.to(loser.socketID).emit("lost")
+
+                const interval = this.intervals.get(roomID);
+
+                if (interval) {
+                    clearInterval(interval);
+                    this.intervals.delete(roomID);
+                }
 
                 const mainWinnerId = mainWinner.userId;
                 const loserId = loser.userId;
@@ -104,7 +201,7 @@ export default class Chess {
 
                 const winnerId = winnerData.toObject()._id
 
-                if(currentRoom.tournamentId) {
+                if (currentRoom.tournamentId) {
                     await MainServerLayer.wonTournamentGame(currentRoom.tournamentId, winnerId)
                 }
 
@@ -154,6 +251,59 @@ export default class Chess {
         })
     }
 
+    static resetTimer(roomID) {
+        const game = gameSessionManager.getGame(roomID);
+
+        if (!game) {
+            logger.warn("no game found to reset timer", { roomID });
+
+            return;
+        }
+
+        game.cancelTimer();
+
+        game.startTimer();
+    }
+
+    static elapsedTimer(roomID, namespace) {
+        logger.info("timer has elapsed", {roomID})
+        // SWITCH TURN
+        const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
+
+        logger.info("current room for turn played", currentRoom);
+
+        if (!currentRoom) {
+            logger.warn("no current room on elapsed timer")
+
+            const interval = this.intervals.get(roomID);
+
+            clearInterval(interval);
+
+            return;
+        }
+
+        namespace.to(roomID).emit("timer-elapsed");
+
+        logger.info("emitted timer elapsed")
+
+        // CREATE NEW TIMER
+        const game = gameSessionManager.getGame(roomID);
+
+        if (!game) {
+            logger.warn("no game found", { roomID });
+
+            return;
+        }
+
+        game.cancelTimer();
+
+        game.createTimer(1000 * 5, () => this.elapsedTimer(roomID, namespace));
+
+        logger.info("new timer created")
+
+        game.startTimer();
+    }
+
     static async turnPlayed(socket, roomID, indexClicked, newPosition) {
         // logger.info(newState, this.rooms[0].state);
         // logger.info(newState);
@@ -167,7 +317,7 @@ export default class Chess {
             logger.info("sending turn played to opponent");
 
             socket.broadcast.emit('turn_played', indexClicked, newPosition, (err, response) => {
-                if(err) {
+                if (err) {
                     logger.info("no response from client");
                     logger.info(err);
                 }
@@ -180,35 +330,33 @@ export default class Chess {
     }
 
     static async createGame(socket, data, state) {
-        gameSessionManager.createGame(roomID);
-        
         const roomID = data.lobbyCode;
 
         socket.join(roomID);
 
-        logger.info("state on room create", state);
+        // logger.info("state on room create", state);
 
-        const game = await GameModel.findOne({ roomID: roomID })
+        // const game = await GameModel.findOne({ roomID: roomID })
 
-        if (game != null) {
-            logger.info('room id exist');
+        // if (game != null) {
+        //     logger.info('room id exist');
 
-            return
-        }
+        //     return
+        // }
 
-        const gameModel = new GameModel({
-            game_name: "chess",
-            players: [
-                {
-                    username: state.username,
-                    socketID: socket.id,
-                    userId: data.playerId
-                }
-            ],
-            roomID: roomID
-        });
+        // const gameModel = new GameModel({
+        //     game_name: "chess",
+        //     players: [
+        //         {
+        //             username: state.username,
+        //             socketID: socket.id,
+        //             userId: data.playerId
+        //         }
+        //     ],
+        //     roomID: roomID
+        // });
 
-        await gameModel.save();
+        // await gameModel.save();
 
         this.rooms.push({
             roomID: roomID,
@@ -228,17 +376,17 @@ export default class Chess {
     }
 
 
-   /**
-    * @typedef {Object} GameData
-    * @property {string} gameId - The unique identifier for the game.
-    * @property {string} playerId - The unique identifier for the player.
-    * @property {string} opponentId - The unique identifier for the opponent.
-    * @property {string} stakeAmount - The amount staked in the game.
-    * @property {string} tournamentId - The unique identifier for tournaments.
-    * @property {string} lobbyCode - The unique lobby code for the game.
-    * @property {string} gameName - The name of the game.
-    * 
-    */
+    /**
+     * @typedef {Object} GameData
+     * @property {string} gameId - The unique identifier for the game.
+     * @property {string} playerId - The unique identifier for the player.
+     * @property {string} opponentId - The unique identifier for the opponent.
+     * @property {string} stakeAmount - The amount staked in the game.
+     * @property {string} tournamentId - The unique identifier for tournaments.
+     * @property {string} lobbyCode - The unique lobby code for the game.
+     * @property {string} gameName - The name of the game.
+     * 
+     */
 
     // http://localhost:5173/game/my-Chess?lobbyCode=123456&playerId=2178bhjsbdhus
     // http://localhost:5657/game?gameName=my-Chess&lobbyCode=123456&playerId=2178bhjsbdhus
@@ -251,7 +399,9 @@ export default class Chess {
      * @param {Array<GameData>} mainRooms - A map of active game rooms.
      */
     static async joinGame(chessNameSpace, socket, data, state) {
-        const { gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId } = data
+        const { gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId } = data;
+
+        logger.info("user want to join or create a game, params: ", {data})
 
         const roomID = lobbyCode
 
@@ -260,6 +410,8 @@ export default class Chess {
         // logger.info(gameRoom);
 
         if (gameRoom != undefined) {
+            logger.info("game room exists, trying to join");
+
             if (gameRoom.players.length > 1) {
                 logger.info("room full");
                 socket.emit(
@@ -270,17 +422,17 @@ export default class Chess {
             else {
                 socket.join(roomID);
 
-                logger.info("state on room join", state);
+                // logger.info("state on room join", state);
 
-                await GameModel.updateOne({ roomID: roomID }, {
-                    $push: {
-                        players: {
-                            username: state.username,
-                            socketID: socket.id,
-                            userId: playerId
-                        }
-                    }
-                })
+                // await GameModel.updateOne({ roomID: roomID }, {
+                //     $push: {
+                //         players: {
+                //             username: state.username,
+                //             socketID: socket.id,
+                //             userId: playerId
+                //         }
+                //     }
+                // })
 
                 this.rooms.filter(room => room.roomID == roomID)[0].players.push({
                     username: state.username,
@@ -291,7 +443,7 @@ export default class Chess {
 
                 const currentGameState = this.rooms.filter(room => room.roomID == roomID)[0].state;
 
-                logger.info("user joined game, current state:", currentGameState);
+                // logger.info("user joined game, current state:", currentGameState);
 
                 socket.emit('joined_game', currentGameState);
 
@@ -304,16 +456,16 @@ export default class Chess {
                     return
                 }
 
-                logger.info("players: ", playerOneInfo, playerTwoInfo)
+                // logger.info("players: ", playerOneInfo, playerTwoInfo)
 
                 // playerOneInfo = playerOneInfo.map(info => {return {username: info.username, avatar: info.avatar}})
                 // playerTwoInfo = playerTwoInfo.map(info => {return {username: info.username, avatar: info.avatar}})
                 // playerOneInfo.socketID = undefined;
                 // playerTwoInfo.socketID = undefined;
 
-                chessNameSpace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo);
+                logger.info("joined game room, starting game...");
 
-                gameSessionManager.getGame(roomID).createTimer(1000 * 60, () => {console.log("timer stop")})
+                chessNameSpace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo);
 
                 logger.info("sending info to main server");
 
@@ -325,8 +477,9 @@ export default class Chess {
             }
         }
         else {
+            logger.info("game room does not exist, creating...");
+
             this.createGame(socket, data, state);
         }
-
     }
 }
