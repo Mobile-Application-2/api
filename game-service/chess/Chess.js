@@ -15,6 +15,8 @@ export default class Chess {
     /**@type {Map<string, NodeJS.Timeout>} */
     static intervals = new Map()
 
+    static timePerPlayer = process.env.NODE_ENV == "production" ? 1000 * 30 : 1000 * 10;
+
     static rooms = [
         {
             roomID: '',
@@ -58,26 +60,6 @@ export default class Chess {
             logger.info("user connected to chess server");
             // TODO: reconnect player to game if disconnected and game still on
 
-            socket.once('create_game', (roomID, state) => {
-                this.createGame(socket, roomID, state);
-
-                const game = gameSessionManager.createGame(data.roomID);
-
-                const lobbyCode = data.roomID
-
-                if (!game) {
-                    logger.warn("couldnt create game with game session manager", { lobbyCode });
-
-                    return;
-                }
-
-                game.createTimer(1000 * 5, () => {
-                    this.elapsedTimer(roomID, chessNameSpace)
-                })
-
-                logger.info("created game timer", { lobbyCode })
-            })
-
             socket.on('join_game', async (data, state) => {
                 await this.joinGame(chessNameSpace, socket, data, state);
 
@@ -97,7 +79,7 @@ export default class Chess {
                         return;
                     }
     
-                    createdGame.createTimer(1000 * 5, () => {
+                    createdGame.createTimer(this.timePerPlayer, () => {
                         // console.log(this, roomID)
                         logger.info("timer details", {roomID})
                         this.elapsedTimer(roomID, chessNameSpace)
@@ -135,6 +117,14 @@ export default class Chess {
                 interval.unref();
 
                 this.intervals.set(roomID, interval);
+
+                logger.info("sending info to main server");
+
+                const lobbyID = await MainServerLayer.getLobbyID(roomID);
+
+                await MainServerLayer.startGame(lobbyID);
+
+                logger.info("done sending info to main server");
             });
 
             socket.on('turn_played', (roomID, indexClicked, newPosition, callback) => {
@@ -173,6 +163,13 @@ export default class Chess {
                 if (interval) {
                     clearInterval(interval);
                     this.intervals.delete(roomID);
+                }
+
+                const g = gameSessionManager.getGame(roomID);
+
+                if(g) {
+                    g.cancelTimer();
+                    logger.info("cancelled game timer", {roomID})
                 }
 
                 const mainWinnerId = mainWinner.userId;
@@ -272,7 +269,7 @@ export default class Chess {
         // SWITCH TURN
         const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
-        logger.info("current room for turn played", currentRoom);
+        logger.info("current room for turn played", {roomID});
 
         if (!currentRoom) {
             logger.warn("no current room on elapsed timer")
@@ -299,7 +296,7 @@ export default class Chess {
 
         game.cancelTimer();
 
-        game.createTimer(1000 * 5, () => this.elapsedTimer(roomID, namespace));
+        game.createTimer(this.timePerPlayer, () => this.elapsedTimer(roomID, namespace));
 
         logger.info("new timer created")
 
@@ -311,23 +308,14 @@ export default class Chess {
         // logger.info(newState);
         const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
-        logger.info("current room for turn played", currentRoom);
+        logger.info("current room for turn played", {roomID});
 
         if (currentRoom) {
             // currentRoom.state = newState;
 
             logger.info("sending turn played to opponent");
 
-            socket.broadcast.emit('turn_played', indexClicked, newPosition, (err, response) => {
-                if (err) {
-                    logger.info("no response from client");
-                    logger.info(err);
-                }
-                else {
-                    logger.info("client responded");
-                    logger.info(response);
-                }
-            });
+            socket.broadcast.emit('turn_played', indexClicked, newPosition);
         }
     }
 
@@ -469,13 +457,13 @@ export default class Chess {
 
                 chessNameSpace.to(roomID).emit('start_game', playerOneInfo, playerTwoInfo);
 
-                logger.info("sending info to main server");
+                // logger.info("sending info to main server");
 
-                const lobbyID = await MainServerLayer.getLobbyID(roomID);
+                // const lobbyID = await MainServerLayer.getLobbyID(roomID);
 
-                await MainServerLayer.startGame(lobbyID);
+                // await MainServerLayer.startGame(lobbyID);
 
-                logger.info("done sending info to main server");
+                // logger.info("done sending info to main server");
             }
         }
         else {
