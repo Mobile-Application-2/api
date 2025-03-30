@@ -6,7 +6,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from "dotenv";
-import mongoose from 'mongoose';
+import mongoose, { isObjectIdOrHexString } from 'mongoose';
 dotenv.config();
 
 import cors from "cors";
@@ -1020,7 +1020,7 @@ async function endGame(gameId, reason) {
                 highestScore = player.score;
                 winner = player;
             } else if (player.score === highestScore) {
-                winner = null; // Tie
+                winner = game.players[Math.floor(Math.random() * 2)]; // Tie
             }
         });
     
@@ -1054,18 +1054,18 @@ async function endGame(gameId, reason) {
             }
         })
     
+        delete games[gameId];
+
         logger.info("loser", {loser});
     
         const winnerId = winner.userId;
         const loserId = loser.userId;
     
         MobileLayer.sendGameWon(io, newRooms, winnerId, loserId, gameId);
-    
+
         const lobbyId = await MainServerLayer.getLobbyID(gameId);
     
         await MainServerLayer.wonGame(lobbyId, winnerId);
-    
-        delete games[gameId];
     }
     catch(error) {
         logger.warn(`error occured while ending scrabble game, gameId: ${gameId}`);

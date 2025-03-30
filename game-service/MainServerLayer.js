@@ -109,7 +109,7 @@ export default class MainServerLayer {
                 lobbyId: lobbyId
             }
 
-            logger.info("sending start game to main server, data: ", JSON.stringify(data));
+            logger.info("sending start game to main server, data: ", {data});
 
             const response = await postData(url + "/game/start", "PATCH", data)
 
@@ -139,7 +139,7 @@ export default class MainServerLayer {
                 fixtureId: fixtureId
             }
 
-            logger.info("sending start game to main server, data: ", JSON.stringify(data));
+            logger.info("sending start game to main server, data: ", {data});
 
             const response = await postData(url + "/tournament/start-fixture-game", "PATCH", data)
 

@@ -179,6 +179,10 @@ async function joinGame(data) {
 
             const playerName = "player-" + data.playerId;
 
+            GlobalData.avatar = "https://game-service-uny2.onrender.com/game/Scrabble/a1.png";
+
+            playerImage.src = GlobalData.avatar;
+
             emitMessage('joinGame', {
                 ...data,
                 gameId: data.lobbyCode,
@@ -213,6 +217,10 @@ async function joinGame(data) {
         console.log(error);
 
         const playerName = "player-" + data.playerId;
+
+        GlobalData.avatar = "https://game-service-uny2.onrender.com/game/Scrabble/a1.png";
+
+        playerImage.src = GlobalData.avatar;
 
         emitMessage('joinGame', {
             ...data,
