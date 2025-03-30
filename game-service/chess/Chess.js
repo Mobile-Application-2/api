@@ -219,6 +219,20 @@ export default class Chess {
                 // logger.info(room);
 
                 if (!room) return;
+                
+                const interval = this.intervals.get(room.roomID);
+
+                if (interval) {
+                    clearInterval(interval);
+                    this.intervals.delete(room.roomID);
+                }
+
+                const g = gameSessionManager.getGame(room.roomID);
+
+                if(g) {
+                    g.cancelTimer();
+                    logger.info("cancelled game timer", {roomID: room.roomID})
+                }
 
                 // TODO: remove player from game lobby not whole lobby
 
