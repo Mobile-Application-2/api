@@ -1,6 +1,7 @@
 import pinoHttp from "pino-http";
 
 const pinoLogger = pinoHttp({
+    timestamp: () => `,"time":"${new Date().toISOString()}"`,
     serializers: {
         req(req) {
             return { method: req.method, url: req.url };

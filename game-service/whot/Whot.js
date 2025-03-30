@@ -46,11 +46,14 @@ export default class Whot {
   static activate(io, whotNamespace, mainRooms) {
     let rooms = [];
 
+    let intervals = new Map()
+
     // http://localhost:5657/game?gameName=my-Whot&lobbyCode=123456&playerId=21hjshdsj
     // http://localhost:5173/game?gameName=my-Whot&lobbyCode=123456&playerId=21hjshdsj
 
     whotNamespace.on("connection", (socket) => {
       logger.info("a user connected to whot server");
+
       socket.on('disconnect', () => {
         logger.info("user disconnected from whot", socket.id);
 
@@ -63,6 +66,7 @@ export default class Whot {
         const room = rooms.find(room => room.players.includes(room.players.find(player => player.socketId == socket.id)));
 
         logger.info(room);
+
         if (!room) return;
 
         io.emit('remove', 'whot', room.room_id);
@@ -163,11 +167,13 @@ export default class Whot {
               return room;
             });
 
+            socket.broadcast.emit("joined-room");
+
             currentRoom = rooms.find((room) => room.room_id == room_id);
             currentPlayers = currentRoom.players;
 
-            logger.info("room after adding new player", currentRoom);
-            logger.info("current players", currentPlayers);
+            logger.info("room after adding new player", {currentRoom});
+            logger.info("current players", {currentPlayers});
 
             whotNamespace.to(socket.id).emit("dispatch", {
               type: "INITIALIZE_DECK",
