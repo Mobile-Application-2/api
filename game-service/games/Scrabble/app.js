@@ -15,6 +15,11 @@ const playersList = document.getElementById('players-list');
 const wordHistory = document.getElementById('word-history');
 const gameStatus = document.getElementById('game-status');
 
+const playerImage = document.getElementById("player-avatar");
+
+const playerWinnerImage = document.getElementById("player-winner-avatar");
+const playerLoserImage = document.getElementById("player-loser-avatar");
+
 const playerScore = document.querySelector('.player-score');
 
 const myGameResult = document.querySelector(".my-game-result");
@@ -54,7 +59,8 @@ const GlobalData = {
     playerId: "",
     playerName: '',
     currentRack: [],
-    currentWord: []
+    currentWord: [],
+    avatar: null
 }
 
 // Connect to Socket.io server
@@ -164,22 +170,76 @@ function handleReconnected(data) {
 }
 
 // Join or create a game
-function joinGame(data) {
-    const playerName = "player-" + data.playerId;
+async function joinGame(data) {
+    try {
+        const response = await fetch(`https://game-service-uny2.onrender.com/user-details/${data.playerId}`)
+
+        if(!response.ok) {
+            alert("error fetching avatar and username, default data used")
+
+            const playerName = "player-" + data.playerId;
+
+            emitMessage('joinGame', {
+                ...data,
+                gameId: data.lobbyCode,
+                playerName,
+                avatar: "https://game-service-uny2.onrender.com/game/Scrabble/a1.png"
+            });
+
+            console.log("emitting join game");
+
+            return;
+        }
+
+        const json = await response.json();
+
+        GlobalData.playerName = json.username;
+        GlobalData.avatar = json.avatar;
+
+        playerImage.src = GlobalData.avatar;
     
-    // socket.emit('joinGame', {
+        emitMessage('joinGame', {
+            ...data,
+            gameId: data.lobbyCode,
+            playerName: GlobalData.playerName,
+            avatar: GlobalData.avatar
+        });
+
+        console.log("emitting join game");
+    }
+    catch(error) {
+        alert("error fetching avatar and username, default data used")
+
+        console.log(error);
+
+        const playerName = "player-" + data.playerId;
+
+        emitMessage('joinGame', {
+            ...data,
+            gameId: data.lobbyCode,
+            playerName,
+            avatar: "https://game-service-uny2.onrender.com/game/Scrabble/a1.png"
+        });
+
+        console.log("emitting join game");
+    }
+    
+    // const playerName = "player-" + data.playerId;
+    
+    // // socket.emit('joinGame', {
+    // //     ...data,
+    // //     gameId: data.lobbyCode,
+    // //     playerName
+    // // });
+
+    // emitMessage('joinGame', {
     //     ...data,
     //     gameId: data.lobbyCode,
     //     playerName
     // });
 
-    emitMessage('joinGame', {
-        ...data,
-        gameId: data.lobbyCode,
-        playerName
-    });
+    // console.log("emitting join game");
 
-    console.log("emitting join game");
 }
 
 // Handle successful game join
@@ -260,6 +320,9 @@ function handleGameEnded(data) {
     addWinnerInfo(playerWinner.name, playerWinner.words)
     addLoserInfo(playerLoser.name, playerLoser.words)
 
+    playerWinnerImage.src = playerWinner.avatar;
+    playerLoserImage.src = playerLoser.avatar;
+
     gameContainer.style.display = "none"
     // gameStatus.textContent = 'Game Over';
     submitBtn.disabled = true;
@@ -339,26 +402,72 @@ function createLetterTile(letter, value, index) {
     tile.dataset.letter = letter;
     tile.dataset.value = value;
     tile.dataset.index = index;
+    tile.dataset.inRack = true;
     tile.draggable = true;
     
     // Add drag events
-    tile.addEventListener('dragstart', handleDragStart);
-    tile.addEventListener('dragend', handleDragEnd);
+    // tile.addEventListener('dragstart', handleDragStart);
+    // tile.addEventListener('dragend', handleDragEnd);
+    tile.addEventListener('click', handleDragStart);
+    // tile.addEventListener('touch', handleDragEnd);
     
     return tile;
 }
 
 // Handle drag start
 function handleDragStart(e) {
-    e.dataTransfer.setData('text/plain', JSON.stringify({
-        letter: e.target.dataset.letter,
-        value: e.target.dataset.value,
-        index: e.target.dataset.index
-    }));
+    console.log(e);
+
+    if(e.target.dataset.inRack == true || e.target.dataset.inRack == "true") {
+        const data = e.target.dataset;
+        data.inRack = false;
+
+        // Find the tile in the rack
+        const rackIndex = currentRack.findIndex((_, i) => i.toString() === data.index);
+        if (rackIndex !== -1) {
+            const letterObj = currentRack[rackIndex];
     
-    setTimeout(() => {
-        e.target.style.opacity = '0.4';
-    }, 0);
+            // console.log(letterObj);
+            
+            // Create a new tile in the word area
+            const tile = createLetterTile(letterObj.letter, letterObj.value, 'word-' + currentWord.length);
+            wordArea.appendChild(tile);
+            
+            // Add to current word
+            currentWord.push(letterObj);
+            GlobalData.currentWord.push(letterObj);
+            
+            // Remove from rack
+            currentRack.splice(rackIndex, 1);
+            GlobalData.currentRack.splice(rackIndex, 1);
+            renderRack();
+        }
+    }
+    else {
+        const data = e.target.dataset;
+        data.inRack = true;
+
+        // Check if it's from the word area
+        if (data.index.toString().startsWith('word-')) {
+            const wordIndex = parseInt(data.index.split('-')[1]);
+            
+            if (wordIndex >= 0 && wordIndex < currentWord.length) {
+                const letterObj = currentWord[wordIndex];
+                
+                // Add back to rack
+                currentRack.push(letterObj);
+                GlobalData.currentRack.push(letterObj);
+                
+                // Remove from current word
+                currentWord.splice(wordIndex, 1);
+                GlobalData.currentWord.splice(wordIndex, 1);
+                
+                // Rerender
+                renderRack();
+                renderWord();
+            }
+        }
+    }
 }
 
 // Handle drag end

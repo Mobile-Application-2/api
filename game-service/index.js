@@ -34,6 +34,7 @@ import MobileLayer from './MobileLayer.js';
 
 import { URL as fileURL } from 'url';
 import Tournament from './Tournament.js';
+import { pinoLogger } from './config/pino.config.js';
 
 const scrabbleDict = JSON.parse(readFileSync(new fileURL("./games/Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
 
@@ -41,6 +42,8 @@ const app = express();
 
 // Enable CORS
 app.use(cors());
+
+app.use(pinoLogger);
 
 const server = createServer(app);
 
@@ -610,6 +613,7 @@ function createGame(gameId) {
  * @property {number} score - The player's total score.
  * @property {Array<WordScore>} words - The words the player has played and their scores.
  * @property {boolean} disconnected - Whether the player is disconnected.
+ * @property {boolean} avatar
  */
 
 /**
@@ -700,11 +704,14 @@ function generateWordsForLetters(letters, dictionary, limit = 20) {
 
 // http://localhost:5657/game?gameName=my-Word&lobbyCode=123456&playerId=21hjshdsj
 
+// http://localhost:5657/game?gameName=Scrabble&lobbyCode=123456&playerId=39288h29x3n89exn23e2en
+// http://localhost:5657/game?gameName=Scrabble&lobbyCode=123456&playerId=dsjknsdjskbd7s87ds87ds
+
 wordNamespace.on("connection", (socket) => {
     logger.info('New client connected to scrabble:', {socketId: socket.id});
     
     // Create or join a game
-    socket.on('joinGame', async ({ gameId, playerName, playerId: playerID, opponentId, stakeAmount, tournamentId, lobbyCode, gameName }) => {
+    socket.on('joinGame', async ({ gameId, playerName, playerId: playerID, opponentId, stakeAmount, tournamentId, lobbyCode, gameName, avatar }) => {
         logger.info("client emitted joinGame", {gameId, id: socket.id, playerName});
 
         let game = games[gameId];
@@ -780,6 +787,7 @@ wordNamespace.on("connection", (socket) => {
             id: playerId,
             userId: playerID,
             name: playerName,
+            avatar: avatar,
             rack: [],
             score: 0,
             words: [],
@@ -917,7 +925,7 @@ wordNamespace.on("connection", (socket) => {
         // Find game with this player
         Object.keys(games).forEach(gameId => {
             const game = games[gameId];
-            if (game.players[socket.id]) {
+            if (game.players[socket.id] && game.active) {
                 // Remove player
                 // delete game.players[socket.id];
                 game.players[socket.id].disconnected = true;
@@ -971,81 +979,90 @@ function startGame(gameId) {
 
 // End a game
 async function endGame(gameId, reason) {
-    const game = games[gameId];
-    if (!game) return;
-
-    Object.values(game.players).forEach(player => {
-        const playerUserId = player.userId;
-
-        delete persistStore[playerUserId];
-    })
-
-    console.log("deleted players from persist store after game end");
+    try {
+        const game = games[gameId];
+        if (!game) return;
     
-    // Stop timer
-    if (game.timer) {
-        clearInterval(game.timer);
-        game.timer = null;
+        Object.values(game.players).forEach(player => {
+            const playerUserId = player.userId;
+    
+            delete persistStore[playerUserId];
+        })
+    
+        console.log("deleted players from persist store after game end");
+    
+        // Stop timer
+        if (game.timer) {
+            clearInterval(game.timer);
+            game.timer = null;
+        }
+    
+        logger.info("game ended");
+        
+        game.active = false;
+        
+        // Determine winner
+        let winner = null;
+        let loser = null;
+        let highestScore = -1;
+        
+        Object.values(game.players).forEach(player => {
+            if (player.score > highestScore) {
+                highestScore = player.score;
+                winner = player;
+            } else if (player.score === highestScore) {
+                winner = null; // Tie
+            }
+        });
+    
+        logger.info("winner", {winner});
+        
+        // Notify players of game end
+        wordNamespace.to(gameId).emit('gameEnded', {
+            reason,
+            winner: winner ? {
+                id: winner.id,
+                name: winner.name,
+                score: winner.score,
+                avatar: winner.avatar
+            } : null,
+            isTie: winner === null && highestScore > -1,
+            players: Object.values(game.players).map(p => ({
+                id: p.id,
+                name: p.name,
+                score: p.score,
+                words: p.words,
+                avatar: p.avatar
+            }))
+        });
+    
+        wordNamespace.to(winner.id).emit('you-won')
+    
+        Object.values(game.players).forEach(player => {
+            if(player.id != winner.id) {
+                wordNamespace.to(player.id).emit("you-lost")
+                loser = player;
+            }
+        })
+    
+        logger.info("loser", {loser});
+    
+        const winnerId = winner.userId;
+        const loserId = loser.userId;
+    
+        MobileLayer.sendGameWon(io, newRooms, winnerId, loserId, gameId);
+    
+        const lobbyId = await MainServerLayer.getLobbyID(gameId);
+    
+        await MainServerLayer.wonGame(lobbyId, winnerId);
+    
+        delete games[gameId];
     }
+    catch(error) {
+        logger.warn(`error occured while ending scrabble game, gameId: ${gameId}`);
 
-    logger.info("game ended");
-    
-    game.active = false;
-    
-    // Determine winner
-    let winner = null;
-    let loser = null;
-    let highestScore = -1;
-    
-    Object.values(game.players).forEach(player => {
-        if (player.score > highestScore) {
-            highestScore = player.score;
-            winner = player;
-        } else if (player.score === highestScore) {
-            winner = null; // Tie
-        }
-    });
-
-    logger.info("winner", {winner});
-    
-    // Notify players of game end
-    wordNamespace.to(gameId).emit('gameEnded', {
-        reason,
-        winner: winner ? {
-            id: winner.id,
-            name: winner.name,
-            score: winner.score
-        } : null,
-        isTie: winner === null && highestScore > -1,
-        players: Object.values(game.players).map(p => ({
-            id: p.id,
-            name: p.name,
-            score: p.score,
-            words: p.words
-        }))
-    });
-
-    wordNamespace.to(winner.id).emit('you-won')
-
-    Object.values(game.players).forEach(player => {
-        if(player.id != winner.id) {
-            wordNamespace.to(player.id).emit("you-lost")
-            loser = player;
-        }
-    })
-
-    logger.info("loser", {loser});
-
-    const winnerId = winner.userId;
-    const loserId = loser.userId;
-
-    MobileLayer.sendGameWon(io, newRooms, winnerId, loserId, gameId);
-
-    const lobbyId = await MainServerLayer.getLobbyID(gameId);
-
-    await MainServerLayer.wonGame(lobbyId, winnerId);
-
-    delete games[gameId];
+        logger.error(error);
+    }
 }
 
 const whotNamespace = io.of("/whot");
