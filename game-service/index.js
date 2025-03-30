@@ -701,7 +701,7 @@ function generateWordsForLetters(letters, dictionary, limit = 20) {
 // http://localhost:5657/game?gameName=my-Word&lobbyCode=123456&playerId=21hjshdsj
 
 wordNamespace.on("connection", (socket) => {
-    console.log('New client connected:', socket.id);
+    logger.info('New client connected to scrabble:', {socketId: socket.id});
     
     // Create or join a game
     socket.on('joinGame', async ({ gameId, playerName, playerId: playerID, opponentId, stakeAmount, tournamentId, lobbyCode, gameName }) => {
@@ -973,6 +973,14 @@ function startGame(gameId) {
 async function endGame(gameId, reason) {
     const game = games[gameId];
     if (!game) return;
+
+    Object.values(game.players).forEach(player => {
+        const playerUserId = player.userId;
+
+        delete persistStore[playerUserId];
+    })
+
+    console.log("deleted players from persist store after game end");
     
     // Stop timer
     if (game.timer) {
