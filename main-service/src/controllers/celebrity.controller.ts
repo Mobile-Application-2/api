@@ -229,6 +229,10 @@ export async function create_tournament(req: Request, res: Response) {
       allowedFields.push("gateFee");
     }
 
+    if (!Object.prototype.hasOwnProperty.call(tournamentInfo, 'noOfGamesToPlay')) {
+      tournamentInfo.noOfGamesToPlay = 100;
+    }
+
     const fields = Object.keys(tournamentInfo);
 
     console.log(fields);
