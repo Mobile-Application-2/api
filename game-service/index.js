@@ -402,6 +402,20 @@ ludoNamespace.on('connection', socket => {
         
         logger.info(`player won ludo: ${winner.userId}`);
 
+        const interval = intervals.get(roomID);
+
+        if (interval) {
+            clearInterval(interval);
+            intervals.delete(roomID);
+        }
+
+        const g = gameSessionManager.getGame(roomID);
+
+        if(g) {
+            g.cancelTimer();
+            logger.info("cancelled game timer", {roomID})
+        }
+
         const winnerId = winner.userId;
         const loserId = loser.userId;
 
