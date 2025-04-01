@@ -225,9 +225,6 @@ export async function create_tournament(req: Request, res: Response) {
     if (!Object.prototype.hasOwnProperty.call(tournamentInfo, 'hasGateFee')) {
       tournamentInfo.hasGateFee = false;
     }
-    else {
-      allowedFields.push("gateFee");
-    }
 
     if (!Object.prototype.hasOwnProperty.call(tournamentInfo, 'noOfGamesToPlay')) {
       tournamentInfo.noOfGamesToPlay = 100;
