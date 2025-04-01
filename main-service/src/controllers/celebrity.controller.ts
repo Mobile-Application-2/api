@@ -216,7 +216,7 @@ export async function create_tournament(req: Request, res: Response) {
       'gameId',
       'registrationDeadline',
       'endDate',
-      'noOfGamesToPlay',
+    //   'noOfGamesToPlay',
       'noOfWinners',
       'hasGateFee',
       'startDate'
@@ -230,6 +230,8 @@ export async function create_tournament(req: Request, res: Response) {
     }
 
     const fields = Object.keys(tournamentInfo);
+
+    console.log(fields);
 
     const hasValidFields = fields.every(field => allowedFields.includes(field));
     const hasAllRequiredFields = allowedFields.every(field =>
