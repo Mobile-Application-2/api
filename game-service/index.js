@@ -35,6 +35,7 @@ import MobileLayer from './MobileLayer.js';
 import { URL as fileURL } from 'url';
 import Tournament from './Tournament.js';
 import { pinoLogger } from './config/pino.config.js';
+import { gameSessionManager } from './GameSessionManager.js';
 
 const scrabbleDict = JSON.parse(readFileSync(new fileURL("./games/Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
 
@@ -328,8 +329,14 @@ const ludoRooms = [
     }
 ];
 
+/**@type {Map<string, NodeJS.Timeout>} */
+const intervals = new Map()
+
+const timePerPlayer = process.env.NODE_ENV == "production" ? 1000 * 30 : 1000 * 10;
+
 ludoNamespace.on('connection', socket => {
     logger.info('a user connected to ludo server');
+
 
     socket.on('disconnect', () => {
         logger.info("user disconnected from ludo", socket.id);
@@ -338,6 +345,20 @@ ludoNamespace.on('connection', socket => {
 
         logger.info(room);
         if(!room) return;
+
+        const interval = intervals.get(room.roomID);
+
+        if (interval) {
+            clearInterval(interval);
+            intervals.delete(room.roomID);
+        }
+
+        const g = gameSessionManager.getGame(room.roomID);
+
+        if(g) {
+            g.cancelTimer();
+            logger.info("cancelled game timer", {roomID: room.roomID})
+        }
 
         io.emit('remove', 'ludo', room.roomID);
     })
