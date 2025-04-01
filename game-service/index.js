@@ -371,6 +371,8 @@ ludoNamespace.on('connection', socket => {
             logger.info("dice rolled", num, isLocked, lastRolledBy);
     
             socket.broadcast.to(roomID).emit("dice_roll", {num, isLocked, lastRolledBy})
+
+            resetTimer(roomID);
         }
         else {
             logger.info("no room found", roomID, ludoRooms)
@@ -384,11 +386,27 @@ ludoNamespace.on('connection', socket => {
             logger.info("coin played");
 
             socket.broadcast.to(roomID).emit("coin_played", index);
+
+            resetTimer(roomID);
         }
         else {
             logger.info("no room found", roomID, ludoRooms)
         }
     })
+
+    function resetTimer(roomID) {
+        const game = gameSessionManager.getGame(roomID);
+
+        if (!game) {
+            logger.warn("no game found to reset timer", { roomID });
+
+            return;
+        }
+
+        game.cancelTimer();
+
+        game.startTimer();
+    }
 
     socket.on("player_won", async (roomID) => {
         Ludo.declareWinner(roomID, socket.id);
@@ -454,12 +472,17 @@ ludoNamespace.on('connection', socket => {
    * @param {Array<GameData>} mainRooms - A map of active game rooms.
    */
 
-    socket.on("create_room", async (_roomID, setup, username, avatar, data) => {
+    socket.on("create_room", async (_not_roomID, setup, username, avatar, data) => {
         logger.info("user wanting to enter ludo", data);
 
         const {gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId} = data
 
         const roomID = lobbyCode;
+
+        logger.info("roomID: ", roomID);
+
+        logger.info("data: ", {...data})
+
 
         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
             logger.info("room found");
@@ -528,7 +551,9 @@ ludoNamespace.on('connection', socket => {
             logger.info("done sending info to main server");
         }
         else {
-            logger.info("creating room");
+            // let roomID = lobbyCode;
+
+            logger.info("creating room", {roomID});
 
             socket.join(roomID);
     
@@ -541,10 +566,6 @@ ludoNamespace.on('connection', socket => {
             socket.emit('created_room');
 
             logger.info("room created");
-
-            const roomID = lobbyCode;
-
-            const lobbyCode = lobbyCode;
 
             const createdGame = gameSessionManager.createGame(lobbyCode);
 
