@@ -6,7 +6,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from "dotenv";
-import mongoose, { isObjectIdOrHexString } from 'mongoose';
+import mongoose from 'mongoose';
 dotenv.config();
 
 import cors from "cors";
@@ -36,6 +36,7 @@ import { URL as fileURL } from 'url';
 import Tournament from './Tournament.js';
 import { pinoLogger } from './config/pino.config.js';
 import { gameSessionManager } from './GameSessionManager.js';
+import { emitTimeRemaining } from './gameUtils.js';
 
 const scrabbleDict = JSON.parse(readFileSync(new fileURL("./games/Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
 
@@ -478,6 +479,34 @@ ludoNamespace.on('connection', socket => {
 
             logger.info("starting game");
 
+            const game = gameSessionManager.getGame(roomID);
+
+            if (!game.timer) {
+                logger.warn("no game timer found for room.", { lobbyCode })
+
+                return;
+            }
+
+            game.startTimer();
+
+            logger.info("started game timer", { lobbyCode })
+
+            const interval = setInterval(() => {
+                if (!game.timer) {
+                    logger.warn("no game timer found for interval.")
+
+                    return
+                };
+
+                // logger.info("emitting time remaining");
+
+                emitTimeRemaining(ludoNamespace, roomID, game);
+            }, 1000)
+
+            interval.unref();
+
+            intervals.set(roomID, interval);
+
             const lobbyID = await MainServerLayer.getLobbyID(roomID);
 
             await MainServerLayer.startGame(lobbyID);
@@ -486,6 +515,7 @@ ludoNamespace.on('connection', socket => {
         }
         else {
             logger.info("creating room");
+
             socket.join(roomID);
     
             logger.info(roomID);
@@ -497,8 +527,70 @@ ludoNamespace.on('connection', socket => {
             socket.emit('created_room');
 
             logger.info("room created");
+
+            const roomID = lobbyCode;
+
+            const lobbyCode = lobbyCode;
+
+            const createdGame = gameSessionManager.createGame(lobbyCode);
+
+            if (!createdGame) {
+                logger.warn("couldnt create game with game session manager", { lobbyCode });
+
+                return;
+            }
+
+            createdGame.createTimer(timePerPlayer, () => {
+                logger.info("timer details", {roomID})
+                elapsedTimer(roomID, ludoNamespace)
+            })
+
+            logger.info("created game timer", { lobbyCode })
+            
+            logger.info("created game for game session", {lobbyCode})
+
+            return;
         }
     })
+
+    function elapsedTimer(roomID, namespace) {
+        logger.info("timer has elapsed", {roomID})
+        // SWITCH TURN
+        const currentRoom = ludoRooms.filter(room => room.roomID == roomID)[0];
+
+        logger.info("current room for turn played", {roomID});
+
+        if (!currentRoom) {
+            logger.warn("no current room on elapsed timer")
+
+            const interval = intervals.get(roomID);
+
+            clearInterval(interval);
+
+            return;
+        }
+
+        namespace.to(roomID).emit("timer-elapsed");
+
+        logger.info("emitted timer elapsed")
+
+        // CREATE NEW TIMER
+        const game = gameSessionManager.getGame(roomID);
+
+        if (!game) {
+            logger.warn("no game found", { roomID });
+
+            return;
+        }
+
+        game.cancelTimer();
+
+        game.createTimer(timePerPlayer, () => elapsedTimer(roomID, namespace));
+
+        logger.info("new timer created")
+
+        game.startTimer();
+    }
 
     // socket.on("join_room", (roomID) => {
     //     if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
