@@ -216,7 +216,7 @@ export async function create_tournament(req: Request, res: Response) {
       'gameId',
       'registrationDeadline',
       'endDate',
-    //   'noOfGamesToPlay',
+      'noOfGamesToPlay',
       'noOfWinners',
       'hasGateFee',
       'startDate'
