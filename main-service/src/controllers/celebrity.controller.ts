@@ -271,6 +271,8 @@ export async function create_tournament(req: Request, res: Response) {
 
     // check gameId
     if (!isValidObjectId(tournamentInfo.gameId)) {
+      console.log("object id not valid");
+      
       res.status(400).json({message: 'Invalid game ID'});
       return;
     }
