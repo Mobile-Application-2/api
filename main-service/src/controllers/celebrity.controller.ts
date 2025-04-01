@@ -232,7 +232,7 @@ export async function create_tournament(req: Request, res: Response) {
 
     const fields = Object.keys(tournamentInfo);
 
-    console.log(fields);
+    console.log(fields, tournamentInfo);
 
     const hasValidFields = fields.every(field => allowedFields.includes(field));
 
@@ -253,11 +253,16 @@ export async function create_tournament(req: Request, res: Response) {
 
     console.log("end", tournamentInfo.endDate);
     console.log("reg deadline", tournamentInfo.registrationDeadline);
+
+    // end 2025-04-03T21:43:00.000Z
+    // reg deadline 2025-04-02T11:00:00.000Z
     // check that endDate ahead of registrationDeadline
     if (
       new Date(tournamentInfo.endDate).getTime() <=
       new Date(tournamentInfo.registrationDeadline).getTime()
     ) {
+      console.log("End date must be ahead of registration deadline");
+      
       res
         .status(400)
         .json({message: 'End date must be ahead of registration deadline'});
@@ -273,6 +278,8 @@ export async function create_tournament(req: Request, res: Response) {
     const gameInfo = await GAME.findOne({_id: tournamentInfo.gameId});
 
     if (!gameInfo) {
+      console.log("game not found");
+      
       res.status(404).json({message: 'Game not found'});
       return;
     }
@@ -328,6 +335,8 @@ export async function create_tournament(req: Request, res: Response) {
       }
     });
   } catch (error) {
+    console.log("couldnt create game", error);
+    
     handle_error(error, res);
   }
 }
