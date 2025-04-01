@@ -238,17 +238,24 @@ export async function create_tournament(req: Request, res: Response) {
     console.log(fields);
 
     const hasValidFields = fields.every(field => allowedFields.includes(field));
-    const hasAllRequiredFields = allowedFields.every(field =>
-      fields.includes(field)
-    );
+
+    console.log("has valid fields", hasValidFields);
+
+    const hasAllRequiredFields = allowedFields.every(field => fields.includes(field) );
+
+    console.log("has req fields", hasAllRequiredFields);
 
     if (!hasValidFields || !hasAllRequiredFields) {
+      console.log("invalid information");
+      
       res.status(400).json({
         message: 'Please provide valid tournament information',
       });
       return;
     }
 
+    console.log("end", tournamentInfo.endDate);
+    console.log("reg deadline", tournamentInfo.registrationDeadline);
     // check that endDate ahead of registrationDeadline
     if (
       new Date(tournamentInfo.endDate).getTime() <=
