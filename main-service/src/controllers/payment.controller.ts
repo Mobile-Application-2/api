@@ -76,6 +76,8 @@ export async function get_user_bank_details(req: Request, res: Response) {
   }
 }
 
+// ADD A BANK VERIFY CHECK
+
 export async function get_transfer_charge(req: Request, res: Response) {
   try {
     const {amount} = req.params;

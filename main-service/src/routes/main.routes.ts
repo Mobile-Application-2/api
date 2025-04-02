@@ -65,6 +65,39 @@ router.get('/user/:userId', is_logged_in, async (req, res) => {
   }
 })
 
+router.post('/user/verify', is_logged_in, async (req, res) => {
+  try {
+    const userId = req.userId
+
+    if (!userId) {
+      res.status(400).json({ message: "user id is required" })
+      return;
+    }
+    
+    const { firstName, lastName } = req.body as { firstName: string, lastName: string }
+
+    if (!firstName || !lastName) {
+      res.status(400).json({ message: "fullName is required" })
+      return;
+    }
+
+    const userInfo = await USER.findOne({ _id: userId, firstName: firstName, lastName: lastName }, { password: 0, updatedAt: 0 })
+
+    if (userInfo === null) {
+      res.status(404).json({
+        message: 'Something went wrong while fetching your profile, please log back into your account to continue',
+      });
+
+      return;
+    }
+
+    res.status(200).json({ message: 'verified successfully'});
+  }
+  catch (error) {
+    handle_error(error, res)
+  }
+})
+
 router.get('/search', is_logged_in, search_users);
 
 router.get('/notifications', is_logged_in, get_notifications);
