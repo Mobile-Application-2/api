@@ -112,6 +112,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    firstName: {
+        type: String,
+    },
+    lastName: {
+        type: String,
+    },
   },
   {timestamps: true}
 );
