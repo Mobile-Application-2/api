@@ -6,7 +6,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from "dotenv";
-import mongoose, { isObjectIdOrHexString } from 'mongoose';
+import mongoose from 'mongoose';
 dotenv.config();
 
 import cors from "cors";
@@ -35,6 +35,8 @@ import MobileLayer from './MobileLayer.js';
 import { URL as fileURL } from 'url';
 import Tournament from './Tournament.js';
 import { pinoLogger } from './config/pino.config.js';
+import { gameSessionManager } from './GameSessionManager.js';
+import { emitTimeRemaining } from './gameUtils.js';
 
 const scrabbleDict = JSON.parse(readFileSync(new fileURL("./games/Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
 
@@ -328,8 +330,14 @@ const ludoRooms = [
     }
 ];
 
+/**@type {Map<string, NodeJS.Timeout>} */
+const intervals = new Map()
+
+const timePerPlayer = process.env.NODE_ENV == "production" ? 1000 * 30 : 1000 * 1000;
+
 ludoNamespace.on('connection', socket => {
     logger.info('a user connected to ludo server');
+
 
     socket.on('disconnect', () => {
         logger.info("user disconnected from ludo", socket.id);
@@ -338,6 +346,20 @@ ludoNamespace.on('connection', socket => {
 
         logger.info(room);
         if(!room) return;
+
+        const interval = intervals.get(room.roomID);
+
+        if (interval) {
+            clearInterval(interval);
+            intervals.delete(room.roomID);
+        }
+
+        const g = gameSessionManager.getGame(room.roomID);
+
+        if(g) {
+            g.cancelTimer();
+            logger.info("cancelled game timer", {roomID: room.roomID})
+        }
 
         io.emit('remove', 'ludo', room.roomID);
     })
@@ -349,6 +371,8 @@ ludoNamespace.on('connection', socket => {
             logger.info("dice rolled", num, isLocked, lastRolledBy);
     
             socket.broadcast.to(roomID).emit("dice_roll", {num, isLocked, lastRolledBy})
+
+            resetTimer(roomID);
         }
         else {
             logger.info("no room found", roomID, ludoRooms)
@@ -362,11 +386,27 @@ ludoNamespace.on('connection', socket => {
             logger.info("coin played");
 
             socket.broadcast.to(roomID).emit("coin_played", index);
+
+            resetTimer(roomID);
         }
         else {
             logger.info("no room found", roomID, ludoRooms)
         }
     })
+
+    function resetTimer(roomID) {
+        const game = gameSessionManager.getGame(roomID);
+
+        if (!game) {
+            logger.warn("no game found to reset timer", { roomID });
+
+            return;
+        }
+
+        game.cancelTimer();
+
+        game.startTimer();
+    }
 
     socket.on("player_won", async (roomID) => {
         Ludo.declareWinner(roomID, socket.id);
@@ -379,6 +419,20 @@ ludoNamespace.on('connection', socket => {
         socket.to(loser.socketID).emit("lost")
         
         logger.info(`player won ludo: ${winner.userId}`);
+
+        const interval = intervals.get(roomID);
+
+        if (interval) {
+            clearInterval(interval);
+            intervals.delete(roomID);
+        }
+
+        const g = gameSessionManager.getGame(roomID);
+
+        if(g) {
+            g.cancelTimer();
+            logger.info("cancelled game timer", {roomID})
+        }
 
         const winnerId = winner.userId;
         const loserId = loser.userId;
@@ -418,12 +472,17 @@ ludoNamespace.on('connection', socket => {
    * @param {Array<GameData>} mainRooms - A map of active game rooms.
    */
 
-    socket.on("create_room", async (_roomID, setup, username, avatar, data) => {
+    socket.on("create_room", async (_not_roomID, setup, username, avatar, data) => {
         logger.info("user wanting to enter ludo", data);
 
         const {gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId} = data
 
         const roomID = lobbyCode;
+
+        logger.info("roomID: ", roomID);
+
+        logger.info("data: ", {...data})
+
 
         if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
             logger.info("room found");
@@ -457,6 +516,34 @@ ludoNamespace.on('connection', socket => {
 
             logger.info("starting game");
 
+            const game = gameSessionManager.getGame(roomID);
+
+            if (!game.timer) {
+                logger.warn("no game timer found for room.", { lobbyCode })
+
+                return;
+            }
+
+            game.startTimer();
+
+            logger.info("started game timer", { lobbyCode })
+
+            const interval = setInterval(() => {
+                if (!game.timer) {
+                    logger.warn("no game timer found for interval.")
+
+                    return
+                };
+
+                // logger.info("emitting time remaining");
+
+                emitTimeRemaining(ludoNamespace, roomID, game);
+            }, 1000)
+
+            interval.unref();
+
+            intervals.set(roomID, interval);
+
             const lobbyID = await MainServerLayer.getLobbyID(roomID);
 
             await MainServerLayer.startGame(lobbyID);
@@ -464,7 +551,10 @@ ludoNamespace.on('connection', socket => {
             logger.info("done sending info to main server");
         }
         else {
-            logger.info("creating room");
+            // let roomID = lobbyCode;
+
+            logger.info("creating room", {roomID});
+
             socket.join(roomID);
     
             logger.info(roomID);
@@ -476,8 +566,66 @@ ludoNamespace.on('connection', socket => {
             socket.emit('created_room');
 
             logger.info("room created");
+
+            const createdGame = gameSessionManager.createGame(lobbyCode);
+
+            if (!createdGame) {
+                logger.warn("couldnt create game with game session manager", { lobbyCode });
+
+                return;
+            }
+
+            createdGame.createTimer(timePerPlayer, () => {
+                logger.info("timer details", {roomID})
+                elapsedTimer(roomID, ludoNamespace)
+            })
+
+            logger.info("created game timer", { lobbyCode })
+            
+            logger.info("created game for game session", {lobbyCode})
+
+            return;
         }
     })
+
+    function elapsedTimer(roomID, namespace) {
+        logger.info("timer has elapsed", {roomID})
+        // SWITCH TURN
+        const currentRoom = ludoRooms.filter(room => room.roomID == roomID)[0];
+
+        logger.info("current room for turn played", {roomID});
+
+        if (!currentRoom) {
+            logger.warn("no current room on elapsed timer")
+
+            const interval = intervals.get(roomID);
+
+            clearInterval(interval);
+
+            return;
+        }
+
+        namespace.to(roomID).emit("timer-elapsed");
+
+        logger.info("emitted timer elapsed")
+
+        // CREATE NEW TIMER
+        const game = gameSessionManager.getGame(roomID);
+
+        if (!game) {
+            logger.warn("no game found", { roomID });
+
+            return;
+        }
+
+        game.cancelTimer();
+
+        game.createTimer(timePerPlayer, () => elapsedTimer(roomID, namespace));
+
+        logger.info("new timer created")
+
+        game.startTimer();
+    }
 
     // socket.on("join_room", (roomID) => {
     //     if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
@@ -713,8 +861,8 @@ function generateWordsForLetters(letters, dictionary, limit = 20) {
 // http://localhost:5657/game?gameName=Chess&lobbyCode=123456&playerId=39288h29x3n89exn23e2en
 // http://localhost:5657/game?gameName=Chess&lobbyCode=123456&playerId=dsjknsdjskbd7s87ds87ds
 
-// http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=39288h29x3n89exn23e2en
-// http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=dsjknsdjskbd7s87ds87ds
+// http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=677ac0f552d67df13f494f81
+// http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=664a055c8abcfe371430a5d1
 
 wordNamespace.on("connection", (socket) => {
     logger.info('New client connected to scrabble:', {socketId: socket.id});
