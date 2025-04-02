@@ -333,7 +333,7 @@ const ludoRooms = [
 /**@type {Map<string, NodeJS.Timeout>} */
 const intervals = new Map()
 
-const timePerPlayer = process.env.NODE_ENV == "production" ? 1000 * 30 : 1000 * 10;
+const timePerPlayer = process.env.NODE_ENV == "production" ? 1000 * 30 : 1000 * 1000;
 
 ludoNamespace.on('connection', socket => {
     logger.info('a user connected to ludo server');
@@ -861,8 +861,8 @@ function generateWordsForLetters(letters, dictionary, limit = 20) {
 // http://localhost:5657/game?gameName=Chess&lobbyCode=123456&playerId=39288h29x3n89exn23e2en
 // http://localhost:5657/game?gameName=Chess&lobbyCode=123456&playerId=dsjknsdjskbd7s87ds87ds
 
-// http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=39288h29x3n89exn23e2en
-// http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=dsjknsdjskbd7s87ds87ds
+// http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=677ac0f552d67df13f494f81
+// http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=664a055c8abcfe371430a5d1
 
 wordNamespace.on("connection", (socket) => {
     logger.info('New client connected to scrabble:', {socketId: socket.id});
