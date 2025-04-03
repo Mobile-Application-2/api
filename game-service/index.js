@@ -1175,7 +1175,7 @@ async function endGame(gameId, reason) {
         logger.info("winner", {winner});
         
         // Notify players of game end
-        wordNamespace.to(gameId).emit('gameEnded', {
+        wordNamespace.to(gameId).emit('gameEnd', {
             reason,
             winner: winner ? {
                 id: winner.id,
