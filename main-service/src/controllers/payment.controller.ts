@@ -106,7 +106,7 @@ export async function initialize_deposit(req: Request, res: Response) {
       return;
     }
 
-    const MIN_DEPOSIT = 500 * 100; // 500 naira in kobo
+    const MIN_DEPOSIT = 100 * 100; // 500 naira in kobo
     if (amount < MIN_DEPOSIT) {
       res.status(400).json({
         message: `Minimum deposit amount is ${MIN_DEPOSIT / 100} naira`,
