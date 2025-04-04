@@ -10,6 +10,7 @@ import {
   get_players_with_most_wins_in_my_tournaments,
   start_a_tournament,
   fetch_tournament_fixtures,
+  get_leaderboard,
 } from '../controllers/celebrity.controller';
 import {is_celebrity, is_logged_in} from '../middlewares/auth.middleware';
 const router = Router();
@@ -49,6 +50,13 @@ router.get(
   is_logged_in,
   is_celebrity,
   fetch_tournament_fixtures
+);
+
+router.get(
+  '/tournament/:tournamentId/leaderboard',
+  is_logged_in,
+  is_celebrity,
+  get_leaderboard
 );
 
 router.post('/tournaments', is_logged_in, is_celebrity, create_tournament);

@@ -113,10 +113,10 @@ const userSchema = new mongoose.Schema(
       default: true,
     },
     firstName: {
-        type: String,
+      type: String,
     },
     lastName: {
-        type: String,
+      type: String,
     },
   },
   {timestamps: true}

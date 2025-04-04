@@ -381,7 +381,7 @@ export async function edit_profile(req: Request, res: Response) {
       'avatar',
       'notificationPreferences',
       'firstName',
-      "lastName"
+      'lastName',
     ];
 
     const hasInvalidFields = fieldsFromUpdate.some(

@@ -12,7 +12,7 @@ import crypto from 'crypto';
 import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
 import {publish_to_queue} from '../utils/rabbitmq';
 import TOURNAMENTTTL from '../models/tournament-ttl.model';
-import { agenda } from '../agenda/agenda';
+import {agenda} from '../agenda/agenda';
 const ObjectId = mongoose.Types.ObjectId;
 
 export async function get_my_tournaments(req: Request, res: Response) {
@@ -219,14 +219,16 @@ export async function create_tournament(req: Request, res: Response) {
       'noOfGamesToPlay',
       'noOfWinners',
       'hasGateFee',
-      'startDate'
+      'startDate',
     ];
 
     if (!Object.prototype.hasOwnProperty.call(tournamentInfo, 'hasGateFee')) {
       tournamentInfo.hasGateFee = false;
     }
 
-    if (!Object.prototype.hasOwnProperty.call(tournamentInfo, 'noOfGamesToPlay')) {
+    if (
+      !Object.prototype.hasOwnProperty.call(tournamentInfo, 'noOfGamesToPlay')
+    ) {
       tournamentInfo.noOfGamesToPlay = 100;
     }
 
@@ -236,23 +238,25 @@ export async function create_tournament(req: Request, res: Response) {
 
     const hasValidFields = fields.every(field => allowedFields.includes(field));
 
-    console.log("has valid fields", hasValidFields);
+    console.log('has valid fields', hasValidFields);
 
-    const hasAllRequiredFields = allowedFields.every(field => fields.includes(field) );
+    const hasAllRequiredFields = allowedFields.every(field =>
+      fields.includes(field)
+    );
 
-    console.log("has req fields", hasAllRequiredFields);
+    console.log('has req fields', hasAllRequiredFields);
 
     if (!hasValidFields || !hasAllRequiredFields) {
-      console.log("invalid information");
-      
+      console.log('invalid information');
+
       res.status(400).json({
         message: 'Please provide valid tournament information',
       });
       return;
     }
 
-    console.log("end", tournamentInfo.endDate);
-    console.log("reg deadline", tournamentInfo.registrationDeadline);
+    console.log('end', tournamentInfo.endDate);
+    console.log('reg deadline', tournamentInfo.registrationDeadline);
 
     // end 2025-04-03T21:43:00.000Z
     // reg deadline 2025-04-02T11:00:00.000Z
@@ -261,8 +265,8 @@ export async function create_tournament(req: Request, res: Response) {
       new Date(tournamentInfo.endDate).getTime() <=
       new Date(tournamentInfo.registrationDeadline).getTime()
     ) {
-      console.log("End date must be ahead of registration deadline");
-      
+      console.log('End date must be ahead of registration deadline');
+
       res
         .status(400)
         .json({message: 'End date must be ahead of registration deadline'});
@@ -271,8 +275,8 @@ export async function create_tournament(req: Request, res: Response) {
 
     // check gameId
     if (!isValidObjectId(tournamentInfo.gameId)) {
-      console.log("object id not valid");
-      
+      console.log('object id not valid');
+
       res.status(400).json({message: 'Invalid game ID'});
       return;
     }
@@ -280,8 +284,8 @@ export async function create_tournament(req: Request, res: Response) {
     const gameInfo = await GAME.findOne({_id: tournamentInfo.gameId});
 
     if (!gameInfo) {
-      console.log("game not found");
-      
+      console.log('game not found');
+
       res.status(404).json({message: 'Game not found'});
       return;
     }
@@ -320,9 +324,13 @@ export async function create_tournament(req: Request, res: Response) {
         await session.commitTransaction();
 
         // Schedule the tournament start
-        await agenda.schedule(new Date(newTournament[0].startDate), "start_tournament", {
-          tournamentId: newTournament[0]._id.toString(),
-        });
+        await agenda.schedule(
+          new Date(newTournament[0].startDate),
+          'start_tournament',
+          {
+            tournamentId: newTournament[0]._id.toString(),
+          }
+        );
 
         res.status(201).json({
           message: 'Tournament created successfully',
@@ -337,8 +345,8 @@ export async function create_tournament(req: Request, res: Response) {
       }
     });
   } catch (error) {
-    console.log("couldnt create game", error);
-    
+    console.log('couldnt create game', error);
+
     handle_error(error, res);
   }
 }
@@ -468,10 +476,10 @@ export async function update_prizes_to_tournament(req: Request, res: Response) {
           prizes,
           gateFee: null,
           isFullyCreated: false,
-          hasGateFee: hasGateFee
+          hasGateFee: hasGateFee,
         };
 
-        if(hasGateFee) {
+        if (hasGateFee) {
           update.gateFee = gateFee;
         }
 
@@ -899,6 +907,72 @@ export async function fetch_tournament_fixtures(req: Request, res: Response) {
     res.status(200).json({
       message: 'Tournament fixtures retrieved successfully',
       data: fixtures,
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function get_leaderboard(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    const {tournamentId} = req.params;
+
+    if (!isValidObjectId(tournamentId)) {
+      res.status(400).json({message: 'Invalid tournament id'});
+      return;
+    }
+
+    const tournamentInfo = await TOURNAMENT.findOne({
+      creatorId: userId,
+      _id: tournamentId,
+    });
+
+    if (!tournamentInfo) {
+      res.status(404).json({message: 'Tournament not found'});
+      return;
+    }
+
+    const winnersPipeline: PipelineStage[] = [
+      {
+        $group: {
+          _id: '$winner',
+          totalWins: {$sum: 1},
+          lastWin: {$max: '$updatedAt'},
+        },
+      },
+      {
+        $sort: {
+          totalWins: -1,
+          lastWin: 1,
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo',
+          pipeline: [
+            {
+              $project: {
+                firstName: 1,
+                lastName: 1,
+                username: 1,
+                avatar: 1,
+                bio: 1,
+              },
+            },
+          ],
+        },
+      },
+    ];
+
+    const winners = await TOURNAMENTFIXTURES.aggregate(winnersPipeline);
+
+    res.status(200).json({
+      message: 'Leaderboard retrieved successfully',
+      data: winners,
     });
   } catch (error) {
     handle_error(error, res);

@@ -1890,7 +1890,7 @@ export async function fetch_my_fixtures_in_tournament_lobby_code(
         $match: {
           tournamentId: new ObjectId(tournamentId),
           players: new ObjectId(userId),
-          joiningCode: lobbyCode
+          joiningCode: lobbyCode,
         },
       },
       {

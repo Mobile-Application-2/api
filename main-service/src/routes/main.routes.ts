@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import { is_game_server, is_logged_in } from '../middlewares/auth.middleware';
+import {Router} from 'express';
+import {is_game_server, is_logged_in} from '../middlewares/auth.middleware';
 import {
   create_a_ticket,
   get_notifications,
@@ -34,69 +34,80 @@ import {
   select_a_user_to_play_with,
   fetch_my_fixtures_in_tournament_lobby_code,
 } from '../controllers/main.controller';
-import { handle_error } from '../utils/handle-error';
+import {handle_error} from '../utils/handle-error';
 import USER from '../models/user.model';
 const router = Router();
 
 // CHANGE LATER (FROM JOSHUA)
 router.get('/user/:userId', is_logged_in, async (req, res) => {
   try {
-    const { userId } = req.params as { userId: string }
+    const {userId} = req.params as {userId: string};
 
     if (!userId) {
-      res.status(400).json({ message: "user id is required" })
+      res.status(400).json({message: 'user id is required'});
       return;
     }
 
-    const userInfo = await USER.findOne({ _id: userId }, { password: 0, updatedAt: 0 })
+    const userInfo = await USER.findOne(
+      {_id: userId},
+      {password: 0, updatedAt: 0}
+    );
 
     if (userInfo === null) {
       res.status(400).json({
-        message: 'Something went wrong while fetching your profile, please log back into your account to continue',
+        message:
+          'Something went wrong while fetching your profile, please log back into your account to continue',
       });
 
       return;
     }
 
-    res.status(200).json({ message: 'Profile information retrieved', data: userInfo });
+    res
+      .status(200)
+      .json({message: 'Profile information retrieved', data: userInfo});
+  } catch (error) {
+    handle_error(error, res);
   }
-  catch (error) {
-    handle_error(error, res)
-  }
-})
+});
 
 router.post('/user/verify', is_logged_in, async (req, res) => {
   try {
-    const userId = req.userId
+    const userId = req.userId;
 
     if (!userId) {
-      res.status(400).json({ message: "user id is required" })
+      res.status(400).json({message: 'user id is required'});
       return;
     }
-    
-    const { firstName, lastName } = req.body as { firstName: string, lastName: string }
+
+    const {firstName, lastName} = req.body as {
+      firstName: string;
+      lastName: string;
+    };
 
     if (!firstName || !lastName) {
-      res.status(400).json({ message: "fullName is required" })
+      res.status(400).json({message: 'fullName is required'});
       return;
     }
 
-    const userInfo = await USER.findOne({ _id: userId, firstName: firstName, lastName: lastName }, { password: 0, updatedAt: 0 })
+    const userInfo = await USER.findOne(
+      {_id: userId, firstName: firstName, lastName: lastName},
+      {password: 0, updatedAt: 0}
+    );
 
     if (userInfo === null) {
       res.status(404).json({
-        message: 'Something went wrong while fetching your profile, please log back into your account to continue',
+        message:
+          'Something went wrong while fetching your profile, please log back into your account to continue',
       });
 
       return;
     }
 
-    res.status(200).json({ message: 'verified successfully'});
+    res.status(200).json({message: 'verified successfully'});
+  } catch (error) {
+    handle_error(error, res);
   }
-  catch (error) {
-    handle_error(error, res)
-  }
-})
+});
 
 router.get('/search', is_logged_in, search_users);
 

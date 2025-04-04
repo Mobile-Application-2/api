@@ -33,7 +33,7 @@ import {
 } from './controllers/messaging.controller';
 import path from 'node:path';
 import {rate_limit_api} from './middlewares/ratelimiter.middleware';
-import { agenda } from './agenda/agenda';
+import {agenda} from './agenda/agenda';
 
 const app = express();
 
@@ -75,7 +75,7 @@ async function main() {
   console.log('DB connection established');
 
   await agenda.start();
-  console.log("agenda connection established");
+  console.log('agenda connection established');
 
   console.log('Connecting to Redis...');
   await redisClient.connect();
