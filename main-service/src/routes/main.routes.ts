@@ -36,6 +36,7 @@ import {
 } from '../controllers/main.controller';
 import {handle_error} from '../utils/handle-error';
 import USER from '../models/user.model';
+import ACTIVEUSER from '../models/active.model';
 const router = Router();
 
 // CHANGE LATER (FROM JOSHUA)
@@ -108,6 +109,54 @@ router.post('/user/verify', is_logged_in, async (req, res) => {
     handle_error(error, res);
   }
 });
+
+router.get('/active-users', is_logged_in, async (req, res) => {
+  try {
+    // const userId = req.userId;
+
+    const pipeline = [
+      {
+        $addFields: {
+          userObjectId: {
+            $convert: {
+              input: '$userID',
+              to: 'objectId',
+              onError: null,
+              onNull: null,
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users', // collection name in MongoDB (usually the model name in lowercase and pluralized)
+          localField: 'userObjectId',
+          foreignField: '_id',
+          as: 'userInfo',
+        },
+      },
+      {
+        $unwind: '$userInfo',
+      },
+      {
+        $project: {
+          _id: 0,
+          socketID: 1,
+          userID: 1,
+          username: '$userInfo.username',
+          avatar: '$userInfo.avatar',
+        },
+      },
+    ]
+
+    const activeUsers = await ACTIVEUSER.aggregate(pipeline);
+
+    res.status(200).json({message: "successful", data: activeUsers})
+  }
+  catch(error) {
+    handle_error(error, res);
+  }
+})
 
 router.get('/search', is_logged_in, search_users);
 
