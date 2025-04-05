@@ -37,6 +37,7 @@ import Tournament from './Tournament.js';
 import { pinoLogger } from './config/pino.config.js';
 import { gameSessionManager } from './GameSessionManager.js';
 import { emitTimeRemaining } from './gameUtils.js';
+import ACTIVEUSER from './models/active.model.js';
 
 const scrabbleDict = JSON.parse(readFileSync(new fileURL("./games/Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
 
@@ -129,6 +130,15 @@ io.on('connection', (socket) => {
         userID: userId
     });
 
+    (async () => {
+        try {
+            await ACTIVEUSER.create({socketID: socket.id, userID: userId});
+        }
+        catch(error) {
+            logger.error(error)
+        }
+    })
+
     io.emit('get_active', active);
 
     logger.info(active);
@@ -139,6 +149,8 @@ io.on('connection', (socket) => {
             logger.info("user disconnected from general namespace", socket.id);
     
             active = active.filter(obj => obj.socketID != socket.id);
+
+            ACTIVEUSER.deleteOne({socketID: socket.id});
     
             logger.info(active);
             // sentryLogActive();
