@@ -150,7 +150,15 @@ io.on('connection', (socket) => {
     
             active = active.filter(obj => obj.socketID != socket.id);
 
-            ACTIVEUSER.deleteOne({socketID: socket.id});
+            (async () => {
+                try {
+                    await ACTIVEUSER.deleteOne({socketID: socket.id});
+                }
+                catch(error) {
+                    logger.error(error)
+                }
+            })
+
     
             logger.info(active);
             // sentryLogActive();
