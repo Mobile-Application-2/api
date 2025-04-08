@@ -110,7 +110,7 @@ router.post('/user/verify', is_logged_in, async (req, res) => {
   }
 });
 
-router.get('/active-users', is_logged_in, async (req, res) => {
+router.get('/active-users', is_logged_in, async (_req, res) => {
   try {
     // const userId = req.userId;
 
