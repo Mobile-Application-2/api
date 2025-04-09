@@ -884,6 +884,11 @@ function generateWordsForLetters(letters, dictionary, limit = 20) {
 // http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=677ac0f552d67df13f494f81
 // http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=664a055c8abcfe371430a5d1
 
+
+
+
+// https://game-service-uny2.onrender.com/game?gameName=Scrabble&lobbyCode=m99nko&playerId=67d54787f7425f237bd6acd1
+
 wordNamespace.on("connection", (socket) => {
     logger.info('New client connected to scrabble:', {socketId: socket.id});
     

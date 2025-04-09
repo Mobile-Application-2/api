@@ -282,7 +282,7 @@ function handleGameState(data) {
 function handleGameStarted(data) {
     waitingScreen.style.display = 'none';
     gameScreen.style.display = 'block';
-    gameStatus.textContent = GlobalData.playerId;
+    gameStatus.textContent = GlobalData.playerName;
     handleTimeUpdate(data);
 }
 

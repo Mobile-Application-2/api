@@ -16,9 +16,13 @@ export default class MobileLayer {
         const mainServerRooms = mainFoundRooms.map(room => room.socketId);
         
         logger.info("main server rooms", {mainServerRooms});
-        
-        io.to(mainServerRooms).emit("gameEnd", gameResult);
 
-        logger.info("emitted game end event")
+        logger.info("sending in 5 seconds...")
+
+        setTimeout(() => {
+            io.to(mainServerRooms).emit("gameEnd", gameResult);
+
+            logger.info("emitted game end event")
+        }, 5000)
     }
 }
