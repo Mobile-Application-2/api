@@ -1597,13 +1597,18 @@ export async function see_all_tournaments(req: Request, res: Response) {
       {
         $match: {
           isFullyCreated: true,
-          endDate: { $gt: new Date() },
+          $expr: {
+            $gt: [
+              { $add: ["$endDate", 1000 * 60 * 60 * 6] }, // endDate + 6 hours
+              new Date(),
+            ],
+          },
         },
       },
       {
         $addFields: {
           finalDate: {
-            $add: ["$endDate", 1000 * 60 * 60 * 6], // 6 hours in milliseconds
+            $add: ["$endDate", 1000 * 60 * 60 * 6],
           },
           hasEnded: {
             $lt: ["$endDate", new Date()],
