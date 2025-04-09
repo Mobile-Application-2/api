@@ -146,7 +146,7 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', (_) => {
         try {
-            logger.info("user disconnected from general namespace", socket.id);
+            logger.info("user disconnected from general namespace", {socketId: socket.id});
     
             active = active.filter(obj => obj.socketID != socket.id);
 
@@ -1123,7 +1123,7 @@ function startGame(gameId) {
     if (!game || game.active) return;
     
     game.active = true;
-    game.timeRemaining = process.env.NODE_ENV == "production" ? 120 : 30; // 2 minutes
+    game.timeRemaining = process.env.NODE_ENV == "production" ? 20 : 30; // 2 minutes
     
     // Start timer
     game.timer = setInterval(() => {

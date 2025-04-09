@@ -4,7 +4,7 @@ export default class MobileLayer {
     static async sendGameWon(io, mainRooms, winnerId, loserId, room_id) {
         const mainFoundRooms = mainRooms.filter(room => room.lobbyCode == room_id);
         
-        logger.info("main found rooms", mainFoundRooms);
+        logger.info("main found rooms", {mainFoundRooms});
         
         const gameResult = {
             winner: winnerId,
@@ -15,7 +15,7 @@ export default class MobileLayer {
         
         const mainServerRooms = mainFoundRooms.map(room => room.socketId);
         
-        logger.info("main server rooms", mainServerRooms);
+        logger.info("main server rooms", {mainServerRooms});
         
         io.to(mainServerRooms).emit("gameEnd", gameResult);
 
