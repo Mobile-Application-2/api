@@ -126,6 +126,8 @@ function connectToServer() {
 
         addListeners();
 
+        console.log(data);
+
         joinGame(data);
     });
 
@@ -197,10 +199,12 @@ async function joinGame(data) {
 
         const json = await response.json();
 
-        GlobalData.playerName = json.username;
-        GlobalData.avatar = json.avatar;
+        GlobalData.playerName = json.userGameDetails.username;
+        GlobalData.avatar = json.userGameDetails.avatar;
 
         playerImage.src = GlobalData.avatar;
+
+        console.log("player details", json);
     
         emitMessage('joinGame', {
             ...data,
