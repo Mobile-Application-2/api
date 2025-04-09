@@ -77,7 +77,7 @@ export default class MainServerLayer {
 
             const lobbyID = currentLobby.toObject()._id.toString();
 
-            logger.info("lobbyID: ", lobbyID);
+            logger.info("lobbyID: ", {lobbyID});
 
             return lobbyID;
         }
@@ -94,6 +94,8 @@ export default class MainServerLayer {
                 lobbyId: lobbyId,
                 winnerId: winnerId
             }
+
+            logger.info("info", {data});
 
             await publish_to_queue("game-info-win", data, true)
 
