@@ -92,9 +92,9 @@ export default class Snooker {
                 const gameRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
                 if(gameRoom != undefined) {
-                    await GameModel.updateOne({roomID: roomID, 'players.playerNumber': playerNumber}, {
-                        $set: {'players.$.winner': true}
-                    })
+                    // await GameModel.updateOne({roomID: roomID, 'players.playerNumber': playerNumber}, {
+                    //     $set: {'players.$.winner': true}
+                    // })
 
                     const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
@@ -124,27 +124,27 @@ export default class Snooker {
 
         socket.join(roomID);
 
-        const game = await GameModel.findOne({roomID: roomID})
+        // const game = await GameModel.findOne({roomID: roomID})
 
-        if(game != null) {
-            console.log('room id exist');
+        // if(game != null) {
+        //     console.log('room id exist');
 
-            return
-        }
+        //     return
+        // }
 
-        const gameModel = new GameModel({
-            game_name: "snooker",
-            players: [
-                {
-                    username: username,
-                    socketID: socket.id,
-                    playerNumber: '0'
-                }
-            ],
-            roomID: roomID
-        });
+        // const gameModel = new GameModel({
+        //     game_name: "snooker",
+        //     players: [
+        //         {
+        //             username: username,
+        //             socketID: socket.id,
+        //             playerNumber: '0'
+        //         }
+        //     ],
+        //     roomID: roomID
+        // });
 
-        await gameModel.save();
+        // await gameModel.save();
 
         this.rooms.push({
             roomID: roomID,
@@ -176,15 +176,15 @@ export default class Snooker {
             else {
                 socket.join(roomID);
         
-                await GameModel.updateOne({roomID: roomID}, {
-                    $push: {
-                        players: {
-                            username: username,
-                            socketID: socket.id,
-                            playerNumber: '1'
-                        }
-                    }
-                })
+                // await GameModel.updateOne({roomID: roomID}, {
+                //     $push: {
+                //         players: {
+                //             username: username,
+                //             socketID: socket.id,
+                //             playerNumber: '1'
+                //         }
+                //     }
+                // })
     
                 this.rooms.filter(room => room.roomID == roomID)[0].players.push({
                     username: username,

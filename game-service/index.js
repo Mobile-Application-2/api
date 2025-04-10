@@ -1255,9 +1255,9 @@ const chessNameSpace = io.of("/chess");
 
 Chess.activate(io, chessNameSpace, newRooms);
 
-// const snookerNameSpace = io.of("/snooker");
+const snookerNameSpace = io.of("/snooker");
 
-// Snooker.activate(io, snookerNameSpace);
+Snooker.activate(io, snookerNameSpace);
 
 // const scrabbleNameSpace = io.of("/scrabble");
 
