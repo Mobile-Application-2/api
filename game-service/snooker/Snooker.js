@@ -1,7 +1,23 @@
 import MainServerLayer from "../MainServerLayer.js";
 import GameModel from "./models/game.model.js";
 
+import Matter from "matter-js";
+
+/**
+ * @typedef {Object} GameData
+ * @property {string} gameId - The unique identifier for the game.
+ * @property {string} playerId - The unique identifier for the player.
+ * @property {string} opponentId - The unique identifier for the opponent.
+ * @property {string} stakeAmount - The amount staked in the game.
+ * @property {string} tournamentId - The unique identifier for tournaments.
+ * @property {string} lobbyCode - The unique lobby code for the game.
+ * @property {string} gameName - The name of the game.
+ * 
+ */
+
 export default class Snooker {
+    static _noEngine = Matter.Engine.create();
+    static _noWorld = this._noEngine.world;
 
     static rooms = [
         {
@@ -10,15 +26,22 @@ export default class Snooker {
                 username: '',
                 socketID: '',
                 avatar: ''
-            }]
+            }],
+            engine: this._noEngine,
+            world: this._noWorld,
         }
     ]
 
-    static async activate(io, snookerNameSpace) {
+    /**
+     * Activates the game logic for handling WebSocket connections.
+     * 
+     * @param {import("socket.io").Server} io - The main Socket.IO server instance.
+     * @param {import("socket.io").Namespace} snookerNameSpace - The specific namespace for the Whot game.
+     * @param {Array<GameData>} mainRooms - A map of active game rooms.
+     */
+    static async activate(io, snookerNameSpace, mainRooms) {
         
         snookerNameSpace.on('connection', (socket) => {
-            // socket.on('disconnect', (_) => console.log("user disconnected from snooker", socket.id))
-
             socket.on('disconnect', () => {
                 console.log("user disconnected from snooker", socket.id);
 

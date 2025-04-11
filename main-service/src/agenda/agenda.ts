@@ -40,18 +40,10 @@ export async function startTournamentLogic(tournamentId: string) {
 
     if (tournamentInfo.hasStarted) return;
 
-    if (!tournamentInfo.isFullyCreated)
-      throw new Error('Tournament is not fully created');
+    if (!tournamentInfo.isFullyCreated) throw new Error('Tournament is not fully created');
 
-    if (tournamentInfo.endDate < new Date())
-      throw new Error('Tournament has already ended');
+    if (tournamentInfo.endDate < new Date()) throw new Error('Tournament has already ended');
 
-    if (
-      !tournamentInfo.participants.length ||
-      tournamentInfo.participants.length % 2 !== 0
-    ) {
-      throw new Error('Tournament must have an even number of players');
-    }
 
     const session = await mongoose.startSession();
 
