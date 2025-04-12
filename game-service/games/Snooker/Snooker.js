@@ -436,21 +436,21 @@ export default class Snooker {
         }));
 
         // Yellow Balls
-        const yellowBalls = [
-            { x: 1322, y: 80 },
-            // { x: 1022, y: 80 }
-        ].map(pos => Matter.Bodies.circle(pos.x, pos.y, ballRadius, {
-            restitution: ballRestitution,
-            label: 'ball yellow'
-        }));
         // const yellowBalls = [
-        //     { x: 1022, y: 413 }, { x: 1056, y: 393 }, { x: 1090, y: 452 },
-        //     { x: 1126, y: 354 }, { x: 1126, y: 433 }, { x: 1162, y: 413 },
-        //     { x: 1162, y: 491 }
+        //     { x: 1322, y: 80 },
+        //     // { x: 1022, y: 80 }
         // ].map(pos => Matter.Bodies.circle(pos.x, pos.y, ballRadius, {
         //     restitution: ballRestitution,
         //     label: 'ball yellow'
         // }));
+        const yellowBalls = [
+            { x: 1022, y: 413 }, { x: 1056, y: 393 }, { x: 1090, y: 452 },
+            { x: 1126, y: 354 }, { x: 1126, y: 433 }, { x: 1162, y: 413 },
+            { x: 1162, y: 491 }
+        ].map(pos => Matter.Bodies.circle(pos.x, pos.y, ballRadius, {
+            restitution: ballRestitution,
+            label: 'ball yellow'
+        }));
 
         // Cue Ball
         const cueBall = Matter.Bodies.circle(413, 413, ballRadius, {
@@ -464,14 +464,14 @@ export default class Snooker {
         // });
 
         // Eight Ball
-        const eightBall = Matter.Bodies.circle(1190, 80, ballRadius, {
-            restitution: ballRestitution,
-            label: 'ball eight'
-        });
-        // const eightBall = Matter.Bodies.circle(1090, 413, ballRadius, {
+        // const eightBall = Matter.Bodies.circle(1190, 80, ballRadius, {
         //     restitution: ballRestitution,
         //     label: 'ball eight'
         // });
+        const eightBall = Matter.Bodies.circle(1090, 413, ballRadius, {
+            restitution: ballRestitution,
+            label: 'ball eight'
+        });
 
         Matter.Composite.add(world, [...redBalls, ...yellowBalls, cueBall, eightBall]);
     }

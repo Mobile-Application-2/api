@@ -1,6 +1,10 @@
 import Snooker from './Snooker.js';
 import { serverSnooker } from "./ServerSnooker.js";
 import Matter from 'matter-js';
+import { gameSessionManager } from '../../GameSessionManager.js';
+import { logger } from '../../config/winston.config.js';
+import MainServerLayer from '../../MainServerLayer.js';
+import { emitTimeRemaining } from '../../gameUtils.js';
 
 const {
     isValidPosition,
@@ -27,6 +31,11 @@ export default class SnookerNamespace {
     constructor(snookerNamespace) {
         this.snookerNamespace = snookerNamespace;
     }
+
+    /**@type {Map<string, NodeJS.Timeout>} */
+    intervals = new Map()
+
+    timePerPlayer = process.env.NODE_ENV == "production" ? 1000 * 30 : 1000 * 10;
 
     setupLocalRoom(lobbyCode) {
         const game = new Snooker();
@@ -100,25 +109,38 @@ export default class SnookerNamespace {
 
     activate() {
         this.snookerNamespace.on('connection', (socket) => {
-            console.log("user connected to snooker namespace", { socketId: socket.id });
+            logger.info("user connected to snooker namespace", { socketId: socket.id });
 
             socket.on("disconnect", async () => {
-                console.log("user disconnected to snooker namespace", { socketId: socket.id });
+                logger.info("user disconnected from snooker namespace", { socketId: socket.id });
+
+                for (const [lobbyCode, ski] of this.snookerRooms) {
+                    const player = ski.players.find(p => p.socketId == socket.id)
+
+                    if (player) {
+                        const interval = this.intervals.get(lobbyCode);
+
+                        if (interval) {
+                            clearInterval(interval);
+                            this.intervals.delete(lobbyCode);
+                        }
+
+                        const g = gameSessionManager.getGame(lobbyCode);
+
+                        if (g) {
+                            g.cancelTimer();
+                            logger.info("cancelled game timer", { lobbyCode })
+                        }
+
+                        break
+                    }
+                }
 
                 this.removeSocketFromRoom(socket);
             })
 
-            // socket.on("player_details", (lobbyCode, myPlayerNumber, username, avatar) => {
-            //     const skyboardRoom = this.snookerRooms.get(lobbyCode);
-
-            //     if (!skyboardRoom) return;
-
-            //     skyboardRoom.players[myPlayerNumber - 1].username = username;
-            //     skyboardRoom.players[myPlayerNumber - 1].avatar = avatar;
-            // })
-
             socket.on("join_game", async (data) => {
-                console.log("attempt to join game", { data });
+                logger.info("attempt to join game", { data });
 
                 const skyboardRoom = this.createOrJoinRoom(data.lobbyCode, data.playerId, socket.id);
                 this.joinServerRoom(socket, data.lobbyCode);
@@ -130,15 +152,48 @@ export default class SnookerNamespace {
 
                 socket.emit("get_player_number", playerNumber);
 
+                const lobbyCode = data.lobbyCode;
+
+                const gameSession = gameSessionManager.getGame(lobbyCode);
+
+                if (!gameSession) {
+                    // CREATE
+                    const createdGame = gameSessionManager.createGame(lobbyCode);
+
+                    if (!createdGame) {
+                        logger.warn("couldnt create game with game session manager", { lobbyCode });
+
+                        return;
+                    }
+
+                    createdGame.createTimer(this.timePerPlayer, () => {
+                        // logger.info(this, roomID)
+                        logger.info("timer details", { lobbyCode })
+                        this.elapsedTimer(lobbyCode, this.snookerNamespace);
+                    })
+
+                    logger.info("created game timer", { lobbyCode })
+
+                    logger.info("created game for game session", { lobbyCode })
+
+                    return;
+                }
+
+                if (!gameSession.timer) {
+                    logger.warn("no game timer found for room.", { lobbyCode })
+
+                    return;
+                }
+
                 if (skyboardRoom.players.length < 2) return;
 
                 const game = skyboardRoom.room.game;
 
                 game.listenToEvents((ball) => pocketBallCollision(ball, skyboardRoom.room, skyboardRoom.room.world))
 
-                console.log("game starting...");
+                logger.info("game starting...");
 
-                const playerDetails = skyboardRoom.players.map(p => ({username: p.username, avatar: p.avatar}))
+                const playerDetails = skyboardRoom.players.map(p => ({ username: p.username, avatar: p.avatar }))
 
                 this.snookerNamespace.to(data.lobbyCode).emit("players", playerDetails[0], playerDetails[1]);
 
@@ -150,6 +205,28 @@ export default class SnookerNamespace {
                     game.getPocketStates(skyboardRoom.room.world),
                     game.getStickState(skyboardRoom.room.world)
                 );
+
+                gameSession.startTimer();
+
+                logger.info("started game timer", { lobbyCode })
+
+                const interval = setInterval(() => {
+                    if (!gameSession.timer) {
+                        logger.warn("no gameSession timer found for interval.")
+
+                        return
+                    };
+
+                    emitTimeRemaining(this.snookerNamespace, lobbyCode, gameSession);
+                }, 1000)
+
+                interval.unref();
+
+                this.intervals.set(lobbyCode, interval);
+
+                const lobbyID = await MainServerLayer.getLobbyID(lobbyCode);
+
+                await MainServerLayer.startGame(lobbyID);
             })
 
             socket.on("rotate_stick", (lobbyCode, angle) => {
@@ -238,6 +315,8 @@ export default class SnookerNamespace {
 
                 room.data.stillMoving = true;
 
+                this.resetTimer(lobbyCode)
+
                 const { angle, force } = data;
 
                 // 1. Find the cue ball (label: 'cue')
@@ -298,6 +377,8 @@ export default class SnookerNamespace {
 
                 this.handleSwitchTurn(room)
 
+                this.resetTimer(lobbyCode)
+
                 if (room.data.firstPlay) {
                     room.data.firstPlay = false;
                 }
@@ -308,12 +389,45 @@ export default class SnookerNamespace {
     /**
      * @param {GameRoom} room 
      */
-    handleSwitchTurn(room) {
-        console.log("handle switch turn");
+    async handleSwitchTurn(room) {
+        logger.info("handle switch turn");
         if (room.data.winner) {
-            console.log("winner", room.data.winner);
+            const interval = this.intervals.get(room.lobbyCode);
 
-            this.snookerNamespace.to(room.lobbyCode).emit("winner", room.data.winner)
+            if (interval) {
+                clearInterval(interval);
+                this.intervals.delete(room.lobbyCode);
+            }
+
+            const g = gameSessionManager.getGame(room.lobbyCode);
+
+            if (g) {
+                g.cancelTimer();
+                logger.info("cancelled game timer", { lobbyCode: room.lobbyCode })
+            }
+
+            logger.info("winner", room.data.winner);
+
+            this.snookerNamespace.to(room.lobbyCode).emit("winner", room.data.winner);
+
+            const lobbyId = await MainServerLayer.getLobbyID(room.lobbyCode);
+
+            const skyboardRoom = this.snookerRooms.get(room.lobbyCode);
+
+            if (!skyboardRoom) return;
+
+            if (room.data.winner.player == 1) {
+                const winnerId = skyboardRoom.players[0].userId;
+                await MainServerLayer.wonGame(lobbyId, room.data.winner);
+            }
+            else {
+                const winnerId = skyboardRoom.players[1].userId;
+                await MainServerLayer.wonGame(lobbyId, room.data.winner);
+            }
+
+            this.snookerRooms.delete(room.lobbyCode);
+
+            return;
         }
 
         this.snookerNamespace.to(room.lobbyCode).emit('colors', room.player1, room.player2);
@@ -336,10 +450,10 @@ export default class SnookerNamespace {
             y: cue.position.y
         });
 
-        
+
         // prevent turn switch if player netted
         if (room.data.validPocket) {
-            console.log("continue");
+            logger.info("continue");
 
             this.snookerNamespace.to(room.lobbyCode).emit("update_stick", {
                 x: stick.position.x,
@@ -368,6 +482,65 @@ export default class SnookerNamespace {
         // reset state
         room.data.invalidCuePocket = false;
         room.data.foul = true;
+    }
+
+    elapsedTimer(roomID, namespace) {
+        logger.info("timer has elapsed", { roomID })
+
+        const skyboardRoom = this.snookerRooms.get(roomID);
+
+        if (!skyboardRoom) return;
+
+        switchTurn(skyboardRoom.room);
+
+        const gameRoom = skyboardRoom.room;
+
+        this.snookerNamespace.to(gameRoom.lobbyCode).emit(
+            'switch_turn',
+            gameRoom.data.turn,
+            gameRoom.data.invalidCuePocket ? true : false,
+            gameRoom.game.getBallStates(gameRoom.world),
+            gameRoom.game.getStickState(gameRoom.world)
+        );
+
+        // reset state
+        gameRoom.data.invalidCuePocket = false;
+        gameRoom.data.foul = true;
+
+        namespace.to(roomID).emit("timer-elapsed");
+
+        logger.info("emitted timer elapsed")
+
+        // CREATE NEW TIMER
+        const gameSession = gameSessionManager.getGame(roomID);
+
+        if (!gameSession) {
+            logger.warn("no gameSession found", { roomID });
+
+            return;
+        }
+
+        gameSession.cancelTimer();
+
+        gameSession.createTimer(this.timePerPlayer, () => this.elapsedTimer(roomID, namespace));
+
+        logger.info("new timer created")
+
+        gameSession.startTimer();
+    }
+
+    resetTimer(roomID) {
+        const gameSession = gameSessionManager.getGame(roomID);
+
+        if (!gameSession) {
+            logger.warn("no gameSession found to reset timer", { roomID });
+
+            return;
+        }
+
+        gameSession.cancelTimer();
+
+        gameSession.startTimer();
     }
 
     /**
