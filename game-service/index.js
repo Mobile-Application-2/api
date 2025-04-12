@@ -204,17 +204,32 @@ io.on('connection', (socket) => {
             
             const {gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId} = data;
 
-            const game = await GAME.findById(gameId);
+            const lobby = await LOBBY.findOne({code: lobbyCode});
+
+            const newGameId = lobby?.gameId;
+
+            const game = await GAME.findById(newGameId);
 
             if(!game) {
-                logger.info("no game found");
-                
-                await ErrorModel.create({error: "No Game Found"});
-
-                // return;
+                logger.warn("no game found");
             }
 
-            newRooms.push({gameId, playerId, opponentId, stakeAmount, tournamentId, gameName: game.name, lobbyCode, socketId: socket.id});
+            const dataPushed = {
+                gameId,
+                playerId,
+                opponentId,
+                stakeAmount,
+                tournamentId,
+                lobbyCode,
+                gameName: game.name,
+                socketId: socket.id
+            }
+
+            logger.info("data pushed", {dataPushed})
+
+            newRooms.push(dataPushed);
+
+            logger.info("newrooms after push", {newRooms})
 
             // socket.emit("game-message-channel", "init-game", {gameId, playerId, opponentId, stakeAmount, tournamentId, gameName: game.name});
         }
