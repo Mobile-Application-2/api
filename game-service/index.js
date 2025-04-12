@@ -128,20 +128,23 @@ io.on('connection', (socket) => {
 
     logger.info("details", {details: socket.handshake.query});
 
-    active.push({
-        socketID: socket.id,
-        userID: userId
-    });
+    if(userId) {
+        active.push({
+            socketID: socket.id,
+            userID: userId
+        });
+    
+        (async () => {
+            try {
+                await ACTIVEUSER.create({socketID: socket.id, userID: userId});
+            }
+            catch(error) {
+                logger.error(error)
+                logtail.flush();
+            }
+        })()
+    }
 
-    (async () => {
-        try {
-            await ACTIVEUSER.create({socketID: socket.id, userID: userId});
-        }
-        catch(error) {
-            logger.error(error)
-            logtail.flush();
-        }
-    })()
 
     io.emit('get_active', active);
 
@@ -161,8 +164,7 @@ io.on('connection', (socket) => {
                 catch(error) {
                     logger.error(error)
                 }
-            })
-
+            })()
     
             logger.info(active);
             // sentryLogActive();
@@ -1142,7 +1144,7 @@ function startGame(gameId) {
     if (!game || game.active) return;
     
     game.active = true;
-    game.timeRemaining = process.env.NODE_ENV == "production" ? 20 : 30; // 2 minutes
+    game.timeRemaining = process.env.NODE_ENV == "production" ? 120 : 30; // 2 minutes
     
     // Start timer
     game.timer = setInterval(() => {
