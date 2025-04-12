@@ -1266,7 +1266,7 @@ const snookerNamespace = io.of("/snooker");
 
 const snookerServerNamespace = new SnookerNamespace(snookerNamespace);
 
-snookerServerNamespace.activate();
+snookerServerNamespace.activate(io, newRooms);
 
 // Snooker.activate(io, snookerNameSpace, newRooms);
 

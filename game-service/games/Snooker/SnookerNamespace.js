@@ -5,6 +5,7 @@ import { gameSessionManager } from '../../GameSessionManager.js';
 import { logger } from '../../config/winston.config.js';
 import MainServerLayer from '../../MainServerLayer.js';
 import { emitTimeRemaining } from '../../gameUtils.js';
+import MobileLayer from '../../MobileLayer.js';
 
 const {
     isValidPosition,
@@ -21,6 +22,10 @@ const {
  */
 
 export default class SnookerNamespace {
+    /**@type {import('socket.io').Server} */
+    io
+    mainRooms
+
     /**@type {import('socket.io').Namespace} */
     snookerNamespace
 
@@ -107,7 +112,10 @@ export default class SnookerNamespace {
         }
     }
 
-    activate() {
+    activate(io, mainRooms) {
+        this.io = io;
+        this.mainRooms = mainRooms;
+        
         this.snookerNamespace.on('connection', (socket) => {
             logger.info("user connected to snooker namespace", { socketId: socket.id });
 
@@ -418,11 +426,20 @@ export default class SnookerNamespace {
 
             if (room.data.winner.player == 1) {
                 const winnerId = skyboardRoom.players[0].userId;
-                await MainServerLayer.wonGame(lobbyId, room.data.winner);
+                const loserId = skyboardRoom.players[1].userId;
+
+                MobileLayer.sendGameWon(this.io, this.mainRooms, winnerId, loserId);
+
+                await MainServerLayer.wonGame(lobbyId, winnerId);
+
             }
             else {
                 const winnerId = skyboardRoom.players[1].userId;
-                await MainServerLayer.wonGame(lobbyId, room.data.winner);
+                const loserId = skyboardRoom.players[0].userId;
+
+                MobileLayer.sendGameWon(this.io, this.mainRooms, winnerId, loserId);
+
+                await MainServerLayer.wonGame(lobbyId, winnerId);
             }
 
             this.snookerRooms.delete(room.lobbyCode);
