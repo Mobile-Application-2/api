@@ -78,6 +78,9 @@ const tournamentSchema = new mongoose.Schema(
       type: [mongoose.Types.ObjectId],
       default: [],
     },
+    hasEnded: {
+      type: Boolean,
+    },
     endDate: {
       type: Date,
       required: [true, 'Please provide an end date for this tournament'],

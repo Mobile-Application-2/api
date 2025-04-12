@@ -32,7 +32,12 @@ export default class Chess {
                 winner: false,
                 roomID: ''
             },
-            players: []
+            players: [{
+                username: "",
+                socketID: "",
+                avatar: "",
+                userId: "",
+            }]
         }
     ]
 
@@ -395,13 +400,6 @@ export default class Chess {
     // http://localhost:5173/game/my-Chess?lobbyCode=123456&playerId=2178bhjsbdhus
     // http://localhost:5657/game?gameName=my-Chess&lobbyCode=123456&playerId=2178bhjsbdhus
 
-    /**
-     * Activates the game logic for handling WebSocket connections.
-     * 
-     * @param {import("socket.io").Server} io - The main Socket.IO server instance.
-     * @param {import("socket.io").Namespace} whotNamespace - The specific namespace for the Whot game.
-     * @param {Array<GameData>} mainRooms - A map of active game rooms.
-     */
     static async joinGame(chessNameSpace, socket, data, state) {
         const { gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId } = data;
 

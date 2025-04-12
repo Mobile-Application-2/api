@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/game/Snooker/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vite + TS</title>
+  <style>
+    :root {
+      --mobile-bar-height: 40px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-image: url("/game/Snooker/background.jpeg");
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+
+
+    #power {
+      position: absolute;
+      left: 0;
+      /* display: none; */
+      height: var(--mobile-bar-height);
+      width: 100%;
+      /* width: var(--mobile-bar-height);
+      height: 100%; */
+      z-index: 1;
+      background-image: url(/game/Snooker/assets/sprites/spr_stick.png);
+      background-repeat: no-repeat;
+      background-size: 100%;
+      background-position-y: center;
+      background-position-x: center;
+      /* transform: rotate(-90deg); */
+    }
+
+    #base {
+      position: absolute;
+      left: 0;
+      /* display: none; */
+      height: var(--mobile-bar-height);
+      width: 30%;
+      /* width: var(--mobile-bar-height);
+      height: 50%; */
+      /* margin-top: 50px; */
+      border: 7px solid #515151;
+      border-style: solid;
+      background: linear-gradient(to right, #de5c00 60%, orange);
+      z-index: 1;
+      /* left: 50%; */
+      /* translate: -50% 0; */
+      overflow: hidden;
+      transform: rotate(-90deg);
+      translate: -40% 0;
+      /* transform-origin: 0 0;
+      transform: rotate(-90deg); */
+    }
+
+    #sky-area {
+      position: absolute;
+      top: 0;
+      height: 150px;
+      display: flex;
+      gap: 4rem;
+      color: white;
+    }
+
+    #sky-area h3 {
+      font-size: 32px;
+    }
+
+    .player-div {
+      width: 250px;
+      overflow: scroll;
+    }
+
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    .avatar-div {
+      width: 80px;
+      height: 80px;
+      background-color: black;
+      border-radius: 100%;
+      overflow: hidden;
+      border: 4px solid black;
+      margin: auto;
+    }
+
+    .avatar-div img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .username-div {}
+
+    .username {
+      text-align: center;
+    }
+
+    .status-div {
+      text-align: center;
+    }
+
+    @media screen and (max-width: 800px) {
+      #sky-area {
+        height: 50px;
+      }
+
+      #sky-area h3 {
+        font-size: 14px;
+      }
+    }
+  </style>
+  <script type="module" crossorigin src="/game/Snooker/assets/index-C0QyIlTU.js"></script>
+</head>
+
+<body>
+  <div id="sky-area">
+    <div class="player-div" id="player-1-div">
+      <div class="avatar-div" id="p1a-div">
+        <img id="p1a" src="https://game-service-uny2.onrender.com/game/Scrabble/a1.png" />
+      </div>
+      <div class="username-div">
+        <h3 class="username" id="p1u">user</h3>
+      </div>
+    </div>
+    <div class="status-div">
+      <h3 id="turn">YOUR TURN</h3>
+      <h3 id="time">0:30</h3>
+    </div>
+    <div class="player-div" id="player-2-div">
+      <div class="avatar-div" id="p2a-div">
+        <img id="p2a" src="https://game-service-uny2.onrender.com/game/Scrabble/a1.png" />
+      </div>
+      <div class="username-div">
+        <h3 class="username" id="p2u">user</h3>
+      </div>
+    </div>
+  </div>
+  <div id="gameArea">
+    <canvas id="screen"></canvas>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+</body>
+
+</html>

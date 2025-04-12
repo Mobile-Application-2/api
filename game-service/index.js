@@ -38,6 +38,7 @@ import { pinoLogger } from './config/pino.config.js';
 import { gameSessionManager } from './GameSessionManager.js';
 import { emitTimeRemaining } from './gameUtils.js';
 import ACTIVEUSER from './models/active.model.js';
+import SnookerNamespace from './games/Snooker/SnookerNamespace.js';
 
 const scrabbleDict = JSON.parse(readFileSync(new fileURL("./games/Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
 
@@ -884,6 +885,12 @@ function generateWordsForLetters(letters, dictionary, limit = 20) {
 // http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=677ac0f552d67df13f494f81
 // http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=664a055c8abcfe371430a5d1
 
+// http://localhost:5173/?gameName=Snooker&lobbyCode=123456&playerId=677ac0f552d67df13f494f81
+// http://localhost:5173/?gameName=Snooker&lobbyCode=123456&playerId=664a055c8abcfe371430a5d1
+
+// http://localhost:5657/game?gameName=Snooker&lobbyCode=123456&playerId=677ac0f552d67df13f494f81
+// http://localhost:5657/game?gameName=Snooker&lobbyCode=123456&playerId=664a055c8abcfe371430a5d1
+
 
 
 
@@ -1255,9 +1262,13 @@ const chessNameSpace = io.of("/chess");
 
 Chess.activate(io, chessNameSpace, newRooms);
 
-const snookerNameSpace = io.of("/snooker");
+const snookerNamespace = io.of("/snooker");
 
-Snooker.activate(io, snookerNameSpace, newRooms);
+const snookerServerNamespace = new SnookerNamespace(snookerNamespace);
+
+snookerServerNamespace.activate();
+
+// Snooker.activate(io, snookerNameSpace, newRooms);
 
 // const scrabbleNameSpace = io.of("/scrabble");
 
@@ -1328,6 +1339,7 @@ app.use('/game/Chess/assets', express.static(path.join(__dirname, "/games/Chess/
 app.use('/game/Ludo/assets', express.static(path.join(__dirname, "/games/Ludo/assets")));
 app.use('/game/Word', express.static(path.join(__dirname, "/games/Word")));
 app.use('/game/Scrabble', express.static(path.join(__dirname, "/games/Scrabble")));
+app.use('/game/Snooker', express.static(path.join(__dirname, "/games/Snooker")));
 
 // Game route handler
 app.get('/game', (req, res) => {

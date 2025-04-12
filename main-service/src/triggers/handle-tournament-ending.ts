@@ -190,7 +190,7 @@ export default async function handle_tournament_ending(changeData: any) {
         // add winners to the winners array
         await TOURNAMENT.updateOne(
           {_id: tournamentInfo._id},
-          {$set: {winners: winners.map(x => x._id)}},
+          {$set: {winners: winners.map(x => x._id), hasEnded: true}},
           {session}
         );
 
