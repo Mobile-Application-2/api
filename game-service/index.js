@@ -139,6 +139,7 @@ io.on('connection', (socket) => {
         }
         catch(error) {
             logger.error(error)
+            logtail.flush();
         }
     })()
 
@@ -166,7 +167,9 @@ io.on('connection', (socket) => {
             logger.info(active);
             // sentryLogActive();
     
-            io.emit('get_active', active);    
+            io.emit('get_active', active);
+
+            logtail.flush();
         }
         catch (error) {
             // Sentry.captureException(error);
@@ -335,6 +338,8 @@ io.on('connection', (socket) => {
             handleError(error);
         }
     })
+
+    logtail.flush();
 })
 
 const ludoNamespace = io.of("/ludo");
