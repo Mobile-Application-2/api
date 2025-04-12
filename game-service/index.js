@@ -126,6 +126,8 @@ io.on('connection', (socket) => {
     logger.info("user connected to general namespace");
     const userId = socket.handshake.query.userId;
 
+    logger.info("details", {details: socket.handshake.query});
+
     active.push({
         socketID: socket.id,
         userID: userId
@@ -138,7 +140,7 @@ io.on('connection', (socket) => {
         catch(error) {
             logger.error(error)
         }
-    })
+    })()
 
     io.emit('get_active', active);
 
