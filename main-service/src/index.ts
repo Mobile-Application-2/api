@@ -34,6 +34,7 @@ import {
 import path from 'node:path';
 import {rate_limit_api} from './middlewares/ratelimiter.middleware';
 import {agenda} from './agenda/agenda';
+import { pinoLogger } from './config/pino.config';
 
 const app = express();
 
@@ -42,6 +43,8 @@ const staticFolderPath = path.join(__dirname, 'static');
 
 // my nginx server
 app.set('trust proxy', 1);
+
+app.use(pinoLogger);
 
 app.use(express.static(staticFolderPath));
 app.use(cors({origin: '*'}));
