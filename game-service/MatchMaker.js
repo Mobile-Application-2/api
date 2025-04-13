@@ -31,6 +31,10 @@ export default class MatchMaker extends EventEmitter {
      * @param {string} playerId - The unique identifier of the player.
      */
     addPlayer(playerId) {
+        if(this.waitingPlayers.find(p => p == playerId)) {
+            return;
+        }
+        
         this.waitingPlayers.push(playerId);
         logger.info("Waiting players: ", {waitingPlayers: this.waitingPlayers});
         // Try matching as soon as a new player is added.
