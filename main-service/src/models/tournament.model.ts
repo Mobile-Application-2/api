@@ -80,6 +80,7 @@ const tournamentSchema = new mongoose.Schema(
     },
     hasEnded: {
       type: Boolean,
+      default: false,
     },
     endDate: {
       type: Date,

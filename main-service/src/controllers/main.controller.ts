@@ -1610,9 +1610,6 @@ export async function see_all_tournaments(req: Request, res: Response) {
           finalDate: {
             $add: ["$endDate", 1000 * 60 * 60 * 6],
           },
-          hasEnded: {
-            $lt: ["$endDate", new Date()],
-          },
         },
       },
       ...sortPipeline,
