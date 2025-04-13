@@ -10,7 +10,6 @@ import {
   get_players_with_most_wins_in_my_tournaments,
   start_a_tournament,
   fetch_tournament_fixtures,
-  get_leaderboard,
 } from '../controllers/celebrity.controller';
 import {is_celebrity, is_logged_in} from '../middlewares/auth.middleware';
 const router = Router();

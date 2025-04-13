@@ -917,7 +917,6 @@ export async function get_leaderboard(req: Request, res: Response) {
   try {
     console.log("request for leaderboard");
     
-    const {userId} = req;
     const {tournamentId} = req.params;
 
     if (!isValidObjectId(tournamentId)) {
