@@ -129,19 +129,25 @@ io.on('connection', (socket) => {
     logger.info("details", {details: socket.handshake.query});
 
     if(userId) {
-        active.push({
-            socketID: socket.id,
-            userID: userId
-        });
-    
         (async () => {
             try {
                 const au = await ACTIVEUSER.findOne({userID: userId})
 
                 if(!au) {
+                    active.push({
+                        socketID: socket.id,
+                        userID: userId
+                    });
+
                     await ACTIVEUSER.create({socketID: socket.id, userID: userId});
                 }
                 else {
+                    const player = active.find(p => p.userID == userId);
+
+                    if(player) {
+                        player.socketID = socket.id;
+                    }
+
                     au.socketID = socket.id;
 
                     await au.save();
