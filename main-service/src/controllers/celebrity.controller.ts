@@ -915,8 +915,6 @@ export async function fetch_tournament_fixtures(req: Request, res: Response) {
 
 export async function get_leaderboard(req: Request, res: Response) {
   try {
-    console.log("request for leaderboard");
-    
     const {tournamentId} = req.params;
 
     if (!isValidObjectId(tournamentId)) {
