@@ -26,5 +26,12 @@ export default class MobileLayer {
 
             logger.info("emitted game end event")
         }, 5000)
+
+        // Mutate the original array by removing elements
+        for (let i = mainRooms.length - 1; i >= 0; i--) {
+            if (mainRooms[i].lobbyCode === room_id) {
+                mainRooms.splice(i, 1);
+            }
+        }
     }
 }

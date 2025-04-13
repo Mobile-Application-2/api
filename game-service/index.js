@@ -103,7 +103,7 @@ rooms.splice(0);
  */
 
 /** @type {GameData[]} */
-const newRooms = [
+let newRooms = [
     {
         gameId: '',
         playerId: '',
@@ -136,7 +136,16 @@ io.on('connection', (socket) => {
     
         (async () => {
             try {
-                await ACTIVEUSER.create({socketID: socket.id, userID: userId});
+                const au = await ACTIVEUSER.findOne({userID: userId})
+
+                if(!au) {
+                    await ACTIVEUSER.create({socketID: socket.id, userID: userId});
+                }
+                else {
+                    au.socketID = socket.id;
+
+                    await au.save();
+                }
             }
             catch(error) {
                 logger.error(error)
@@ -1486,6 +1495,8 @@ mongoose.connect(URL)
 
     process.on("SIGTERM", async () => {
         try {
+            await ACTIVEUSER.deleteMany({});
+
             await io.close();
             logger.info("socket server closed")
             logger.info("all logs sent on graceful shutdown");
@@ -1497,7 +1508,6 @@ mongoose.connect(URL)
         }
 
         server.close(async () => {
-
             logger.info('Express server closed.');
 
             // Close the Mongoose connection
@@ -1511,6 +1521,8 @@ mongoose.connect(URL)
 
     process.on("SIGINT", async () => {
         try {
+            await ACTIVEUSER.deleteMany({});
+
             await io.close();
             logger.info("socket server closed")
             logger.info("all logs sent on graceful shutdown");
