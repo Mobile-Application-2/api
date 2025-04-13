@@ -37,6 +37,7 @@ import {
 import {handle_error} from '../utils/handle-error';
 import USER from '../models/user.model';
 import ACTIVEUSER from '../models/active.model';
+import { get_leaderboard } from '../controllers/celebrity.controller';
 const router = Router();
 
 // CHANGE LATER (FROM JOSHUA)
@@ -157,6 +158,12 @@ router.get('/active-users', is_logged_in, async (_req, res) => {
     handle_error(error, res);
   }
 })
+
+router.get(
+  '/tournament/:tournamentId/leaderboard',
+  is_logged_in,
+  get_leaderboard
+);
 
 router.get('/search', is_logged_in, search_users);
 

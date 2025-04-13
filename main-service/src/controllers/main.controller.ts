@@ -612,7 +612,7 @@ export async function create_a_lobby(req: Request, res: Response) {
     }
 
     // find a way to ensure this will not be decimal (fractional) should always be a full integer
-    const minWager = 100000; // 1k naira
+    const minWager = 10000; // 1k naira
     if (typeof wagerAmount !== 'number') {
       res.status(400).json({ message: 'Invalid wager amount' });
       return;

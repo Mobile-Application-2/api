@@ -52,12 +52,12 @@ router.get(
   fetch_tournament_fixtures
 );
 
-router.get(
-  '/tournament/:tournamentId/leaderboard',
-  is_logged_in,
-  is_celebrity,
-  get_leaderboard
-);
+// router.get(
+//   '/tournament/:tournamentId/leaderboard',
+//   is_logged_in,
+//   is_celebrity,
+//   get_leaderboard
+// );
 
 router.post('/tournaments', is_logged_in, is_celebrity, create_tournament);
 

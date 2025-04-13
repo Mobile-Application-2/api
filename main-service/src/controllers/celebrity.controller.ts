@@ -924,7 +924,6 @@ export async function get_leaderboard(req: Request, res: Response) {
     }
 
     const tournamentInfo = await TOURNAMENT.findOne({
-      creatorId: userId,
       _id: tournamentId,
     });
 
