@@ -40,7 +40,7 @@ export default class SnookerNamespace {
     /**@type {Map<string, NodeJS.Timeout>} */
     intervals = new Map()
 
-    timePerPlayer = process.env.NODE_ENV == "production" ? 1000 * 30 : 1000 * 10;
+    timePerPlayer = process.env.NODE_ENV == "production" ? 1000 * 30 : 1000 * 120;
 
     setupLocalRoom(lobbyCode) {
         const game = new Snooker();
