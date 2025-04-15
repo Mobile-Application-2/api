@@ -21,7 +21,7 @@ export default class Tournament {
      * 
      * @param {import("socket.io").Server} io - The main Socket.IO server instance.
      * @param {import("socket.io").Namespace} tournamentNamespace - The specific namespace for the Whot game.
-     * @param {Array<GameData>} mainRooms - A map of active game rooms.
+     * @param {Array<import("./index.js").GameData>} mainRooms - A map of active game rooms.
      */
     static activate(io, tournamentNamespace, mainRooms) {
         this.tournamentNamespace = tournamentNamespace;
@@ -35,7 +35,11 @@ export default class Tournament {
 
             const tournamentId = socket.handshake.query.tournamentId;
             const userId = socket.handshake.query.userId;
-            const isOwner = socket.handshake.query.isOwner;
+            const isOwner = socket.handshake.query.isOwner == "true";
+
+            /* const tournamentId2 = socket.handshake.auth.tournamentId;
+            const userId2 = socket.handshake.auth.userId;
+            const isOwner2 = socket.handshake.auth.isOwner == "true"; */
 
             logger.info(`tournament: ${tournamentId}, user: ${userId}, isOwner: ${isOwner}`);
 
@@ -179,7 +183,9 @@ export default class Tournament {
             this.activeTournamentPlayers.set(tournamentId, [])
         }
 
-        this.tournamentWaitingRoom.set(tournamentId, new WaitingRoomManager(tournamentNamespace, this.activeTournamentPlayers.get(tournamentId), this.mainIo));
+        const tournamentActivePlayers = this.activeTournamentPlayers.get(tournamentId) || [];
+
+        this.tournamentWaitingRoom.set(tournamentId, new WaitingRoomManager(tournamentNamespace, tournamentActivePlayers, this.mainIo));
 
         const maker = new MatchMaker();
 
@@ -219,7 +225,9 @@ export default class Tournament {
             return;
         }
 
-        this.activeTournamentPlayers.get(tournamentId).push({ userID: playerId, socketID: socket.id });
+        const tournamentActivePlayers = this.activeTournamentPlayers.get(tournamentId) || [];
+
+        tournamentActivePlayers.push({ userID: playerId, socketID: socket.id });
 
         // this.activeTournamentPlayers.push({ userID: playerId, socketID: socket.id });
 
@@ -245,7 +253,9 @@ export default class Tournament {
 
         // this.activeTournamentPlayers = this.activeTournamentPlayers.filter(value => value.userID != playerId);
 
-        const updatedPlayers = this.activeTournamentPlayers.get(tournamentId).filter(value => value.userID != playerId);
+        const tournamentActivePlayers = this.activeTournamentPlayers.get(tournamentId) || [];
+
+        const updatedPlayers = tournamentActivePlayers.filter(value => value.userID != playerId);
 
         this.activeTournamentPlayers.set(tournamentId, updatedPlayers);
 
