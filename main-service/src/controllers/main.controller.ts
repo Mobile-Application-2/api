@@ -2074,6 +2074,7 @@ export async function see_all_tournaments_i_am_in(req: Request, res: Response) {
 
     const tournaments = await TOURNAMENT.find({
       participants: userId,
+      hasEnded: false
     });
 
     res.status(200).json({

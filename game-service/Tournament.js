@@ -33,9 +33,17 @@ export default class Tournament {
 
             logger.info("user connected to tournament server");
 
+            logger.info("data: ", {data: socket.handshake.query})
+
             const tournamentId = socket.handshake.query.tournamentId;
             const userId = socket.handshake.query.userId;
             const isOwner = socket.handshake.query.isOwner;
+
+            if(!tournamentId) {
+                logger.warn("no tournament id", { tournamentId });
+
+                return;
+            }
 
             // TODO: ADD TOURNAMENT CHECK
             if (!this.isValidTournament(tournamentId)) {
