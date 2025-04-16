@@ -16,8 +16,13 @@
       padding: 0;
     }
 
+    html {
+      overflow: hidden;
+    }
+
     body {
       height: 100vh;
+      overflow: hidden;
       margin: 0;
       display: flex;
       justify-content: center;
@@ -115,9 +120,36 @@
       text-align: center;
     }
 
+    #waiting {
+      height: 100%;
+      width: 100%;
+      position: absolute;
+      background-color: brown;
+      z-index: 3;
+      background-image: url("/game/Snooker/background.jpeg");
+    }
+
+    #waiting > div {
+      position: absolute;
+      width: 300px;
+      height: 200px;
+      top: 15%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: white;
+      border-radius: 12px;
+    }
+
+    #waiting > div h2 {
+      color: black;
+      text-align: center;
+      margin-top: 4rem;
+    }
+
     @media screen and (max-height: 700px) {
       #sky-area {
         height: 50px;
+        gap: 1rem;
       }
 
       #sky-area h3 {
@@ -130,10 +162,15 @@
       }
     }
   </style>
-  <script type="module" crossorigin src="/game/Snooker/assets/index-DflRVXl9.js"></script>
+  <script type="module" crossorigin src="/game/Snooker/assets/index-B2OSbwdb.js"></script>
 </head>
 
 <body>
+  <div id="waiting">
+    <div>
+      <h2>Waiting for opponent...</h2>
+    </div>
+  </div>
   <div id="sky-area">
     <div class="player-div" id="player-1-div">
       <div class="avatar-div" id="p1a-div">
