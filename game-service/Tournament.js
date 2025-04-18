@@ -189,12 +189,15 @@ export default class Tournament {
 
         const maker = new MatchMaker();
 
-        maker.on("match", async ({ playerOneId, playerTwoId }) => {
+        maker.on("match", async ({ playerA: playerOneId, playerB: playerTwoId }) => {
+
+            logger.info(`successfully matched: ${playerOneId} ${playerTwoId}`)
+
             const playerOneSocketId = this.playersSocketIds.get(playerOneId);
             const playerTwoSocketId = this.playersSocketIds.get(playerTwoId);
 
             if(!playerOneSocketId || !playerTwoSocketId) {
-                logger.warn(`no ids: ${playerOneSocketId}, ${playerTwoSocketId}`);
+                logger.warn(`no ids, ${playerOneId}: ${playerOneSocketId}, ${playerTwoId}: ${playerTwoSocketId}`);
 
                 return;
             }
@@ -219,7 +222,7 @@ export default class Tournament {
 
                 maker.matchedPairs.delete(key);
 
-                this.tournamentNamespace.to([playerOneSocketId, playerTwoSocketId]).emit("error", { message: `something went wrong with matching` });
+                this.tournamentNamespace.to([playerOneSocketId, playerTwoSocketId]).emit("error", { message: `error in creating a fixture` });
             }
         })
 
