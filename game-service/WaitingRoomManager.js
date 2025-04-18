@@ -4,7 +4,9 @@
  * @property {String} userID
  */
 
+
 import { logger } from "./config/winston.config.js";
+import ACTIVEUSER from "./models/active.model.js";
 import TOURNAMENTFIXTURES from "./models/tournament-fixtures.model.js";
 
 /**
@@ -50,7 +52,7 @@ export default class WaitingRoomManager {
                 return;
             }
 
-            logger.info("fixture found: ", fixture)
+            logger.info("fixture found: ", { fixture })
 
             this.addPlayerToLobbyCodeWaiting(lobbyCode, playerId, socket.id);
 
@@ -66,9 +68,11 @@ export default class WaitingRoomManager {
                 return;
             }
 
-            const isOpponentActive = this.isActivePlayer(opponentId);
+            const isOpponentActive = await this.isActivePlayer(opponentId);
 
             if (!isOpponentActive) {
+                logger.info(`not active, starting opponent timer...`);
+
                 this.startOpponentTimer(socket.id, lobbyCode, opponentId);
 
                 socket.emit("opponent-not-active", { message: "Opponent Not Active, Starting Timer" });
@@ -76,6 +80,8 @@ export default class WaitingRoomManager {
                 logger.warn("opponent not active, starting timer, LobbyCode: ", { lobbyCode })
             }
             else {
+                logger.info(`opponent active`);
+
                 // Opponent is active, cancel the timer if it exists
                 this.cancelOpponentTimer(opponentId);
 
@@ -84,10 +90,12 @@ export default class WaitingRoomManager {
                 if (!playersSocketIds) {
                     socket.emit("error", { message: "Not enough players to start game" });
 
-                    logger.error("Not enough players to start game, LobbyCode: ", { lobbyCode })
+                    logger.warn(`Not enough players to start game, LobbyCode: ${lobbyCode}, sockets: ${playersSocketIds}`);
 
                     return;
                 }
+
+                logger.info(`ids to start, ${playersSocketIds}`);
 
                 this.io.to(playersSocketIds).emit("start-tournament-fixture");
 
@@ -98,7 +106,9 @@ export default class WaitingRoomManager {
             }
         }
         catch (error) {
-            logger.error("something went wrong joining tournament waiting room, lobbyCode: ", { error })
+            logger.warn("something went wrong joining tournament waiting room, lobbyCode: ", { lobbyCode })
+
+            logger.error(error);
 
             socket.emit("error", { message: "Something went wrong with joining the tournament waiting room" });
         }
@@ -181,17 +191,29 @@ export default class WaitingRoomManager {
             clearTimeout(this.timers.get(opponentId)); // Prevent duplicate timers
         }
 
-        const timeout = setTimeout(() => {
-            if (!this.isActivePlayer(opponentId)) {
-                this.io.to(socketID).emit("opponent-not-available");
+        const timeout = setTimeout(async () => {
+            try {
+                const au = await this.isActivePlayer(opponentId);
 
-                logger.warn("player still not active, lobbyCode: ", { lobbyCode })
+                if (!au) {
+                    this.io.to(socketID).emit("opponent-not-available");
 
-                // REMOVE FROM TOURNAMENT
-                // ETC
+                    logger.warn("player still not active, lobbyCode: ", { lobbyCode })
+
+                    // REMOVE FROM TOURNAMENT
+                    // ETC
+
+                    this.timers.delete(opponentId);
+                }
+            }
+            catch (error) {
+                logger.warn("error in cb (opponent not available)");
+
+                logger.error(error);
+
+                this.timers.delete(opponentId);
             }
 
-            this.timers.delete(opponentId);
         }, 120000); // 2 minutes
 
         timeout.unref();
@@ -215,6 +237,9 @@ export default class WaitingRoomManager {
         logger.info("matched player, tournament game about to start, lobbyCode: ", { lobbyCode });
     }
 
+    /**
+    * @deprecated This method is deprecated. Use `isActivePlayer(opponentId)` instead.
+    */
     checkOpponentOnlineState(opponentId) {
         const opponent = this.activePlayers.find(player => player.userID == opponentId);
 
@@ -239,10 +264,12 @@ export default class WaitingRoomManager {
         return waiting.map(lobbyPlayer => lobbyPlayer.socketID)
     }
 
-    isActivePlayer(userId) {
+    async isActivePlayer(userId) {
+        const au = await ACTIVEUSER.findOne({ userID: userId })
+
         const activePlayer = this.activePlayers.find(p => p.userID == userId);
 
-        if (!activePlayer) {
+        if (!au) {
             return false;
         }
 
@@ -259,7 +286,8 @@ export default class WaitingRoomManager {
      */
     async leaveWaitingRoom(playerId, lobbyCode) {
         try {
-            logger.info("player leaving waiting room", { playerId, lobbyCode })
+            logger.info(`player leaving waiting room, ${playerId}, ${lobbyCode}`)
+
             const waiting = this.lobbyCodeWaiting.get(lobbyCode);
 
             if (!waiting) {
@@ -282,7 +310,7 @@ export default class WaitingRoomManager {
             // Update the lobby with the remaining players
             this.lobbyCodeWaiting.set(lobbyCode, updatedWaiting);
 
-            logger.info("removed player from waiting", { playerId, lobbyCode });
+            logger.info(`removed, ${playerId}, ${lobbyCode}`)
 
             const playersToEmit = updatedWaiting.map(p => p.socketID);
 
@@ -317,6 +345,8 @@ export default class WaitingRoomManager {
             }
         }
         catch (error) {
+            logger.error(error);
+
             socket.emit("error", { message: "Something went wrong with leaving the tournament waiting room" });
         }
     }
