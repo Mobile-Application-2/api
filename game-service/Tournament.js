@@ -43,7 +43,7 @@ export default class Tournament {
 
             logger.info(`tournament: ${tournamentId}, user: ${userId}, isOwner: ${isOwner}`);
 
-            if(!tournamentId) {
+            if (!tournamentId) {
                 logger.warn("no tournament id", { tournamentId });
 
                 return;
@@ -120,7 +120,7 @@ export default class Tournament {
             socket.on('tournament-fixture-completed', async (playerId) => {
                 const tournamentMatcher = this.tournaments.get(tournamentId);
 
-                if(!tournamentMatcher) {
+                if (!tournamentMatcher) {
                     logger.info("tournament matcher not found");
 
                     return;
@@ -135,7 +135,7 @@ export default class Tournament {
                 logger.info("user disconnected from tournament namespace", socket.id);
 
                 const currentTournamentWaiting = this.tournamentWaitingRoom.get(tournamentId);
-                
+
                 if (!currentTournamentWaiting) {
                     logger.warn("no waiting room to leave", { tournamentId });
 
@@ -179,7 +179,7 @@ export default class Tournament {
 
         const currentTournamentPlayers = this.activeTournamentPlayers.get(tournamentId);
 
-        if(!currentTournamentPlayers) {
+        if (!currentTournamentPlayers) {
             this.activeTournamentPlayers.set(tournamentId, [])
         }
 
@@ -193,8 +193,20 @@ export default class Tournament {
             const playerOneSocketId = this.playersSocketIds.get(playerOneId);
             const playerTwoSocketId = this.playersSocketIds.get(playerTwoId);
 
+            if(!playerOneSocketId || !playerTwoSocketId) {
+                logger.warn(`no ids: ${playerOneSocketId}, ${playerTwoSocketId}`);
+
+                return;
+            }
+
+            logger.info(`successfully matched: ${playerOneSocketId} ${playerTwoSocketId}`)
+
             try {
+                logger.info(`creating tournament fixture: ${tournamentId}, ${playerOneId} ${playerTwoId}`)
+
                 const lobbyCode = await this.createFixture(tournamentId, playerOneId, playerTwoId);
+
+                logger.info(`generated lobby code: ${lobbyCode}`)
 
                 this.tournamentNamespace.to([playerOneSocketId, playerTwoSocketId]).emit("matched", { lobbyCode })
 
@@ -202,6 +214,10 @@ export default class Tournament {
             }
             catch (error) {
                 logger.error(error);
+
+                const key = [playerOneId, playerTwoId].sort().join('-')
+
+                maker.matchedPairs.delete(key);
 
                 this.tournamentNamespace.to([playerOneSocketId, playerTwoSocketId]).emit("error", { message: `something went wrong with matching` });
             }
