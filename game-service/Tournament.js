@@ -200,7 +200,7 @@ export default class Tournament {
             const playerOneSocketId = this.playersSocketIds.get(playerOneId);
             const playerTwoSocketId = this.playersSocketIds.get(playerTwoId);
 
-            if(!playerOneSocketId || !playerTwoSocketId) {
+            if (!playerOneSocketId || !playerTwoSocketId) {
                 logger.warn(`no ids, ${playerOneId}: ${playerOneSocketId}, ${playerTwoId}: ${playerTwoSocketId}`);
 
                 return;
@@ -287,16 +287,17 @@ export default class Tournament {
         logger.info("player removed successfully")
     }
 
-    static genFixtureCode(playerOneId, playerTwoId) {
-        return crypto.createHash("sha256")
-            .update(playerOneId + playerTwoId)
-            .digest("base64")
-            .slice(0, 6)
+    static genFixtureCode() {
+        return crypto.randomBytes(4) // 4 bytes = 32 bits
+            .toString("base64")        // base64 encodes it
+            .replace(/[^a-zA-Z0-9]/g, '') // remove non-alphanumeric chars
+            .slice(0, 6);              // get first 6 chars
     }
+
 
     static async createFixture(tournamentId, playerOneId, playerTwoId) {
         try {
-            const joiningCode = this.genFixtureCode(playerOneId, playerTwoId);
+            const joiningCode = this.genFixtureCode();
 
             const update = {
                 joiningCode: joiningCode,
