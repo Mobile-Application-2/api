@@ -924,6 +924,9 @@ function generateWordsForLetters(letters, dictionary, limit = 20) {
 // http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=677ac0f552d67df13f494f81
 // http://localhost:5657/game?gameName=Ludo&lobbyCode=123456&playerId=664a055c8abcfe371430a5d1
 
+// http://localhost:5173/game/Ludo?gameName=Ludo&lobbyCode=123456&playerId=677ac0f552d67df13f494f81
+// http://localhost:5173/game/Ludo?gameName=Ludo&lobbyCode=123456&playerId=664a055c8abcfe371430a5d1
+
 // http://localhost:5173/?gameName=Snooker&lobbyCode=123456&playerId=677ac0f552d67df13f494f81
 // http://localhost:5173/?gameName=Snooker&lobbyCode=123456&playerId=664a055c8abcfe371430a5d1
 
