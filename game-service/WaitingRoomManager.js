@@ -87,14 +87,6 @@ export default class WaitingRoomManager {
 
                 const playersSocketIds = this.getLobbyWaitingSocketsIds(lobbyCode);
 
-                if (!playersSocketIds) {
-                    socket.emit("error", { message: "Not enough players to start game" });
-
-                    logger.warn(`Not enough players to start game, LobbyCode: ${lobbyCode}, sockets: ${playersSocketIds}`);
-
-                    return false;
-                }
-
                 logger.info(`ids to start, ${playersSocketIds}`);
 
                 this.io.to(playersSocketIds).emit("start-tournament-fixture");
@@ -236,6 +228,16 @@ export default class WaitingRoomManager {
             return;
         }
 
+        const isDuplicate = waiting.find(p => p.userID == playerId)
+
+        if(isDuplicate) {
+            logger.warn("duplicate player");
+
+            this.io.to(socketId).emit("duplicate");
+
+            return;
+        }
+
         this.lobbyCodeWaiting.set(lobbyCode, [...waiting, { socketID: socketId, userID: playerId }])
 
         logger.info("matched player, tournament game about to start, lobbyCode: ", { lobbyCode });
@@ -258,11 +260,7 @@ export default class WaitingRoomManager {
         const waiting = this.lobbyCodeWaiting.get(lobbyCode);
 
         if (!waiting) {
-            return undefined;
-        }
-
-        if (waiting.length < 2) {
-            return undefined
+            return null;
         }
 
         return waiting.map(lobbyPlayer => lobbyPlayer.socketID)

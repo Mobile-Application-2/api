@@ -33,6 +33,8 @@ export default class Tournament {
 
             logger.info("user connected to tournament server");
 
+            logger.info({ query: socket.handshake.query })
+
             const tournamentId = socket.handshake.query.tournamentId;
             const userId = socket.handshake.query.userId;
             const isOwner = socket.handshake.query.isOwner == "true";
