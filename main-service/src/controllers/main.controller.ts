@@ -1606,10 +1606,38 @@ export async function see_all_tournaments(req: Request, res: Response) {
         },
       },
       {
+        $lookup: {
+          from: 'games',
+          localField: 'gameId',
+          foreignField: '_id',
+          as: 'gameInfo',
+          pipeline: [
+            {
+              $project: {
+                name: 1,
+              },
+            },
+            {
+              $addFields: {
+                gameName: '$name',
+              },
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          gameInfo: {
+            $arrayElemAt: ['$gameInfo', 0],
+          },
+        },
+      },
+      {
         $addFields: {
           finalDate: {
             $add: ['$endDate', 1000 * 60 * 60 * 6],
           },
+          gameName: '$gameInfo.gameName',
         },
       },
       ...sortPipeline,
