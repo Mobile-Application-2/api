@@ -49,7 +49,7 @@ export default class WaitingRoomManager {
 
                 logger.error("Fixture not found, LobbyCode: ", { lobbyCode });
 
-                return;
+                return false;
             }
 
             logger.info("fixture found: ", { fixture })
@@ -65,7 +65,7 @@ export default class WaitingRoomManager {
 
                 logger.error("opponent not found, LobbyCode: ", { lobbyCode });
 
-                return;
+                return false;
             }
 
             const isOpponentActive = await this.isActivePlayer(opponentId);
@@ -92,7 +92,7 @@ export default class WaitingRoomManager {
 
                     logger.warn(`Not enough players to start game, LobbyCode: ${lobbyCode}, sockets: ${playersSocketIds}`);
 
-                    return;
+                    return false;
                 }
 
                 logger.info(`ids to start, ${playersSocketIds}`);
@@ -104,6 +104,8 @@ export default class WaitingRoomManager {
                 // REMOVE FROM LOBBY
                 this.lobbyCodeWaiting.delete(lobbyCode);
             }
+
+            return true;
         }
         catch (error) {
             logger.warn("something went wrong joining tournament waiting room, lobbyCode: ", { lobbyCode })
@@ -111,6 +113,8 @@ export default class WaitingRoomManager {
             logger.error(error);
 
             socket.emit("error", { message: "Something went wrong with joining the tournament waiting room" });
+
+            return false;
         }
     }
 

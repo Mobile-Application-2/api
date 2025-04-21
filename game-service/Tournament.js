@@ -75,7 +75,7 @@ export default class Tournament {
 
             this.addPlayerToTournament(userId, tournamentId, socket);
 
-            socket.on('join-tournament-waiting-room', async (playerId, lobbyCode) => {
+            socket.on('join-tournament-waiting-room', async ({ userId: playerId, lobbyCode }) => {
                 logger.info(`unto the waiting room: ${playerId}, ${lobbyCode}, ${tournamentId}`);
 
                 const currentTournamentWaiting = this.tournamentWaitingRoom.get(tournamentId);
@@ -86,7 +86,14 @@ export default class Tournament {
                     return;
                 }
 
-                await currentTournamentWaiting.joinWaitingRoom(socket, playerId, lobbyCode);
+                const result = await currentTournamentWaiting.joinWaitingRoom(socket, playerId, lobbyCode);
+
+                if (!result) {
+                    logger.warn("error joining tournament waiting room");
+
+                    return;
+                }
+
 
                 const ownerSocketId = this.owners.get(tournamentId);
 
@@ -97,7 +104,7 @@ export default class Tournament {
                 logger.info(`player joined tournament waiting room: ${playerId}, ${lobbyCode}, ${tournamentId}`);
             })
 
-            socket.on('leave-tournament-waiting-room', async (playerId, lobbyCode) => {
+            socket.on('leave-tournament-waiting-room', async ({ userId: playerId, lobbyCode }) => {
                 logger.info(`leaving the waiting room: ${playerId}, ${lobbyCode}, ${tournamentId}`);
 
                 const currentTournamentWaiting = this.tournamentWaitingRoom.get(tournamentId);
