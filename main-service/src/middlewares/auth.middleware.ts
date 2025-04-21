@@ -96,10 +96,7 @@ export function is_admin(req: Request, res: Response, next: NextFunction) {
 
 export async function is_authorized_socket(socket: Socket): Promise<Boolean> {
   try {
-    const url = socket.request.url;
-    // eslint-disable-next-line n/no-unsupported-features/node-builtins
-    const parsedUrl = new URL(url as string);
-    const token = parsedUrl.searchParams.get('token');
+    const token = socket.handshake.headers.authorization?.split(' ')[1];
 
     if (!token) {
       return false;
