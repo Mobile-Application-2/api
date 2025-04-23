@@ -12,3 +12,5 @@ redis/dump.rdb
 *.DS_Store
 
 game-service/instrument.js
+
+*.patch

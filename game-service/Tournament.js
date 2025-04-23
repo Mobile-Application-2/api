@@ -9,6 +9,7 @@ export default class Tournament {
     static tournaments = new Map([["test", new MatchMaker()]]);
     static playersSocketIds = new Map([["test", "jskdjsk"]]);
     static activatedTournaments = new Set();
+    /**@type {import("socket.io").Namespace} */
     static tournamentNamespace;
     static activeTournamentPlayers = new Map([["test", [{ userID: "", socketID: "" }]]]);
     static tournamentWaitingRoom = new Map();
@@ -34,10 +35,13 @@ export default class Tournament {
             logger.info("user connected to tournament server");
 
             logger.info({ query: socket.handshake.query })
+            logger.info({ query: socket.handshake.auth })
 
-            const tournamentId = socket.handshake.query.tournamentId;
-            const userId = socket.handshake.query.userId;
-            const isOwner = socket.handshake.query.isOwner == "true";
+            const tournamentId = socket.handshake.query.tournamentId || socket.handshake.auth.tournamentId;
+            const userId = socket.handshake.query.userId || socket.handshake.auth.userId;
+            const isOwner = socket.handshake.query.isOwner || socket.handshake.auth.isOwner;
+
+            const isTournamentCreator = isOwner && isOwner == "true";
 
             /* const tournamentId2 = socket.handshake.auth.tournamentId;
             const userId2 = socket.handshake.auth.userId;
@@ -64,7 +68,7 @@ export default class Tournament {
                 return;
             }
 
-            if (isOwner) {
+            if (isTournamentCreator) {
                 logger.info("a celebrity");
 
                 this.owners.set(tournamentId, socket.id);

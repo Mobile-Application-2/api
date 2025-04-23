@@ -72,7 +72,7 @@ export default class Whot {
         io.emit('remove', 'whot', room.room_id);
       })
 
-      socket.on("join_room", async ({ room_id, storedId, username, avatar, userId }) => {
+      socket.on("join_room", async ({ room_id, storedId, username, avatar, userId, tournamentId }) => {
         if (room_id?.length != 6) {
           whotNamespace.to(socket.id).emit(
             "error",
@@ -117,6 +117,7 @@ export default class Whot {
               },
             ],
             playerOneState,
+            tournamentId
           });
 
           whotNamespace.to(socket.id).emit("dispatch", {
@@ -172,8 +173,8 @@ export default class Whot {
             currentRoom = rooms.find((room) => room.room_id == room_id);
             currentPlayers = currentRoom.players;
 
-            logger.info("room after adding new player", {currentRoom});
-            logger.info("current players", {currentPlayers});
+            logger.info("room after adding new player", { currentRoom });
+            logger.info("current players", { currentPlayers });
 
             whotNamespace.to(socket.id).emit("dispatch", {
               type: "INITIALIZE_DECK",
@@ -198,11 +199,17 @@ export default class Whot {
 
             logger.info("room id / lobby code: ", room_id);
 
-            const lobbyID = await MainServerLayer.getLobbyID(room_id);
+            if (currentRoom.tournamentId) {
+              await MainServerLayer.startTournamentGame(currentRoom.tournamentId, room_id);
+            }
+            else {
+              const lobbyID = await MainServerLayer.getLobbyID(room_id);
+  
+              logger.info("lobbyID: ", lobbyID);
+  
+              await MainServerLayer.startGame(lobbyID);
+            }
 
-            logger.info("lobbyID: ", lobbyID);
-
-            await MainServerLayer.startGame(lobbyID);
 
             logger.info("done sending info to main server");
           }
@@ -325,7 +332,7 @@ export default class Whot {
         if (isWinner) {
           try {
             logger.info(isWinner);
-            
+
             // const 
 
             // io.to(mainRooms)
@@ -358,7 +365,7 @@ export default class Whot {
             const mainFoundRooms = mainRooms.filter(room => room.lobbyCode == room_id);
 
             logger.info("main found rooms", mainFoundRooms);
-            
+
             const gameResult = {
               winner: winnerId,
               loser: loserId
@@ -369,13 +376,17 @@ export default class Whot {
             const mainServerRooms = mainFoundRooms.map(room => room.socketId);
 
             logger.info("main server rooms", mainServerRooms);
-            
 
             io.to(mainServerRooms).emit("gameEnd", gameResult);
 
-            const lobbyId = await MainServerLayer.getLobbyID(room_id);
-
-            await MainServerLayer.wonGame(lobbyId, winnerId);
+            if (currentRoom.tournamentId) {
+              await MainServerLayer.wonTournamentGame(currentRoom.tournamentId, winnerId, room_id);
+            }
+            else {
+              const lobbyId = await MainServerLayer.getLobbyID(room_id);
+  
+              await MainServerLayer.wonGame(lobbyId, winnerId);
+            }
           }
           catch (error) {
             logger.error(error);

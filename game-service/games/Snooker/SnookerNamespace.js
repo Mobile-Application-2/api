@@ -17,7 +17,8 @@ const {
  * @typedef SKI
  * @property {string} lobbyCode
  * @property {Array<{userId: string, socketId: string, username: string, avatar: string}>} players
- * @property {GameRoom} room
+ * @property {GameRoom} room,
+ * @property {string} tournamentId,
  * 
  */
 
@@ -80,13 +81,14 @@ export default class SnookerNamespace {
         socket.join(lobbyCode);
     }
 
-    createOrJoinRoom(lobbyCode, playerId, socketId) {
+    createOrJoinRoom(lobbyCode, playerId, socketId, tournamentId = null) {
         const room = this.snookerRooms.get(lobbyCode);
 
         if (!room) {
             /**@type {SKI} */
             const newInterface = {
                 lobbyCode: lobbyCode,
+                tournamentId: tournamentId,
                 room: this.setupLocalRoom(lobbyCode),
                 players: [{
                     userId: playerId,
@@ -150,7 +152,7 @@ export default class SnookerNamespace {
             socket.on("join_game", async (data) => {
                 logger.info("attempt to join game", { data });
 
-                const skyboardRoom = this.createOrJoinRoom(data.lobbyCode, data.playerId, socket.id);
+                const skyboardRoom = this.createOrJoinRoom(data.lobbyCode, data.playerId, socket.id, data.tournamentId);
                 this.joinServerRoom(socket, data.lobbyCode);
 
                 skyboardRoom.players[skyboardRoom.players.length - 1].username = data.username;
@@ -232,9 +234,15 @@ export default class SnookerNamespace {
 
                 this.intervals.set(lobbyCode, interval);
 
-                const lobbyID = await MainServerLayer.getLobbyID(lobbyCode);
+                if(data.tournamentId) {
+                    await MainServerLayer.startTournamentGame(data.tournamentId, lobbyCode)
+                }
+                else {
+                    const lobbyID = await MainServerLayer.getLobbyID(lobbyCode);
+    
+                    await MainServerLayer.startGame(lobbyID);
+                }
 
-                await MainServerLayer.startGame(lobbyID);
             })
 
             socket.on("rotate_stick", (lobbyCode, angle) => {
@@ -428,18 +436,28 @@ export default class SnookerNamespace {
                 const winnerId = skyboardRoom.players[0].userId;
                 const loserId = skyboardRoom.players[1].userId;
 
-                MobileLayer.sendGameWon(this.io, this.mainRooms, winnerId, loserId);
-
-                await MainServerLayer.wonGame(lobbyId, winnerId);
+                if(skyboardRoom.tournamentId) {
+                    await MainServerLayer.wonTournamentGame(skyboardRoom.tournamentId, winnerId, lobbyCode);
+                }
+                else {
+                    MobileLayer.sendGameWon(this.io, this.mainRooms, winnerId, loserId);
+    
+                    await MainServerLayer.wonGame(lobbyId, winnerId);
+                }
 
             }
             else {
                 const winnerId = skyboardRoom.players[1].userId;
                 const loserId = skyboardRoom.players[0].userId;
 
-                MobileLayer.sendGameWon(this.io, this.mainRooms, winnerId, loserId);
-
-                await MainServerLayer.wonGame(lobbyId, winnerId);
+                if(skyboardRoom.tournamentId) {
+                    await MainServerLayer.wonTournamentGame(skyboardRoom.tournamentId, winnerId, lobbyCode);
+                }
+                else {
+                    MobileLayer.sendGameWon(this.io, this.mainRooms, winnerId, loserId);
+    
+                    await MainServerLayer.wonGame(lobbyId, winnerId);
+                }
             }
 
             this.snookerRooms.delete(room.lobbyCode);

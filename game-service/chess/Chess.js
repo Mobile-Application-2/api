@@ -125,9 +125,18 @@ export default class Chess {
 
                 logger.info("sending info to main server");
 
-                const lobbyID = await MainServerLayer.getLobbyID(roomID);
+                if(data.tournamentId) {
+                    await MainServerLayer.startTournamentGame(data.tournamentId, data.lobbyCode);
+                }
+                else {
+                    const lobbyID = await MainServerLayer.getLobbyID(roomID);
+    
+                    await MainServerLayer.startGame(lobbyID);
+                }
 
-                await MainServerLayer.startGame(lobbyID);
+                // const lobbyID = await MainServerLayer.getLobbyID(roomID);
+
+                // await MainServerLayer.startGame(lobbyID);
 
                 logger.info("done sending info to main server");
             });
@@ -206,12 +215,13 @@ export default class Chess {
                 const winnerId = winnerData.toObject()._id
 
                 if (currentRoom.tournamentId) {
-                    await MainServerLayer.wonTournamentGame(currentRoom.tournamentId, winnerId)
+                    await MainServerLayer.wonTournamentGame(currentRoom.tournamentId, winnerId, roomID);
                 }
-
-                const lobbyId = await MainServerLayer.getLobbyID(roomID);
-
-                await MainServerLayer.wonGame(lobbyId, winnerId);
+                else {
+                    const lobbyId = await MainServerLayer.getLobbyID(roomID);
+    
+                    await MainServerLayer.wonGame(lobbyId, winnerId);
+                }
 
                 // await GameModel.findOne({'players.username'})
             })

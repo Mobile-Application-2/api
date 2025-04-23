@@ -504,12 +504,13 @@ ludoNamespace.on('connection', socket => {
         // const winnerId = winnerData.toObject()._id
 
         if(currentRoom.tournamentId) {
-            await MainServerLayer.wonTournamentGame(currentRoom.tournamentId, winnerId)
+            await MainServerLayer.wonTournamentGame(currentRoom.tournamentId, winnerId, currentRoom.roomID)
         }
-
-        const lobbyId = await MainServerLayer.getLobbyID(roomID);
-
-        await MainServerLayer.wonGame(lobbyId, winnerId);
+        else {
+            const lobbyId = await MainServerLayer.getLobbyID(roomID);
+    
+            await MainServerLayer.wonGame(lobbyId, winnerId);
+        }
     })
 
     /**
@@ -604,9 +605,18 @@ ludoNamespace.on('connection', socket => {
 
             intervals.set(roomID, interval);
 
-            const lobbyID = await MainServerLayer.getLobbyID(roomID);
+            if(currentRoomObject.tournamentId) {
+                await MainServerLayer.startTournamentGame(currentRoomObject.tournamentId, currentRoomObject.roomID);
+            }
+            else {
+                const lobbyID = await MainServerLayer.getLobbyID(roomID);
 
-            await MainServerLayer.startGame(lobbyID);
+                await MainServerLayer.startGame(lobbyID);
+            }
+
+            // const lobbyID = await MainServerLayer.getLobbyID(roomID);
+
+            // await MainServerLayer.startGame(lobbyID);
 
             logger.info("done sending info to main server");
         }
@@ -786,7 +796,7 @@ function dealLetters(gameId, playerId, count = 7) {
  * @param {string} gameId 
  * @returns {Game}
  */
-function createGame(gameId) {
+function createGame(gameId, tournamentId = null) {
     games[gameId] = {
         /**@type {Player} */
         players: {},
@@ -795,7 +805,8 @@ function createGame(gameId) {
         timeRemaining: 120,
         timer: null,
         usedWords: [],
-        lobbyCode: null
+        lobbyCode: null,
+        tournamentId: tournamentId
     };
     return games[gameId];
 }
@@ -950,7 +961,7 @@ wordNamespace.on("connection", (socket) => {
         if (!game) {
             logger.info("no game, creating...");
 
-            game = createGame(gameId);
+            game = createGame(gameId, tournamentId);
         }
 
         if (persistStore[playerID]) {
@@ -1062,9 +1073,15 @@ wordNamespace.on("connection", (socket) => {
             startGame(gameId);
             logger.info("starting game due to 2 players");
 
-            const lobbyID = await MainServerLayer.getLobbyID(gameId);
+            if(tournamentId) {
+                await MainServerLayer.startTournamentGame(tournamentId, gameId);
+            }
+            else {
+                const lobbyID = await MainServerLayer.getLobbyID(gameId);
+    
+                await MainServerLayer.startGame(lobbyID);
+            }
 
-            await MainServerLayer.startGame(lobbyID);
         }
     });
 
@@ -1275,8 +1292,10 @@ async function endGame(gameId, reason) {
                 loser = player;
             }
         })
+
+        const tournamentId = game.tournamentId;
     
-        delete games[gameId];
+        // delete games[gameId];
 
         logger.info("loser", {loser});
     
@@ -1285,9 +1304,16 @@ async function endGame(gameId, reason) {
     
         MobileLayer.sendGameWon(io, newRooms, winnerId, loserId, gameId);
 
-        const lobbyId = await MainServerLayer.getLobbyID(gameId);
-    
-        await MainServerLayer.wonGame(lobbyId, winnerId);
+        if(tournamentId) {
+            await MainServerLayer.wonTournamentGame(tournamentId, winnerId, gameId)
+        }
+        else {
+            const lobbyId = await MainServerLayer.getLobbyID(gameId);
+        
+            await MainServerLayer.wonGame(lobbyId, winnerId);
+        }
+
+        delete games[gameId];
     }
     catch(error) {
         logger.warn(`error occured while ending scrabble game, gameId: ${gameId}`);

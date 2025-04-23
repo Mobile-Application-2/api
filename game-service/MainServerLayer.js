@@ -8,6 +8,7 @@ import { publish_to_queue } from "./rabbit.js";
 import { isDev, isProd } from "./config/server.config.js";
 import { logger } from "./config/winston.config.js";
 import USER from "./models/user.model.js";
+import TOURNAMENTFIXTURES from "./models/tournament-fixtures.model.js";
 
 dotenv.config();
 
@@ -135,10 +136,16 @@ export default class MainServerLayer {
 
     }
 
-    static async startTournamentGame(fixtureId) {
+    static async startTournamentGame(fixtureId, joiningCode) {
         try {
+            const f = await TOURNAMENTFIXTURES.findOne({tournamentId: fixtureId, joiningCode: joiningCode});
+
+            if(!f) {
+                logger.warn("fixture not found");
+            }
+
             const data = {
-                fixtureId: fixtureId
+                fixtureId: f._id
             }
 
             logger.info("sending start game to main server, data: ", {data});
@@ -161,12 +168,18 @@ export default class MainServerLayer {
         }
     }
 
-    static async wonTournamentGame(fixtureId, winnerId) {
+    static async wonTournamentGame(fixtureId, winnerId, joiningCode) {
         try {
+            const f = await TOURNAMENTFIXTURES.findOne({tournamentId: fixtureId, joiningCode: joiningCode});
+
+            if(!f) {
+                logger.warn("fixture not found");
+            }
+
             logger.info("sending winner info (tournament)");
 
             const data = {
-                fixtureId: fixtureId,
+                fixtureId: f._id,
                 winnerId: winnerId
             }
 
