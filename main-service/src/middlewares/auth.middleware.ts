@@ -96,23 +96,26 @@ export function is_admin(req: Request, res: Response, next: NextFunction) {
 
 export async function is_authorized_socket(socket: Socket): Promise<Boolean> {
   try {
-    const token = socket.handshake.headers.authorization?.split(' ')[1];
+    const tokenQuery = socket.handshake.query?.token;
 
-    if (!token) {
-      return false;
-    }
+    const token = typeof tokenQuery === 'string' 
+      ? tokenQuery.replace("Bearer ", "")
+      : null;
 
-    const {userId} = process_token(token as string);
+    if (!token) return false;
 
-    // cache id in redis (used to know who sent a message)
+    const { userId } = process_token(token);
+
     await redisClient.set(socket.id, userId);
-    await redisClient.set(userId + '_messaging', socket.id);
+    await redisClient.set(`${userId}_messaging`, socket.id);
 
     return true;
   } catch (error) {
+    console.error("Socket auth error:", error);
     return false;
   }
 }
+
 
 export async function is_game_server(
   req: Request,
