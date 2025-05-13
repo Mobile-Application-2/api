@@ -124,7 +124,7 @@ async function handleError(error) {
 
 io.on('connection', (socket) => {
     logger.info("user connected to general namespace");
-    const userId = socket.handshake.query.userId;
+    const userId = socket.handshake.query.userId || socket.handshake.auth.userId;
 
     logger.info("details", {details: socket.handshake.query});
 
