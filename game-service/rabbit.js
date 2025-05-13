@@ -1,6 +1,6 @@
 import amqplib from 'amqplib';
 import dotenv from "dotenv"
-import { logger } from './config/winston.config';
+import { logger } from './config/winston.config.js';
 
 dotenv.config();
 
