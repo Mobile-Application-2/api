@@ -26,6 +26,8 @@ export async function handle_game_won(
         message.content.toString()
       ) as IGameWon;
 
+      console.log(`processing game won, lobbyId: ${lobbyId}, winnerId: ${winnerId}`);
+
       if (!isValidObjectId(lobbyId) || !isValidObjectId(winnerId)) {
         Sentry.addBreadcrumb({
           category: 'game',

@@ -1,5 +1,6 @@
 import amqplib from 'amqplib';
 import dotenv from "dotenv"
+import { logger } from './config/winston.config';
 
 dotenv.config();
 
@@ -63,9 +64,13 @@ export const publish_to_queue = async (
         await init(); // Ensure the channel is initialized before trying to send a message
     }
 
+    logger.info("publishing to queue, queue name " + queueName);
+
     channel.assertQueue(queueName, { durable: queueIsDurable });
 
     channel.sendToQueue(queueName, Buffer.from(JSON.stringify(data)));
+
+    logger.info("Done");
 };
 
 // Initialize the connection and channel when the module is loaded
