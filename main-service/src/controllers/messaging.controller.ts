@@ -37,6 +37,8 @@ export async function send_message(
     const senderId = await redisClient.get(socket.id);
 
     if (senderId === null) {
+      console.log("sender id not found");
+      
       socket.emit('sender_id_not_found', 'Reconnect to re-save the user Id');
       return;
     }
@@ -45,6 +47,8 @@ export async function send_message(
       isValidObjectId(recipientId) === false &&
       isValidObjectId(roomId) === false
     ) {
+      console.log("invalid id(s)");
+
       socket.emit(
         'invalid_request',
         'Please specify a valid recipient or room Id'
@@ -81,12 +85,15 @@ export async function send_message(
       try {
         // check if the roomId is valid and set
         if (isValidObjectId(roomId) === false) {
+          console.log("not valid room id");
+          
           // check if the recipientId belongs to any user first
           const recipientInfo = await USER.findOne({
             _id: new ObjectId(recipientId),
           });
 
           if (recipientInfo === null) {
+            console.log("rec no exist");
             throw Error('The specified recipient does not exist');
           }
 
@@ -122,6 +129,7 @@ export async function send_message(
 
           // if I belong in this room and who the other member is
           if (roomInfo === null) {
+            console.log("room not found");
             throw Error('Room not found');
           }
 
@@ -131,6 +139,7 @@ export async function send_message(
           );
 
           if (participantsIdAsStrings.includes(senderId) === false) {
+            console.log("You can not send messages here as you are not a participant in this conversation");
             throw Error(
               'You can not send messages here as you are not a participant in this conversation'
             );
@@ -174,6 +183,7 @@ export async function send_message(
 
         // TODO: push notification later
         if (recipientSocketId === null) {
+          console.log("offline");
           const senderInfo = await USER.findOne({_id: senderId});
 
           if (senderInfo) {
@@ -204,6 +214,7 @@ export async function send_message(
 
         // TODO: push notification later
         if (typeof recipientSocket === 'undefined') {
+          console.log("undefined, push later");
           const senderInfo = await USER.findOne({_id: senderId});
 
           if (senderInfo) {
@@ -226,6 +237,8 @@ export async function send_message(
           return;
         }
 
+        console.log("pushing...");
+        
         recipientSocket.emit('incoming_message', messageInfo[0]);
 
         await session.commitTransaction();
