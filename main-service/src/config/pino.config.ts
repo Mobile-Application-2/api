@@ -4,7 +4,7 @@ const pinoLogger = pinoHttp({
     timestamp: () => `,"time":"${new Date().toISOString()}"`,
     serializers: {
         req(req) {
-            return { method: req.method, url: req.url };
+            return { method: req.method, url: req.url, contentType: req.headers['content-type'] };
         },
         res(res) {
             return { statusCode: res.statusCode };
