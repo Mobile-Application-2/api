@@ -184,7 +184,10 @@ export async function send_message(
         // TODO: push notification later
         if (recipientSocketId === null) {
           console.log("offline");
+          
           const senderInfo = await USER.findOne({_id: senderId});
+
+          console.log("person not offline ", senderInfo?.username);
 
           if (senderInfo) {
             await NOTIFICATION.create(
