@@ -191,7 +191,7 @@ export async function send_message(
               [
                 {
                   userId: recipientId,
-                  image: senderInfo.avatar,
+                  image: senderInfo.avatar || "https://game-service-uny2.onrender.com/game/Scrabble/a1.png",
                   title: 'New Message',
                   body: messageInfo[0].text
                     ? messageInfo[0].text
@@ -222,7 +222,7 @@ export async function send_message(
               [
                 {
                   userId: recipientId,
-                  image: senderInfo.avatar,
+                  image: senderInfo.avatar || "https://game-service-uny2.onrender.com/game/Scrabble/a1.png",
                   title: 'New Message',
                   body: messageInfo[0].text
                     ? messageInfo[0].text
@@ -238,7 +238,7 @@ export async function send_message(
         }
 
         console.log("pushing...");
-        
+
         recipientSocket.emit('incoming_message', messageInfo[0]);
 
         await session.commitTransaction();
