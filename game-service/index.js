@@ -1194,7 +1194,7 @@ function startGame(gameId) {
     if (!game || game.active) return;
     
     game.active = true;
-    game.timeRemaining = process.env.NODE_ENV == "production" ? 120 : 30; // 2 minutes
+    game.timeRemaining = process.env.NODE_ENV == "production" ? 30 : 30; // 2 minutes
     
     // Start timer
     game.timer = setInterval(() => {

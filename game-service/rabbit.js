@@ -66,6 +66,8 @@ export const publish_to_queue = async (
 
     logger.info("publishing to queue, queue name " + queueName);
 
+    logger.info("data for queue", {data})
+
     channel.assertQueue(queueName, { durable: queueIsDurable });
 
     channel.sendToQueue(queueName, Buffer.from(JSON.stringify(data)));

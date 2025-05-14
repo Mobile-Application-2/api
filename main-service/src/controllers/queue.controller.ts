@@ -20,7 +20,11 @@ export async function handle_game_won(
   message: amqplib.ConsumeMessage | null,
   channel: amqplib.Channel
 ) {
+  console.log("handle game won event came from game server");
+  
   try {
+    console.log("message????", message);
+    
     if (message) {
       const {lobbyId, winnerId} = JSON.parse(
         message.content.toString()
