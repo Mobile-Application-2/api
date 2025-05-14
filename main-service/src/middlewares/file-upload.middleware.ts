@@ -5,6 +5,7 @@ export function process_file(fieldName: string) {
   return async (req: Request, res: Response, next: NextFunction) => {
     // file is optional
     if (typeof req.files === 'undefined' || req.files === null) {
+      console.log("no files");
       next();
       return;
     }

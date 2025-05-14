@@ -368,6 +368,8 @@ export async function edit_profile(req: Request, res: Response) {
     const {userId} = req;
     const update = req.body;
 
+    console.log(update);
+
     if (update === undefined || Object.keys(update).length === 0) {
       res.status(400).json({message: 'Invalid request'});
       return;
