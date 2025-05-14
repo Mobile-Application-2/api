@@ -368,9 +368,11 @@ export async function edit_profile(req: Request, res: Response) {
     const {userId} = req;
     const update = req.body;
 
-    console.log(update);
+    console.log("update", update);
 
     if (update === undefined || Object.keys(update).length === 0) {
+      console.log("invalid req");
+      
       res.status(400).json({message: 'Invalid request'});
       return;
     }
@@ -391,6 +393,8 @@ export async function edit_profile(req: Request, res: Response) {
     );
 
     if (hasInvalidFields) {
+      console.log("has invalid fields");
+      
       res
         .status(400)
         .json({message: 'Update failed as request contains invalid fields'});
@@ -431,6 +435,8 @@ export async function edit_profile(req: Request, res: Response) {
         );
 
       if (hasInvalidNotificationPreferences) {
+        console.log("invalid notif pref");
+        
         res.status(400).json({
           message:
             'Update failed as request contains invalid notification preferences',
@@ -442,6 +448,8 @@ export async function edit_profile(req: Request, res: Response) {
     // check for presence of phone
     if (Object.prototype.hasOwnProperty.call(update, 'phoneNumber')) {
       if (isMobilePhone(update.phoneNumber, 'en-NG') === false) {
+        console.log("invalid phone number");
+
         res.status(400).json({
           message:
             'Update failed, phone number must be a valid Nigerian phone number (+234, 08..., 07... etc.)',
@@ -470,6 +478,7 @@ export async function edit_profile(req: Request, res: Response) {
       const userInfo = await USER.findOne({_id: userId});
 
       if (userInfo === null) {
+        console.log("somethi went wrong upd");
         res.status(400).json({
           message: 'Something went wrong while updating your profile',
         });
@@ -481,6 +490,8 @@ export async function edit_profile(req: Request, res: Response) {
         typeof update.avatar === 'string' &&
         !update.avatar.match(/profile\/defaults/)
       ) {
+        console.log("doesnt match defaults, hmmm");
+        
         res.status(400).json({message: 'Invalid request'});
         return;
       }
