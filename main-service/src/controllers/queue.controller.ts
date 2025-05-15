@@ -15,6 +15,7 @@ import send_mail from '../utils/nodemailer';
 import NOTIFICATION from '../models/notification.model';
 import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
 import TOURNAMENT from '../models/tournament.model';
+import ADMIN from '../models/admin.model';
 
 export async function handle_game_won(
   message: amqplib.ConsumeMessage | null,
@@ -144,14 +145,28 @@ export async function handle_game_won(
         try {
           // update the winner with the amount from the escrow
 
-          /* 
-            TODO: JOSHUA
-            90% of wager amount should be paid to the winner while the remaining is for the admin
-          */
-         
+          // TODO: JOSHUA
+          // 90% of wager amount should be paid to the winner while the remaining is for the admin
+
+          const winnerShare = lastestEscrowInfo.totalAmount * 0.9;
+          const adminShare = lastestEscrowInfo.totalAmount * 0.1;
+
+          const adminsArray = await ADMIN.find({}, null, {session})
+
+          if(adminsArray.length < 1) {
+            console.warn("no admin to credit");
+          }
+          else {
+            const admin = adminsArray[0];
+
+            admin.walletBalance += adminShare;
+
+            await admin.save({session})
+          }
+
           await USER.updateOne(
             {_id: winnerId},
-            {$inc: {walletBalance: lastestEscrowInfo.totalAmount}},
+            {$inc: {walletBalance: winnerShare}},
             {session}
           );
 
@@ -164,7 +179,7 @@ export async function handle_game_won(
                 fee: 0,
                 ref: uuidV4(),
                 status: 'completed',
-                total: lastestEscrowInfo.totalAmount,
+                total: winnerShare,
                 type: 'deposit',
                 userId: winnerId,
               },
@@ -201,7 +216,7 @@ export async function handle_game_won(
           await send_mail(userInfo.email, 'game-won', 'You won a game', {
             username: userInfo.username,
             lobbyCode: lobbyInfo.code,
-            amount: `${(lastestEscrowInfo.totalAmount / 100).toFixed(2)} naira`,
+            amount: `${(winnerShare / 100).toFixed(2)} naira`,
           });
 
           // TODO: push notification later
