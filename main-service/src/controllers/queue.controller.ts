@@ -143,6 +143,12 @@ export async function handle_game_won(
       await session.withTransaction(async session => {
         try {
           // update the winner with the amount from the escrow
+
+          /* 
+            TODO: JOSHUA
+            90% of wager amount should be paid to the winner while the remaining is for the admin
+          */
+         
           await USER.updateOne(
             {_id: winnerId},
             {$inc: {walletBalance: lastestEscrowInfo.totalAmount}},
