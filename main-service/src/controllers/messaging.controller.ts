@@ -187,7 +187,7 @@ export async function send_message(
           
           const senderInfo = await USER.findOne({_id: senderId});
 
-          console.log("person not online", senderInfo?.username);
+          console.log("person online", senderInfo?.username);
 
           if (senderInfo) {
             await NOTIFICATION.create(
