@@ -194,6 +194,15 @@ export async function send_message(
               [
                 {
                   userId: recipientId,
+                  senderInformation: {
+                    userId: senderInfo._id,
+                    isCelebrity: senderInfo.isCelebrity,
+                    username: senderInfo.username,
+                    avatar: senderInfo.avatar,
+                    bio: senderInfo.bio,
+                    firstName: senderInfo.firstName,
+                    lastName: senderInfo.lastName
+                  },
                   image: senderInfo.avatar || "https://game-service-uny2.onrender.com/game/Scrabble/a1.png",
                   title: 'New Message',
                   body: messageInfo[0].text
@@ -225,6 +234,15 @@ export async function send_message(
               [
                 {
                   userId: recipientId,
+                  senderInformation: {
+                    userId: senderInfo._id,
+                    isCelebrity: senderInfo.isCelebrity,
+                    username: senderInfo.username,
+                    avatar: senderInfo.avatar,
+                    bio: senderInfo.bio,
+                    firstName: senderInfo.firstName,
+                    lastName: senderInfo.lastName
+                  },
                   image: senderInfo.avatar || "https://game-service-uny2.onrender.com/game/Scrabble/a1.png",
                   title: 'New Message',
                   body: messageInfo[0].text
