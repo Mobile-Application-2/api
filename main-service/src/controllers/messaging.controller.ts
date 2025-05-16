@@ -198,7 +198,7 @@ export async function send_message(
                     userId: senderInfo._id,
                     isCelebrity: senderInfo.isCelebrity,
                     username: senderInfo.username,
-                    avatar: senderInfo.avatar,
+                    avatar: senderInfo.avatar || "https://game-service-uny2.onrender.com/game/Scrabble/a1.png",
                     bio: senderInfo.bio,
                     firstName: senderInfo.firstName,
                     lastName: senderInfo.lastName
@@ -238,7 +238,7 @@ export async function send_message(
                     userId: senderInfo._id,
                     isCelebrity: senderInfo.isCelebrity,
                     username: senderInfo.username,
-                    avatar: senderInfo.avatar,
+                    avatar: senderInfo.avatar || "https://game-service-uny2.onrender.com/game/Scrabble/a1.png",
                     bio: senderInfo.bio,
                     firstName: senderInfo.firstName,
                     lastName: senderInfo.lastName
