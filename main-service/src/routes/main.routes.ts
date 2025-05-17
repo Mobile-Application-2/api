@@ -231,7 +231,7 @@ router.get('/lobby/participants/:lobbyCode', is_logged_in, async (req, res) => {
       return;
     }
 
-    const fd = await Promise.all(lobby.participants.map(uId => USER.findById(uId)));
+    const fd = await Promise.all(lobby.participants.filter(uId => uId.toString() != lobby.creatorId.toString()).map(uId => USER.findById(uId)));
 
     const finalData = fd.map(user => {
       return {
