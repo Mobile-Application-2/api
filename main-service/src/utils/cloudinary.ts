@@ -4,6 +4,7 @@ cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true
 });
 
 // define, upload, get and delete functions here
@@ -25,7 +26,7 @@ export async function upload_file(
           return;
         }
 
-        resolve(result.url);
+        resolve(result.secure_url || result.url);
       }
     );
 
