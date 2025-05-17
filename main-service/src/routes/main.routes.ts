@@ -231,7 +231,17 @@ router.get('/lobby/participants/:lobbyCode', is_logged_in, async (req, res) => {
       return;
     }
 
-    res.status(200).json({message: "successful", data: lobby.participants})
+    const fd = await Promise.all(lobby.participants.map(uId => USER.findById(uId)));
+
+    const finalData = fd.map(user => {
+      return {
+        username: user?.username,
+        avatar: user?.avatar || "https://game-service-uny2.onrender.com/game/Scrabble/a1.png",
+        userId: user?._id 
+      }
+    })
+
+    res.status(200).json({message: "successful", data: finalData})
   }
   catch(error) {
     handle_error(error, res);
