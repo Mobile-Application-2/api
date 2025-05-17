@@ -38,6 +38,7 @@ import {handle_error} from '../utils/handle-error';
 import USER from '../models/user.model';
 import ACTIVEUSER from '../models/active.model';
 import { get_leaderboard } from '../controllers/celebrity.controller';
+import LOBBY from '../models/lobby.model';
 const router = Router();
 
 // CHANGE LATER (FROM JOSHUA)
@@ -208,6 +209,34 @@ router.get('/top/gamers', is_logged_in, top_gamers); // players with most win we
 router.get('/top-active-games', is_logged_in, get_top_active_games);
 
 router.get('/gamers', is_logged_in, get_gamers);
+
+
+// JOSHUA
+// AT THE REQUEST FROM THE MOBILE DEV
+router.get('/lobby/participants/:lobbyCode', is_logged_in, async (req, res) => {
+  const { lobbyCode } = req.params;
+
+  if(!lobbyCode) {
+    res.status(400).json({message: "specify a lobby code"});
+
+    return;
+  }
+
+  try {
+    const lobby = await LOBBY.findOne({code: lobbyCode});
+
+    if(!lobby) {
+      res.status(400).json({message: "no lobby found"});
+
+      return;
+    }
+
+    res.status(200).json({message: "successful", data: lobby.participants})
+  }
+  catch(error) {
+    handle_error(error, res);
+  }
+});
 
 router.post('/gamers/select', is_logged_in, select_a_user_to_play_with);
 
