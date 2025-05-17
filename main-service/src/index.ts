@@ -35,6 +35,7 @@ import path from 'node:path';
 import {rate_limit_api} from './middlewares/ratelimiter.middleware';
 import {agenda} from './agenda/agenda';
 import { pinoLogger } from './config/pino.config';
+import { getBalanceNamespace, initBalanceSocketService } from './services/balance.service';
 
 const app = express();
 
@@ -89,6 +90,10 @@ async function main() {
   const io = new Server(httpServer);
   console.log(`Created Web Socket Server on port ${PORT}`);
 
+  // JOSHUA
+  // INIT BALANCE SERVICE
+  initBalanceSocketService(io);
+
   // holds an object with functions for each type of event
   const eventsAndHandlers = {
     disconnect: handle_socket_disconnection,
@@ -113,6 +118,26 @@ async function main() {
         eventsAndHandlers[event](socket, io, args)
       );
     });
+  });
+
+  // JOSHUA
+  // FOR BALANCE UPDATES
+
+  const balanceNamespace = getBalanceNamespace();
+
+  balanceNamespace.on('connection', async (socket) => {
+    if ((await is_authorized_socket(socket)) === false) {
+      socket.emit('access_denied', 'Access Token is either Expired or Invalid');
+      socket.disconnect(true);
+      return;
+    }
+
+    const userId = await redisClient.get(socket.id);
+    
+    await redisClient.set(`${userId}_balance`, socket.id);
+
+    // Join user to their own room
+    socket.join(`user_${userId}`);
   });
 
   app.use('/api', generalRoutes);

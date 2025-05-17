@@ -13,6 +13,7 @@ import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
 import {publish_to_queue} from '../utils/rabbitmq';
 import TOURNAMENTTTL from '../models/tournament-ttl.model';
 import {agenda} from '../agenda/agenda';
+import { notifyUserBalanceUpdate } from '../services/balance.service';
 const ObjectId = mongoose.Types.ObjectId;
 
 export async function get_my_tournaments(req: Request, res: Response) {
@@ -498,6 +499,8 @@ export async function update_prizes_to_tournament(req: Request, res: Response) {
         await session.commitTransaction();
 
         res.status(200).json({message: 'Prizes updated successfully'});
+
+        notifyUserBalanceUpdate(userId as string, userInfo.walletBalance - totalPrize);
       } catch (error) {
         await session.abortTransaction();
         throw error;

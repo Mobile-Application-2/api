@@ -22,6 +22,7 @@ import TOURNAMENTESCROW from '../models/tournament-escrow.model';
 import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
 import ADMIN from '../models/admin.model';
 import ADMINTRANSACTION from '../models/admin-transaction.model';
+import { notifyUserBalanceUpdate } from '../services/balance.service';
 
 export async function search_users(req: Request, res: Response) {
   try {
@@ -712,6 +713,8 @@ export async function create_a_lobby(req: Request, res: Response) {
           message: 'Lobby created successfully',
           data: {code: lobbyCode, _id: lobbyInfo[0]._id},
         });
+
+        notifyUserBalanceUpdate(userId as string, userInfo.walletBalance - wagerAmount);
       } catch (error) {
         await session.abortTransaction();
         throw error;
@@ -835,6 +838,8 @@ export async function join_lobby(req: Request, res: Response) {
           message: 'You have joined the lobby',
           data: {code: lobbyCode, _id: lobbyInfo._id},
         });
+
+        notifyUserBalanceUpdate(userId as string, userInfo.walletBalance - lobbyInfo.wagerAmount);
       } catch (error) {
         await session.abortTransaction();
         throw error;
