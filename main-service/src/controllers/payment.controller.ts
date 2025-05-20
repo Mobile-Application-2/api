@@ -714,10 +714,10 @@ export async function fake_initialize_withdraw(req: Request, res: Response) {
         const ref = uuidv4();
 
         // generate transfer receipt from paystack
-        const recipientType = 'nuban';
-        const currency = 'NGN';
+        /* const recipientType = 'nuban';
+        const currency = 'NGN'; */
 
-        const paystackResp = await fetch(
+        /* const paystackResp = await fetch(
           `${process.env.PAYSTACK_BASE_API}/transferrecipient`,
           {
             method: 'POST',
@@ -733,7 +733,7 @@ export async function fake_initialize_withdraw(req: Request, res: Response) {
               currency,
             }),
           }
-        );
+        ); */
 
         /* const data = (await paystackResp.json()) as ITransferRecipient;
 
@@ -758,10 +758,10 @@ export async function fake_initialize_withdraw(req: Request, res: Response) {
           {session}
         );
 
-        const recipient_code = ref;
+        /* const recipient_code = ref; */
 
         // create a tranfer reference
-        const referenceResp = await fetch(
+        /* const referenceResp = await fetch(
           `${process.env.PAYSTACK_BASE_API}/transfer`,
           {
             method: 'POST',
@@ -777,7 +777,7 @@ export async function fake_initialize_withdraw(req: Request, res: Response) {
               reason: description || 'Skyboard Withdrawal',
             }),
           }
-        );
+        ); */
 
         /* const referenceData = (await referenceResp.json()) as ITransferQueued;
 
