@@ -131,26 +131,21 @@ io.on('connection', (socket) => {
     if (userId) {
         (async () => {
             try {
-                const au = await ACTIVEUSER.findOne({ userID: userId })
+                // Update or create atomically
+                await ACTIVEUSER.updateOne(
+                    { userID: userId },
+                    { socketID: socket.id, userID: userId },
+                    { upsert: true }
+                );
 
-                if (!au) {
-                    active.push({
-                        socketID: socket.id,
-                        userID: userId
-                    });
+                // Update in-memory list
+                const existing = active.find(p => p.userID === userId);
 
-                    await ACTIVEUSER.create({ socketID: socket.id, userID: userId });
+                if (existing) {
+                    existing.socketID = socket.id;
                 }
                 else {
-                    const player = active.find(p => p.userID == userId);
-
-                    if (player) {
-                        player.socketID = socket.id;
-                    }
-
-                    au.socketID = socket.id;
-
-                    await au.save();
+                    active.push({ socketID: socket.id, userID: userId });
                 }
             }
             catch (error) {
