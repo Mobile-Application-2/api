@@ -159,9 +159,11 @@ export async function handle_game_won(
           else {
             const admin = adminsArray[0];
 
-            admin.walletBalance += adminShare;
+            await ADMIN.updateOne({_id: admin._id}, {$set: {walletBalance: {$add: ["walletBalance", adminShare]}}}, {session})
 
-            await admin.save({session})
+            /* admin.walletBalance += adminShare;
+
+            await admin.save({session}) */
           }
 
           await USER.updateOne(
