@@ -7,6 +7,8 @@ import {
   initialize_deposit,
   handle_webhook,
   initialize_withdraw,
+  fake_initialize_deposit,
+  fake_initialize_withdraw,
 } from '../controllers/payment.controller';
 import {is_logged_in} from '../middlewares/auth.middleware';
 const router = Router();
@@ -28,5 +30,9 @@ router.post('/webhook', handle_webhook);
 router.post('/withdraw', is_logged_in, initialize_withdraw);
 
 router.post('/deposit', is_logged_in, initialize_deposit);
+
+router.post('/fake-deposit', is_logged_in, fake_initialize_deposit);
+
+router.post('/fake-withdraw', is_logged_in, fake_initialize_withdraw);
 
 export default router;

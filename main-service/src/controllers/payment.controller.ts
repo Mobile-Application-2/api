@@ -174,6 +174,85 @@ export async function initialize_deposit(req: Request, res: Response) {
   }
 }
 
+export async function fake_initialize_deposit(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    let {amount} = req.body;
+
+    amount = +amount;
+    if (isNaN(amount)) {
+      res.status(400).json({message: 'Please specify a valid amount'});
+      return;
+    }
+
+    const MIN_DEPOSIT = 100 * 100; // 500 naira in kobo
+    if (amount < MIN_DEPOSIT) {
+      res.status(400).json({
+        message: `Minimum deposit amount is ${MIN_DEPOSIT / 100} naira`,
+      });
+      return;
+    }
+
+    const userInfo = await USER.findOne({_id: userId});
+
+    if (!userInfo) {
+      res.status(404).json({
+        message:
+          'There were some issues with your account, please sign in again',
+      });
+      return;
+    }
+
+    // create a checkout link for this
+    const ref = uuidv4();
+    // const checkoutUrl = await create_checkout_url(userInfo.email, ref, amount);
+
+    const session = await TRANSACTION.startSession({
+      defaultTransactionOptions: {
+        readConcern: {level: 'majority'},
+        writeConcern: {w: 'majority'},
+      },
+    });
+
+    await session.withTransaction(async session => {
+      try {
+        // create a transaction record with pending status
+        await TRANSACTION.create(
+          [
+            {
+              ref,
+              userId,
+              amount,
+              fee: 0,
+              total: amount,
+              type: 'deposit',
+            },
+          ],
+          {session}
+        );
+
+        // insert a TTL for the transaction (30 minutes)
+        await TRANSACTIONTTL.create([{ref}], {session});
+
+        await session.commitTransaction();
+
+        // return checkout link
+        res
+          .status(200)
+          .json({message: 'Checkout link created', data: ""});
+      } catch (error) {
+        await session.abortTransaction();
+
+        throw error;
+      } finally {
+        await session.endSession();
+      }
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
 export async function handle_webhook(req: Request, res: Response) {
   try {
     // check that webhook originated from paystack
@@ -490,6 +569,222 @@ export async function initialize_withdraw(req: Request, res: Response) {
           res.status(400).json({message: referenceData.message});
           return;
         }
+
+        // not adding a TTL because withdrawals can take very long to process, failure will be handled by the webhook
+
+        // send notification to the user
+        await NOTIFICATION.create(
+          [
+            {
+              userId,
+              image: process.env.SKYBOARD_LOGO,
+              title: 'Withdrawal Initiated',
+              body: `Your withdrawal of ${(amount / 100).toFixed(
+                2
+              )} naira has been initiated`,
+            },
+          ],
+          {session}
+        );
+
+        await send_mail(
+          userInfo.email,
+          'withdrawal-initiated',
+          'Withdrawal Initiated',
+          {
+            amount: (amount / 100).toFixed(2),
+            username: userInfo.username,
+            ref,
+          }
+        );
+
+        await session.commitTransaction();
+
+        res.status(200).json({message: 'Withdrawal initialized', data: {ref}});
+      } catch (error) {
+        await session.abortTransaction();
+
+        throw error;
+      } finally {
+        await session.endSession();
+      }
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+}
+
+export async function fake_initialize_withdraw(req: Request, res: Response) {
+  try {
+    const {userId} = req;
+    let {amount} = req.body;
+    const {bankCode, accountNumber, accountName, description, password} =
+      req.body;
+
+    amount = +amount;
+    if (isNaN(amount)) {
+      res.status(400).json({message: 'Please specify a valid amount'});
+      return;
+    }
+
+    if (amount < 500) {
+      res.status(400).json({message: 'Minimum withdrawal amount is 500 naira'});
+      return;
+    }
+
+    if (typeof password === 'undefined' || password.length === 0) {
+      res.status(401).json({message: 'Please specify a password'});
+      return;
+    }
+
+    if (typeof accountName === 'undefined' || accountName.length === 0) {
+      res.status(400).json({message: 'Please specify a valid account name'});
+      return;
+    }
+
+    if (typeof accountNumber === 'undefined' || accountNumber.length !== 10) {
+      res.status(400).json({message: 'Please specify a valid account number'});
+      return;
+    }
+
+    if (typeof bankCode === 'undefined' || bankCode.length === 0) {
+      res.status(400).json({message: 'Invalid bank code'});
+      return;
+    }
+
+    const userInfo = await USER.findOne({_id: userId});
+
+    if (!userInfo) {
+      res.status(404).json({
+        message:
+          'There were some issues with your account, please sign in again',
+      });
+      return;
+    }
+
+    // check that password is correct
+    const isPasswordCorrect = bcrypt.compareSync(password, userInfo.password);
+
+    if (!isPasswordCorrect) {
+      res.status(400).json({message: 'Incorrect password'});
+      return;
+    }
+
+    // recalculate the charge
+    const charge = calculate_charge(amount);
+
+    // check that the user has enough balance
+    const total = amount + charge;
+    if (userInfo.walletBalance < total) {
+      res.status(400).json({message: 'Insufficient funds'});
+      return;
+    }
+
+    const session = await TRANSACTION.startSession({
+      defaultTransactionOptions: {
+        readConcern: {level: 'majority'},
+        writeConcern: {w: 'majority'},
+      },
+    });
+
+    await session.withTransaction(async session => {
+      try {
+        // subtract the amount from the user's wallet
+        const resp = await USER.updateOne(
+          {_id: userId},
+          {$inc: {walletBalance: -total}},
+          {session}
+        );
+
+        if (resp.modifiedCount === 0) {
+          Sentry.addBreadcrumb({
+            category: 'transaction',
+            data: {
+              userId,
+              amount,
+              charge,
+            },
+            message: 'Failed to update wallet balance',
+          });
+
+          throw new Error('Failed to update wallet balance');
+        }
+
+        // create a transaction record with pending status
+        const ref = uuidv4();
+
+        // generate transfer receipt from paystack
+        const recipientType = 'nuban';
+        const currency = 'NGN';
+
+        const paystackResp = await fetch(
+          `${process.env.PAYSTACK_BASE_API}/transferrecipient`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              type: recipientType,
+              name: accountName,
+              account_number: accountNumber,
+              bank_code: bankCode,
+              currency,
+            }),
+          }
+        );
+
+        /* const data = (await paystackResp.json()) as ITransferRecipient;
+
+        if (data.status === false) {
+          res.status(400).json({message: data.message});
+          return;
+        } */
+
+        // charge is for paystack, not skyboard
+        await TRANSACTION.create(
+          [
+            {
+              ref,
+              userId,
+              amount: total,
+              fee: 0,
+              total,
+              type: 'withdrawal',
+              description,
+            },
+          ],
+          {session}
+        );
+
+        const recipient_code = ref;
+
+        // create a tranfer reference
+        const referenceResp = await fetch(
+          `${process.env.PAYSTACK_BASE_API}/transfer`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              source: 'balance',
+              amount: amount,
+              reference: ref,
+              recipient: recipient_code,
+              reason: description || 'Skyboard Withdrawal',
+            }),
+          }
+        );
+
+        /* const referenceData = (await referenceResp.json()) as ITransferQueued;
+
+        if (referenceData.status === false) {
+          res.status(400).json({message: referenceData.message});
+          return;
+        } */
 
         // not adding a TTL because withdrawals can take very long to process, failure will be handled by the webhook
 
