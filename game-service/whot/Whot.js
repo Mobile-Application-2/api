@@ -1,3 +1,4 @@
+import DataSessionManager from "../DataSessionManager.js";
 import MainServerLayer from "../MainServerLayer.js";
 import { logger } from "../config/winston.config.js";
 import initializeDeck from "./functions/initializeDeck.js"
@@ -37,6 +38,19 @@ export default class Whot {
    */
 
   /**
+   * @typedef {{ 
+   *  roomID: string,
+   *  socketID: string,
+   *  userId: string,
+   *  username: string,
+   *  roomData: any,
+   * }} WhotData
+   */
+
+  /** @type {DataSessionManager<WhotData>} */
+  static dataSessionManager = new DataSessionManager();
+
+  /**
    * Activates the game logic for handling WebSocket connections.
    * 
    * @param {import("socket.io").Server} io - The main Socket.IO server instance.
@@ -69,10 +83,68 @@ export default class Whot {
 
         if (!room) return;
 
+        const player = room.players.find(player => player.socketId == socket.id);
+
+        if (!player) return;
+
+        logger.info("player is offline, storing player data");
+
+        this.dataSessionManager.store(player.userId, {
+          roomID: room.room_id,
+          socketID: player.socketId,
+          userId: player.userId,
+          username: player.username,
+          roomData: room
+        })
+
+        whotNamespace.to(room.room_id).emit('pause');
+
         io.emit('remove', 'whot', room.room_id);
       })
 
       socket.on("join_room", async ({ room_id, storedId, username, avatar, userId, tournamentId }) => {
+        const returningPlayer = this.dataSessionManager.restore(userId)
+
+        if (returningPlayer) {
+          logger.info(`player has returned after disconnecting, userId: ${userId}`);
+
+          // DO THE NEEDFULLS
+
+          const room = rooms.find(r => r.room_id == returningPlayer.roomID);
+
+          if (!room) {
+            logger.warn(`looks like room is missing, roomId: ${returningPlayer.roomID}`);
+
+            return;
+          }
+
+          // UPDATE DETAILS AND SEND MISSED MESSAGE
+
+          const roomOfflinePlayer = room.players.find(p => p.userId == returningPlayer.userId);
+
+          if (!roomOfflinePlayer) {
+            return
+          }
+
+          roomOfflinePlayer.socketId = socket.id;
+
+          socket.join(room.room_id);
+
+          whotNamespace.to(room.room_id).emit('resume');
+
+          /* this.startAllTimersAndIntervals(room.roomID, chessNameSpace);
+
+          const missedMessage = this.extraSessionManager.restore(returningPlayer.userId);
+
+          if (missedMessage) {
+            logger.info("sending turn played to opponent");
+
+            socket.emit('turn_played', missedMessage.indexClicked, missedMessage.newPosition, missedMessage.nextPlayer);
+          } */
+
+          return
+        }
+
         if (room_id?.length != 6) {
           whotNamespace.to(socket.id).emit(
             "error",
@@ -204,9 +276,9 @@ export default class Whot {
             }
             else {
               const lobbyID = await MainServerLayer.getLobbyID(room_id);
-  
-              logger.info("lobbyID: ", lobbyID);
-  
+
+              logger.info("lobbyID: ", { lobbyID });
+
               await MainServerLayer.startGame(lobbyID);
             }
 
@@ -384,7 +456,7 @@ export default class Whot {
             }
             else {
               const lobbyId = await MainServerLayer.getLobbyID(room_id);
-  
+
               await MainServerLayer.wonGame(lobbyId, winnerId);
             }
           }
