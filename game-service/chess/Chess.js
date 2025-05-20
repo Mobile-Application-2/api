@@ -57,6 +57,7 @@ export default class Chess {
      *  roomID: any,
      *  indexClicked: any,
      *  newPosition: any,
+     *  nextPlayer: any
      * }} ExtraData
      */
 
@@ -118,12 +119,16 @@ export default class Chess {
 
                     socket.join(room.roomID);
 
+                    chessNameSpace.to(room.roomID).emit('resume');
+
+                    this.startAllTimersAndIntervals(room.roomID, chessNameSpace);
+
                     const missedMessage = this.extraSessionManager.restore(returningPlayer.userId);
 
                     if (missedMessage) {
                         logger.info("sending turn played to opponent");
 
-                        socket.emit('turn_played', missedMessage.indexClicked, missedMessage.newPosition);
+                        socket.emit('turn_played', missedMessage.indexClicked, missedMessage.newPosition, missedMessage.nextPlayer);
                     }
 
                     return
@@ -204,12 +209,12 @@ export default class Chess {
                 logger.info("done sending info to main server");
             });
 
-            socket.on('turn_played', (roomID, indexClicked, newPosition, callback) => {
+            socket.on('turn_played', (roomID, indexClicked, newPosition, nextPlayer, callback) => {
                 callback({
                     status: "ok"
                 })
                 logger.info("turn played", { roomID })
-                this.turnPlayed(socket, roomID, indexClicked, newPosition)
+                this.turnPlayed(socket, roomID, indexClicked, newPosition, nextPlayer)
 
                 this.resetTimer(roomID)
             })
@@ -311,6 +316,10 @@ export default class Chess {
                     username: player.username
                 })
 
+                this.stopAllTimersAndIntervals(room.roomID);
+
+                chessNameSpace.to(room.roomID).emit('pause');
+
                 /* const interval = this.intervals.get(room.roomID);
 
                 if (interval) {
@@ -337,7 +346,7 @@ export default class Chess {
                     if (currentRoom.players.filter(player => player.socketID == socket.id)[0] != undefined) {
                         logger.info("player is disconnecting");
 
-                        chessNameSpace.to(currentRoom.roomID).emit('pause');
+                        // chessNameSpace.to(currentRoom.roomID).emit('pause');
                         // socket.leave(currentRoom.roomID);
 
                         // currentRoom.players
@@ -353,6 +362,50 @@ export default class Chess {
                 }
             })
         })
+    }
+
+    static stopAllTimersAndIntervals(roomID) {
+        const interval = this.intervals.get(roomID);
+
+        if (interval) {
+            clearInterval(interval);
+            this.intervals.delete(roomID);
+        }
+
+        const g = gameSessionManager.getGame(roomID);
+
+        if (g) {
+            g.cancelTimer();
+            logger.info("cancelled game timer", { roomID })
+        }
+    }
+
+    static startAllTimersAndIntervals(roomID, chessNameSpace) {
+        const game = gameSessionManager.getGame(roomID);
+
+        if (game) {
+            game.cancelTimer();
+
+            game.createTimer(this.timePerPlayer, () => this.elapsedTimer(roomID, chessNameSpace));
+
+            logger.info("new timer created")
+
+            game.startTimer();
+
+            const interval = setInterval(() => {
+                if (!game.timer) {
+                    logger.warn("no game timer found for interval.")
+
+                    return
+                };
+
+                emitTimeRemaining(chessNameSpace, roomID, game);
+            }, 1000)
+
+            interval.unref();
+
+            this.intervals.set(roomID, interval);
+        }
     }
 
     static resetTimer(roomID) {
@@ -408,7 +461,7 @@ export default class Chess {
         game.startTimer();
     }
 
-    static async turnPlayed(socket, roomID, indexClicked, newPosition) {
+    static async turnPlayed(socket, roomID, indexClicked, newPosition, nextPlayer) {
         // logger.info(newState, this.rooms[0].state);
         // logger.info(newState);
         const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
@@ -433,7 +486,8 @@ export default class Chess {
                     indexClicked,
                     newPosition,
                     roomID,
-                    socket
+                    socket,
+                    nextPlayer
                 })
             }
 
