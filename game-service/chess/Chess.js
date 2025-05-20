@@ -1,4 +1,5 @@
 import { logger } from "../config/winston.config.js";
+import DataSessionManager from "../DataSessionManager.js";
 import { gameSessionManager } from "../GameSessionManager.js";
 import { emitTimeRemaining } from "../gameUtils.js";
 import MainServerLayer from "../MainServerLayer.js";
@@ -42,6 +43,30 @@ export default class Chess {
     ]
 
     /**
+     * @typedef {{ 
+     *  username: string,
+     *  userId: string,
+     *  socketID: number,
+     *  roomID: string,
+     * }} ChessData
+     */
+
+    /**
+     * @typedef {{ 
+     *  socket: any,
+     *  roomID: any,
+     *  indexClicked: any,
+     *  newPosition: any,
+     * }} ExtraData
+     */
+
+    /** @type {DataSessionManager<ChessData>} */
+    static dataSessionManager = new DataSessionManager();
+
+    /** @type {DataSessionManager<ExtraData>} */
+    static extraSessionManager = new DataSessionManager();
+
+    /**
    * @typedef {Object} GameData
    * @property {string} gameId - The unique identifier for the game.
    * @property {string} playerId - The unique identifier for the player.
@@ -66,6 +91,44 @@ export default class Chess {
             // TODO: reconnect player to game if disconnected and game still on
 
             socket.on('join_game', async (data, state) => {
+                // CHECK IF PLAYER WAS DISCONNECTED AND RETURN EARLY
+
+                const returningPlayer = this.dataSessionManager.restore(data.playerId)
+
+                if (returningPlayer) {
+                    logger.info(`player has returned after disconnecting, userId: ${data.playerId}`);
+                    // DO THE NEEDFULLS
+                    const room = this.rooms.find(r => r.roomID == returningPlayer.roomID);
+
+                    if (!room) {
+                        logger.warn(`looks like room is missing, roomId: ${returningPlayer.roomID}`);
+
+                        return;
+                    }
+
+                    // UPDATE DETAILS AND SEND MISSED MESSAGE
+
+                    const roomOfflinePlayer = room.players.find(p => p.userId == returningPlayer.userId);
+
+                    if (!roomOfflinePlayer) {
+                        return
+                    }
+
+                    roomOfflinePlayer.socketID = socket.id;
+
+                    socket.join(room.roomID);
+
+                    const missedMessage = this.extraSessionManager.restore(returningPlayer.userId);
+
+                    if (missedMessage) {
+                        logger.info("sending turn played to opponent");
+
+                        socket.emit('turn_played', missedMessage.indexClicked, missedMessage.newPosition);
+                    }
+
+                    return
+                }
+
                 await this.joinGame(chessNameSpace, socket, data, state);
 
                 const roomID = data.lobbyCode;
@@ -74,25 +137,25 @@ export default class Chess {
 
                 const game = gameSessionManager.getGame(roomID);
 
-                if(!game) {
+                if (!game) {
                     // CREATE
                     const createdGame = gameSessionManager.createGame(lobbyCode);
 
                     if (!createdGame) {
                         logger.warn("couldnt create game with game session manager", { lobbyCode });
-    
+
                         return;
                     }
-    
+
                     createdGame.createTimer(this.timePerPlayer, () => {
                         // console.log(this, roomID)
-                        logger.info("timer details", {roomID})
+                        logger.info("timer details", { roomID })
                         this.elapsedTimer(roomID, chessNameSpace)
                     })
-    
+
                     logger.info("created game timer", { lobbyCode })
-                    
-                    logger.info("created game for game session", {lobbyCode})
+
+                    logger.info("created game for game session", { lobbyCode })
 
                     return;
                 }
@@ -125,12 +188,12 @@ export default class Chess {
 
                 logger.info("sending info to main server");
 
-                if(data.tournamentId) {
+                if (data.tournamentId) {
                     await MainServerLayer.startTournamentGame(data.tournamentId, data.lobbyCode);
                 }
                 else {
                     const lobbyID = await MainServerLayer.getLobbyID(roomID);
-    
+
                     await MainServerLayer.startGame(lobbyID);
                 }
 
@@ -147,7 +210,7 @@ export default class Chess {
                 })
                 logger.info("turn played", { roomID })
                 this.turnPlayed(socket, roomID, indexClicked, newPosition)
-                
+
                 this.resetTimer(roomID)
             })
 
@@ -181,9 +244,9 @@ export default class Chess {
 
                 const g = gameSessionManager.getGame(roomID);
 
-                if(g) {
+                if (g) {
                     g.cancelTimer();
-                    logger.info("cancelled game timer", {roomID})
+                    logger.info("cancelled game timer", { roomID })
                 }
 
                 const mainWinnerId = mainWinner.userId;
@@ -219,7 +282,7 @@ export default class Chess {
                 }
                 else {
                     const lobbyId = await MainServerLayer.getLobbyID(roomID);
-    
+
                     await MainServerLayer.wonGame(lobbyId, winnerId);
                 }
 
@@ -234,8 +297,21 @@ export default class Chess {
                 // logger.info(room);
 
                 if (!room) return;
-                
-                const interval = this.intervals.get(room.roomID);
+
+                const player = room.players.find(player => player.socketID == socket.id);
+
+                if (!player) return;
+
+                logger.info("player is offline, storing player data");
+
+                this.dataSessionManager.store(player.userId, {
+                    roomID: room.roomID,
+                    socketID: player.socketID,
+                    userId: player.userId,
+                    username: player.username
+                })
+
+                /* const interval = this.intervals.get(room.roomID);
 
                 if (interval) {
                     clearInterval(interval);
@@ -247,7 +323,7 @@ export default class Chess {
                 if(g) {
                     g.cancelTimer();
                     logger.info("cancelled game timer", {roomID: room.roomID})
-                }
+                } */
 
                 // TODO: remove player from game lobby not whole lobby
 
@@ -294,11 +370,11 @@ export default class Chess {
     }
 
     static elapsedTimer(roomID, namespace) {
-        logger.info("timer has elapsed", {roomID})
+        logger.info("timer has elapsed", { roomID })
         // SWITCH TURN
         const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
-        logger.info("current room for turn played", {roomID});
+        logger.info("current room for turn played", { roomID });
 
         if (!currentRoom) {
             logger.warn("no current room on elapsed timer")
@@ -337,7 +413,7 @@ export default class Chess {
         // logger.info(newState);
         const currentRoom = this.rooms.filter(room => room.roomID == roomID)[0];
 
-        logger.info("current room for turn played", {roomID});
+        logger.info("current room for turn played", { roomID });
 
         if (currentRoom) {
             // currentRoom.state = newState;
@@ -345,6 +421,22 @@ export default class Chess {
             logger.info("sending turn played to opponent");
 
             socket.broadcast.emit('turn_played', indexClicked, newPosition);
+
+            const playerToCheckOffline = currentRoom.players.find(p => p.socketID != socket.id);
+
+            if (playerToCheckOffline) {
+                if (!this.dataSessionManager.sessions.has(playerToCheckOffline.userId)) return;
+
+                logger.info("player is offline while message is sent, storing message");
+
+                this.extraSessionManager.store(playerToCheckOffline.userId, {
+                    indexClicked,
+                    newPosition,
+                    roomID,
+                    socket
+                })
+            }
+
         }
     }
 
@@ -413,7 +505,7 @@ export default class Chess {
     static async joinGame(chessNameSpace, socket, data, state) {
         const { gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId } = data;
 
-        logger.info("user want to join or create a game, params: ", {data})
+        logger.info("user want to join or create a game, params: ", { data })
 
         const roomID = lobbyCode
 
