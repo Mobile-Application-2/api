@@ -15,7 +15,7 @@ import fs, { readFileSync } from "fs";
 import path from "path"
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-    
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 import Ludo from './ludo/Ludo.js';
@@ -55,7 +55,7 @@ const PORT = process.env.PORT || 5657;
 
 const io = new Server(server, {
     cors: {
-      origin: "*"
+        origin: "*"
     },
 });
 
@@ -119,32 +119,32 @@ let newRooms = [
 newRooms.splice(0);
 
 async function handleError(error) {
-    await ErrorModel.create({error: error.stack})
+    await ErrorModel.create({ error: error.stack })
 }
 
 io.on('connection', (socket) => {
     logger.info("user connected to general namespace");
     const userId = socket.handshake.query.userId || socket.handshake.auth.userId;
 
-    logger.info("details", {details: socket.handshake.query});
+    logger.info("details", { details: socket.handshake.query });
 
-    if(userId) {
+    if (userId) {
         (async () => {
             try {
-                const au = await ACTIVEUSER.findOne({userID: userId})
+                const au = await ACTIVEUSER.findOne({ userID: userId })
 
-                if(!au) {
+                if (!au) {
                     active.push({
                         socketID: socket.id,
                         userID: userId
                     });
 
-                    await ACTIVEUSER.create({socketID: socket.id, userID: userId});
+                    await ACTIVEUSER.create({ socketID: socket.id, userID: userId });
                 }
                 else {
                     const player = active.find(p => p.userID == userId);
 
-                    if(player) {
+                    if (player) {
                         player.socketID = socket.id;
                     }
 
@@ -153,7 +153,7 @@ io.on('connection', (socket) => {
                     await au.save();
                 }
             }
-            catch(error) {
+            catch (error) {
                 logger.error(error)
                 logtail.flush();
             }
@@ -168,22 +168,22 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', (_) => {
         try {
-            logger.info("user disconnected from general namespace", {socketId: socket.id});
-    
+            logger.info("user disconnected from general namespace", { socketId: socket.id });
+
             active = active.filter(obj => obj.socketID != socket.id);
 
             (async () => {
                 try {
-                    await ACTIVEUSER.deleteOne({socketID: socket.id});
+                    await ACTIVEUSER.deleteOne({ socketID: socket.id });
                 }
-                catch(error) {
+                catch (error) {
                     logger.error(error)
                 }
             })()
-    
+
             logger.info(active);
             // sentryLogActive();
-    
+
             io.emit('get_active', active);
 
             logtail.flush();
@@ -207,7 +207,7 @@ io.on('connection', (socket) => {
     // })
 
     // FOR MOBILE GAME END
-    
+
     // interface GameResult {
     //     winner: string;
     //     loser: string;
@@ -216,16 +216,16 @@ io.on('connection', (socket) => {
     socket.on("joinGame", /** @param {GameData} data */ async (data) => {
         try {
             logger.info("request to join game", data);
-            
-            const {gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId} = data;
 
-            const lobby = await LOBBY.findOne({code: lobbyCode});
+            const { gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId } = data;
+
+            const lobby = await LOBBY.findOne({ code: lobbyCode });
 
             const newGameId = lobby?.gameId;
 
             const game = await GAME.findById(newGameId);
 
-            if(!game) {
+            if (!game) {
                 logger.warn("no game found");
             }
 
@@ -240,15 +240,15 @@ io.on('connection', (socket) => {
                 socketId: socket.id
             }
 
-            logger.info("data pushed", {dataPushed})
+            logger.info("data pushed", { dataPushed })
 
             newRooms.push(dataPushed);
 
-            logger.info("newrooms after push", {newRooms})
+            logger.info("newrooms after push", { newRooms })
 
             // socket.emit("game-message-channel", "init-game", {gameId, playerId, opponentId, stakeAmount, tournamentId, gameName: game.name});
         }
-        catch(error) {
+        catch (error) {
             handleError(error);
         }
     })
@@ -256,11 +256,11 @@ io.on('connection', (socket) => {
     socket.on('lobby-created', (userID) => {
         try {
             const activeUser = active.find(activeUser => activeUser.socketID == socket.id);
-    
+
             activeUser.userID = userID;
-    
+
             logger.info("updated active", active);
-    
+
             io.emit('get_active', active);
         }
         catch (error) {
@@ -272,38 +272,38 @@ io.on('connection', (socket) => {
     socket.on('lobby-joined', async (userID, lobbyCode, cb) => {
         try {
             const activeUser = active.find(activeUser => activeUser.socketID == socket.id);
-    
+
             activeUser.userID = userID;
-    
+
             logger.info("updated active", active);
-    
+
             io.emit('get_active', active);
-    
-            const lobby = await LOBBY.findOne({code: lobbyCode});
-    
+
+            const lobby = await LOBBY.findOne({ code: lobbyCode });
+
             const creatorID = lobby.toObject().creatorId;
-    
+
             const gameID = lobby.toObject().gameId;
-    
+
             const game = await GAME.findById(gameID);
-    
+
             const gameName = game.toObject().name;
-    
+
             const opponentToNotify = active.find(activeUser => {
                 logger.info(activeUser.userID, creatorID.toString());
-    
+
                 return activeUser.userID == creatorID.toString();
             });
-    
-            if(opponentToNotify) {
+
+            if (opponentToNotify) {
                 io.to(opponentToNotify.socketID).emit('opponent-joined-lobby', creatorID, gameName, lobbyCode);
-    
-                if(cb != undefined) {
+
+                if (cb != undefined) {
                     cb({
                         gameName: gameName
                     })
                 }
-        
+
             }
         }
         catch (error) {
@@ -314,18 +314,18 @@ io.on('connection', (socket) => {
 
     socket.on('game-message-channel', async (messageName, data) => {
         try {
-            if(messageName == "photon-id") {
+            if (messageName == "photon-id") {
                 logger.info(data);
 
                 // Sentry.captureMessage(`game-message-channel: ${messageName} = ${data}`);
-    
+
                 /* const errorModel = new ErrorModel({
                     error: data
                 });
         
                 await errorModel.save(); */
             }
-            if(messageName == "init-game") {
+            if (messageName == "init-game") {
                 logger.info(data);
 
                 const room = {
@@ -357,12 +357,12 @@ io.on('connection', (socket) => {
     socket.on('created', (gameID, userID, roomID) => {
         try {
             logger.info("lobby created");
-    
+
             rooms.push({
                 gameID: gameID,
                 roomID: roomID
             })
-    
+
             socket.broadcast.to(userID).emit('created', gameID, userID, roomID);
         }
         catch (error) {
@@ -385,7 +385,7 @@ const ludoRooms = [
             playersList: [],
             currentPlayer: "",
             roomID: ''
-        }, 
+        },
         players: []
     }
 ];
@@ -405,7 +405,7 @@ ludoNamespace.on('connection', socket => {
         const room = ludoRooms.find(room => room.players.includes(room.players.find(player => player.socketID == socket.id)));
 
         logger.info(room);
-        if(!room) return;
+        if (!room) return;
 
         const interval = intervals.get(room.roomID);
 
@@ -416,21 +416,21 @@ ludoNamespace.on('connection', socket => {
 
         const g = gameSessionManager.getGame(room.roomID);
 
-        if(g) {
+        if (g) {
             g.cancelTimer();
-            logger.info("cancelled game timer", {roomID: room.roomID})
+            logger.info("cancelled game timer", { roomID: room.roomID })
         }
 
         io.emit('remove', 'ludo', room.roomID);
     })
 
-    socket.on("dice_roll", ({roomID, num, isLocked, lastRolledBy}) => {
+    socket.on("dice_roll", ({ roomID, num, isLocked, lastRolledBy }) => {
         logger.info("recieved dice roll", roomID, num, isLocked, lastRolledBy);
 
-        if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
+        if (ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
             logger.info("dice rolled", num, isLocked, lastRolledBy);
-    
-            socket.broadcast.to(roomID).emit("dice_roll", {num, isLocked, lastRolledBy})
+
+            socket.broadcast.to(roomID).emit("dice_roll", { num, isLocked, lastRolledBy })
 
             resetTimer(roomID);
         }
@@ -442,7 +442,7 @@ ludoNamespace.on('connection', socket => {
     socket.on("coin_played", (roomID, index) => {
         logger.info("coin played", roomID, index)
         // logger.info(num, isLocked, lastRolledBy);
-        if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
+        if (ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
             logger.info("coin played");
 
             socket.broadcast.to(roomID).emit("coin_played", index);
@@ -472,12 +472,12 @@ ludoNamespace.on('connection', socket => {
         Ludo.declareWinner(roomID, socket.id);
 
         const currentRoom = ludoRooms.filter(room => room.roomID == roomID)[0];
-        
+
         const winner = currentRoom.players.find(player => player.socketID == socket.id);
         const loser = currentRoom.players.find(player => player.socketID != socket.id);
 
         socket.to(loser.socketID).emit("lost")
-        
+
         logger.info(`player won ludo: ${winner.userId}`);
 
         const interval = intervals.get(roomID);
@@ -489,9 +489,9 @@ ludoNamespace.on('connection', socket => {
 
         const g = gameSessionManager.getGame(roomID);
 
-        if(g) {
+        if (g) {
             g.cancelTimer();
-            logger.info("cancelled game timer", {roomID})
+            logger.info("cancelled game timer", { roomID })
         }
 
         const winnerId = winner.userId;
@@ -503,12 +503,12 @@ ludoNamespace.on('connection', socket => {
 
         // const winnerId = winnerData.toObject()._id
 
-        if(currentRoom.tournamentId) {
+        if (currentRoom.tournamentId) {
             await MainServerLayer.wonTournamentGame(currentRoom.tournamentId, winnerId, currentRoom.roomID)
         }
         else {
             const lobbyId = await MainServerLayer.getLobbyID(roomID);
-    
+
             await MainServerLayer.wonGame(lobbyId, winnerId);
         }
     })
@@ -525,27 +525,27 @@ ludoNamespace.on('connection', socket => {
    * 
    */
 
-  /**
-   * Activates the game logic for handling WebSocket connections.
-   * 
-   * @param {import("socket.io").Server} io - The main Socket.IO server instance.
-   * @param {import("socket.io").Namespace} whotNamespace - The specific namespace for the Whot game.
-   * @param {Array<GameData>} mainRooms - A map of active game rooms.
-   */
+    /**
+     * Activates the game logic for handling WebSocket connections.
+     * 
+     * @param {import("socket.io").Server} io - The main Socket.IO server instance.
+     * @param {import("socket.io").Namespace} whotNamespace - The specific namespace for the Whot game.
+     * @param {Array<GameData>} mainRooms - A map of active game rooms.
+     */
 
     socket.on("create_room", async (_not_roomID, setup, username, avatar, data) => {
         logger.info("user wanting to enter ludo", data);
 
-        const {gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId} = data
+        const { gameId, gameName, lobbyCode, opponentId, playerId, stakeAmount, tournamentId } = data
 
         const roomID = lobbyCode;
 
         logger.info("roomID: ", roomID);
 
-        logger.info("data: ", {...data})
+        logger.info("data: ", { ...data })
 
 
-        if(ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
+        if (ludoRooms.find(roomObject => roomObject.roomID == roomID)) {
             logger.info("room found");
 
             socket.join(roomID);
@@ -560,7 +560,7 @@ ludoNamespace.on('connection', socket => {
                 avatar: avatar,
                 userId: playerId
             })
-            
+
             socket.emit("already_created", currentRoomObject.setup);
 
             Ludo.addPlayerToDB(roomID, socket.id, username, playerId);
@@ -605,7 +605,7 @@ ludoNamespace.on('connection', socket => {
 
             intervals.set(roomID, interval);
 
-            if(currentRoomObject.tournamentId) {
+            if (currentRoomObject.tournamentId) {
                 await MainServerLayer.startTournamentGame(currentRoomObject.tournamentId, currentRoomObject.roomID);
             }
             else {
@@ -623,16 +623,16 @@ ludoNamespace.on('connection', socket => {
         else {
             // let roomID = lobbyCode;
 
-            logger.info("creating room", {roomID});
+            logger.info("creating room", { roomID });
 
             socket.join(roomID);
-    
+
             logger.info(roomID);
-    
+
             Ludo.addRoom(roomID, setup, ludoRooms, socket.id, username, avatar, playerId, tournamentId);
-    
+
             Ludo.addPlayerToDB(roomID, socket.id, username, playerId);
-    
+
             socket.emit('created_room');
 
             logger.info("room created");
@@ -646,24 +646,24 @@ ludoNamespace.on('connection', socket => {
             }
 
             createdGame.createTimer(timePerPlayer, () => {
-                logger.info("timer details", {roomID})
+                logger.info("timer details", { roomID })
                 elapsedTimer(roomID, ludoNamespace)
             })
 
             logger.info("created game timer", { lobbyCode })
-            
-            logger.info("created game for game session", {lobbyCode})
+
+            logger.info("created game for game session", { lobbyCode })
 
             return;
         }
     })
 
     function elapsedTimer(roomID, namespace) {
-        logger.info("timer has elapsed", {roomID})
+        logger.info("timer has elapsed", { roomID })
         // SWITCH TURN
         const currentRoom = ludoRooms.filter(room => room.roomID == roomID)[0];
 
-        logger.info("current room for turn played", {roomID});
+        logger.info("current room for turn played", { roomID });
 
         if (!currentRoom) {
             logger.warn("no current room on elapsed timer")
@@ -709,7 +709,7 @@ ludoNamespace.on('connection', socket => {
     //             username: '',
     //             socketID: socket.id
     //         })
-            
+
     //         socket.emit("already_created", currentRoomObject.setup);
 
     //         Ludo.addPlayerToDB(roomID, socket.id);
@@ -779,7 +779,7 @@ function shuffleArray(array) {
 function dealLetters(gameId, playerId, count = 7) {
     const game = games[gameId];
     if (!game) return [];
-    
+
     let letters = [];
     for (let i = 0; i < count; i++) {
         if (game.letterPool.length > 0) {
@@ -787,7 +787,7 @@ function dealLetters(gameId, playerId, count = 7) {
             letters.push(letterObj);
         }
     }
-    
+
     return letters;
 }
 
@@ -952,11 +952,11 @@ function generateWordsForLetters(letters, dictionary, limit = 20) {
 // https://game-service-uny2.onrender.com/game?gameName=Scrabble&lobbyCode=m99nko&playerId=67d54787f7425f237bd6acd1
 
 wordNamespace.on("connection", (socket) => {
-    logger.info('New client connected to scrabble:', {socketId: socket.id});
-    
+    logger.info('New client connected to scrabble:', { socketId: socket.id });
+
     // Create or join a game
     socket.on('joinGame', async ({ gameId, playerName, playerId: playerID, opponentId, stakeAmount, tournamentId, lobbyCode, gameName, avatar }) => {
-        logger.info("client emitted joinGame", {gameId, id: socket.id, playerName});
+        logger.info("client emitted joinGame", { gameId, id: socket.id, playerName });
 
         let game = games[gameId];
 
@@ -971,10 +971,10 @@ wordNamespace.on("connection", (socket) => {
 
             const persistPlayer = persistStore[playerID]
 
-            logger.info(`Player data: `, {persistPlayer});
-            
+            logger.info(`Player data: `, { persistPlayer });
+
             delete game.players[persistPlayer.id];
-            
+
             persistPlayer.disconnected = false;
 
             game.players[socket.id] = persistPlayer;
@@ -983,12 +983,12 @@ wordNamespace.on("connection", (socket) => {
 
             delete persistStore[playerID];
 
-            logger.info("restored data: ", {data: game.players[socket.id]});
+            logger.info("restored data: ", { data: game.players[socket.id] });
 
             socket.join(gameId);
 
             logger.info("emitting reconnected");
-            
+
             wordNamespace.to(socket.id).emit('reconnected', {
                 gameId,
                 playerId: socket.id,
@@ -1007,7 +1007,7 @@ wordNamespace.on("connection", (socket) => {
 
             return;
         }
-        
+
         // Check if game is full
         if (Object.keys(game.players).length >= 2) {
             logger.info("game is full");
@@ -1015,7 +1015,7 @@ wordNamespace.on("connection", (socket) => {
             socket.emit('gameError', { message: 'Game is full' });
             return;
         }
-        
+
         // Check if game already started
         if (game.active) {
             logger.info("game is active");
@@ -1023,7 +1023,7 @@ wordNamespace.on("connection", (socket) => {
             socket.emit('gameError', { message: 'Game already in progress' });
             return;
         }
-        
+
         // Add player to game
         const playerId = socket.id;
 
@@ -1037,15 +1037,15 @@ wordNamespace.on("connection", (socket) => {
             words: [],
             disconnected: false
         };
-        
+
         // Join socket to game room
         socket.join(gameId);
 
         logger.info("joined game room");
-        
+
         // Deal initial letters
         game.players[playerId].rack = dealLetters(gameId, playerId);
-        
+
         // Notify player
         socket.emit('gameJoined', {
             gameId,
@@ -1055,7 +1055,7 @@ wordNamespace.on("connection", (socket) => {
         });
 
         logger.info("emitted gameJoined event");
-        
+
         // Update all players in the game
         wordNamespace.to(gameId).emit('gameState', {
             players: Object.values(game.players).map(p => ({
@@ -1069,18 +1069,18 @@ wordNamespace.on("connection", (socket) => {
         });
 
         logger.info("updated game state");
-        
+
         // Start game if we have 2 players
         if (Object.keys(game.players).length === 2 && !game.active) {
             startGame(gameId);
             logger.info("starting game due to 2 players");
 
-            if(tournamentId) {
+            if (tournamentId) {
                 await MainServerLayer.startTournamentGame(tournamentId, gameId);
             }
             else {
                 const lobbyID = await MainServerLayer.getLobbyID(gameId);
-    
+
                 await MainServerLayer.startGame(lobbyID);
             }
 
@@ -1092,17 +1092,17 @@ wordNamespace.on("connection", (socket) => {
      * @property {string} gameId
      * @property {string} word
      */
-    
+
     // Submit a word
     socket.on('submitWord', /** @param {SubmittedWord} */({ gameId, word }) => {
-        logger.info("client submitted word", {gameId, word});
+        logger.info("client submitted word", { gameId, word });
 
         const game = games[gameId];
         if (!game || !game.active) {
             logger.info("no game or game not active");
             return
         };
-        
+
         const playerId = socket.id;
         const player = game.players[playerId];
         if (!player) {
@@ -1110,7 +1110,7 @@ wordNamespace.on("connection", (socket) => {
 
             return
         };
-        
+
         // Check if word is valid (not already used and at least 2 letters)
         if (word.length < 2 || game.usedWords.includes(word.toLowerCase())) {
             logger.info("client word rejected ");
@@ -1125,9 +1125,9 @@ wordNamespace.on("connection", (socket) => {
             socket.emit('wordRejected', { word, reason: 'Word is not a valid word' });
             return;
         }
-        
+
         // In a real game, you would verify against a dictionary here
-        
+
         // Calculate word score
         let wordScore = 0;
         for (const letter of word) {
@@ -1136,19 +1136,19 @@ wordNamespace.on("connection", (socket) => {
                 wordScore += letterInfo.value;
             }
         }
-        
+
         // Update player score
         player.score += wordScore;
         player.words.push({ word, score: wordScore });
         game.usedWords.push(word.toLowerCase());
-        
+
         // Notify player of word acceptance
         socket.emit('wordAccepted', {
             word,
             score: wordScore,
             totalScore: player.score
         });
-        
+
         // Update all players in the game
         wordNamespace.to(gameId).emit('gameState', {
             players: Object.values(game.players).map(p => ({
@@ -1167,11 +1167,11 @@ wordNamespace.on("connection", (socket) => {
             }
         });
     });
-    
+
     // Handle disconnect
     socket.on('disconnect', () => {
-        logger.info('Client disconnected:', {socketId: socket.id});
-        
+        logger.info('Client disconnected:', { socketId: socket.id });
+
         // Find game with this player
         Object.keys(games).forEach(gameId => {
             const game = games[gameId];
@@ -1194,22 +1194,22 @@ wordNamespace.on("connection", (socket) => {
 function startGame(gameId) {
     const game = games[gameId];
     if (!game || game.active) return;
-    
+
     game.active = true;
     game.timeRemaining = process.env.NODE_ENV == "production" ? 30 : 30; // 2 minutes
-    
+
     // Start timer
     game.timer = setInterval(() => {
         game.timeRemaining--;
-        
+
         // Update clients with time
         wordNamespace.to(gameId).emit('timeUpdate', { timeRemaining: game.timeRemaining });
-        
+
         if (game.timeRemaining <= 0) {
             endGame(gameId, 'Time expired');
         }
     }, 1000);
-    
+
     // Notify players that game started
     wordNamespace.to(gameId).emit('gameStarted', {
         timeRemaining: game.timeRemaining,
@@ -1232,41 +1232,60 @@ async function endGame(gameId, reason) {
     try {
         const game = games[gameId];
         if (!game) return;
-    
+
         Object.values(game.players).forEach(player => {
             const playerUserId = player.userId;
-    
+
             delete persistStore[playerUserId];
         })
-    
+
         console.log("deleted players from persist store after game end");
-    
+
         // Stop timer
         if (game.timer) {
             clearInterval(game.timer);
             game.timer = null;
         }
-    
+
         logger.info("game ended");
-        
+
         game.active = false;
-        
+
         // Determine winner
         let winner = null;
         let loser = null;
         let highestScore = -1;
-        
+
+        let tiedPlayers = [];
+
+        // Step 1: Find all players with the highest score
         Object.values(game.players).forEach(player => {
             if (player.score > highestScore) {
                 highestScore = player.score;
-                winner = player;
-            } else if (player.score === highestScore) {
-                winner = game.players[Math.floor(Math.random() * 2)]; // Tie
+                tiedPlayers = [player]; // reset list
+            }
+            else if (player.score === highestScore) {
+                tiedPlayers.push(player); // add to list of tied players
             }
         });
-    
-        logger.info("winner", {winner});
-        
+
+        if (tiedPlayers.length === 1) {
+            winner = tiedPlayers[0];
+        } else {
+            winner = tiedPlayers[Math.floor(Math.random() * tiedPlayers.length)];
+        }
+
+        // Object.values(game.players).forEach(player => {
+        //     if (player.score > highestScore) {
+        //         highestScore = player.score;
+        //         winner = player;
+        //     } else if (player.score === highestScore) {
+        //         winner = game.players[Math.floor(Math.random() * 2)]; // Tie
+        //     }
+        // });
+
+        logger.info("winner", { winner });
+
         // Notify players of game end
         wordNamespace.to(gameId).emit('gameEnded', {
             reason,
@@ -1285,39 +1304,39 @@ async function endGame(gameId, reason) {
                 avatar: p.avatar
             }))
         });
-    
+
         wordNamespace.to(winner.id).emit('you-won')
-    
+
         Object.values(game.players).forEach(player => {
-            if(player.id != winner.id) {
+            if (player.id != winner.id) {
                 wordNamespace.to(player.id).emit("you-lost")
                 loser = player;
             }
         })
 
         const tournamentId = game.tournamentId;
-    
+
         // delete games[gameId];
 
-        logger.info("loser", {loser});
-    
+        logger.info("loser", { loser });
+
         const winnerId = winner.userId;
         const loserId = loser.userId;
-    
+
         MobileLayer.sendGameWon(io, newRooms, winnerId, loserId, gameId);
 
-        if(tournamentId) {
+        if (tournamentId) {
             await MainServerLayer.wonTournamentGame(tournamentId, winnerId, gameId)
         }
         else {
             const lobbyId = await MainServerLayer.getLobbyID(gameId);
-        
+
             await MainServerLayer.wonGame(lobbyId, winnerId);
         }
 
         delete games[gameId];
     }
-    catch(error) {
+    catch (error) {
         logger.warn(`error occured while ending scrabble game, gameId: ${gameId}`);
 
         logger.error(error);
@@ -1359,15 +1378,15 @@ const getValidGames = () => {
         logger.info('Games directory not found');
         return [];
     }
-    
+
     return fs.readdirSync(gamesPath, { withFileTypes: true })
         .filter(dirent => {
             if (!dirent.isDirectory()) return false;
-            
+
             const gamePath = path.join(gamesPath, dirent.name);
             const hasBuild = fs.existsSync(path.join(gamePath, 'Build'));
             const hasIndex = fs.existsSync(path.join(gamePath, 'index.html'));
-            
+
             return hasBuild && hasIndex;
         })
         .map(dirent => dirent.name);
@@ -1377,12 +1396,12 @@ const getValidGames = () => {
 // app.use('/games/:gameName/Build', (req, res, next) => {
 //     const gameName = req.params.gameName;
 //     const buildPath = path.join(__dirname, 'games', gameName, 'Build');
-    
+
 //     // Handle gzipped content
 //     if (req.url.endsWith('.gz')) {
 //         res.set('Content-Encoding', 'gzip');
 //     }
-    
+
 //     express.static(buildPath)(req, res, next);
 // });
 
@@ -1471,27 +1490,27 @@ app.get('/', (req, res) => {
 })
 
 app.get('/user-details/:userId', async (req, res) => {
-    const {userId} = req.params;
+    const { userId } = req.params;
 
     try {
         const userGameDetails = await MainServerLayer.getUserGameDetails(userId)
 
-        if(!userGameDetails) {
-            res.status(404).json({message: "not found"})
+        if (!userGameDetails) {
+            res.status(404).json({ message: "not found" })
 
             return;
         }
-    
-        if(!userGameDetails.avatar) {
+
+        if (!userGameDetails.avatar) {
             userGameDetails.avatar = "https://game-service-uny2.onrender.com/game/Scrabble/a1.png"
         }
-    
-        res.status(200).json({message: "successful", userGameDetails});
+
+        res.status(200).json({ message: "successful", userGameDetails });
     }
-    catch(error) {
+    catch (error) {
         logger.error(error);
 
-        res.status(500).json({message: "unsuccessful"});
+        res.status(500).json({ message: "unsuccessful" });
     }
 })
 
@@ -1503,86 +1522,86 @@ app.get('/user-details/:userId', async (req, res) => {
 // Sentry.setupExpressErrorHandler(app);
 
 mongoose.connect(URL)
-.then(() => {
-    server.listen(PORT, () => {
-        logger.info(`server running at http://localhost:${PORT}`);
+    .then(() => {
+        server.listen(PORT, () => {
+            logger.info(`server running at http://localhost:${PORT}`);
 
-        // // Log available games and their status
-        // const gamesPath = path.join(__dirname, 'games');
-        // const allDirectories = fs.readdirSync(gamesPath, { withFileTypes: true })
-        //     .filter(dirent => dirent.isDirectory())
-        //     .map(dirent => dirent.name);
-        
-        // logger.info('\nAvailable games:');
-        // allDirectories.forEach(game => {
-        //     logger.info(`\n${game}:`);
-        //     const buildPath = path.join(gamesPath, game, 'Build');
-        //     const indexPath = path.join(gamesPath, game, 'index.html');
-            
-        //     logger.info('Build path:', buildPath);
-        //     logger.info('Index path:', indexPath);
-        //     logger.info('Build exists:', fs.existsSync(buildPath));
-        //     logger.info('Index exists:', fs.existsSync(indexPath));
-            
-        //     if (fs.existsSync(buildPath)) {
-        //         logger.info('Build contents:', fs.readdirSync(buildPath));
-        //     }
-        // });
-    });
+            // // Log available games and their status
+            // const gamesPath = path.join(__dirname, 'games');
+            // const allDirectories = fs.readdirSync(gamesPath, { withFileTypes: true })
+            //     .filter(dirent => dirent.isDirectory())
+            //     .map(dirent => dirent.name);
 
-    process.on("SIGTERM", async () => {
-        try {
-            await ACTIVEUSER.deleteMany({});
+            // logger.info('\nAvailable games:');
+            // allDirectories.forEach(game => {
+            //     logger.info(`\n${game}:`);
+            //     const buildPath = path.join(gamesPath, game, 'Build');
+            //     const indexPath = path.join(gamesPath, game, 'index.html');
 
-            await io.close();
-            logger.info("socket server closed")
-            logger.info("all logs sent on graceful shutdown");
-            logger.info("all logs sent on graceful shutdown");
-            await logtail.flush();
-        }
-        catch(error) {
-            logger.error("Error during flush:", error);
-        }
+            //     logger.info('Build path:', buildPath);
+            //     logger.info('Index path:', indexPath);
+            //     logger.info('Build exists:', fs.existsSync(buildPath));
+            //     logger.info('Index exists:', fs.existsSync(indexPath));
 
-        server.close(async () => {
-            logger.info('Express server closed.');
-
-            // Close the Mongoose connection
-            await mongoose.connection.close();
-            logger.info('MongoDB connection closed.');
-
-            // Exit the process
-            process.exit(0);
+            //     if (fs.existsSync(buildPath)) {
+            //         logger.info('Build contents:', fs.readdirSync(buildPath));
+            //     }
+            // });
         });
+
+        process.on("SIGTERM", async () => {
+            try {
+                await ACTIVEUSER.deleteMany({});
+
+                await io.close();
+                logger.info("socket server closed")
+                logger.info("all logs sent on graceful shutdown");
+                logger.info("all logs sent on graceful shutdown");
+                await logtail.flush();
+            }
+            catch (error) {
+                logger.error("Error during flush:", error);
+            }
+
+            server.close(async () => {
+                logger.info('Express server closed.');
+
+                // Close the Mongoose connection
+                await mongoose.connection.close();
+                logger.info('MongoDB connection closed.');
+
+                // Exit the process
+                process.exit(0);
+            });
+        })
+
+        process.on("SIGINT", async () => {
+            try {
+                await ACTIVEUSER.deleteMany({});
+
+                await io.close();
+                logger.info("socket server closed")
+                logger.info("all logs sent on graceful shutdown");
+                logger.info("all logs sent on graceful shutdown");
+                await logtail.flush();
+            }
+            catch (error) {
+                logger.error("Error during flush:", error);
+            }
+
+            server.close(async () => {
+
+                logger.info('Express server closed.');
+
+                // Close the Mongoose connection
+                await mongoose.connection.close();
+                logger.info('MongoDB connection closed.');
+
+                // Exit the process
+                process.exit(0);
+            });
+        })
     })
-
-    process.on("SIGINT", async () => {
-        try {
-            await ACTIVEUSER.deleteMany({});
-
-            await io.close();
-            logger.info("socket server closed")
-            logger.info("all logs sent on graceful shutdown");
-            logger.info("all logs sent on graceful shutdown");
-            await logtail.flush();
-        }
-        catch(error) {
-            logger.error("Error during flush:", error);
-        }
-
-        server.close(async () => {
-
-            logger.info('Express server closed.');
-
-            // Close the Mongoose connection
-            await mongoose.connection.close();
-            logger.info('MongoDB connection closed.');
-
-            // Exit the process
-            process.exit(0);
-        });
+    .catch(error => {
+        handleError(error);
     })
-})
-.catch(error => {
-    handleError(error);
-})
