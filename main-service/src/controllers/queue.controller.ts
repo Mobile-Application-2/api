@@ -148,7 +148,7 @@ export async function handle_game_won(
           // TODO: JOSHUA
           // 90% of wager amount should be paid to the winner while the remaining is for the admin
 
-          const winnerShare = lastestEscrowInfo.totalAmount * 0.9;
+          const winnerShare = lastestEscrowInfo.totalAmount - ((lastestEscrowInfo.totalAmount / 2) * 0.1);
           // const adminShare = lastestEscrowInfo.totalAmount * 0.1;
 
           // const adminsArray = await ADMIN.find({}, null, {session})
