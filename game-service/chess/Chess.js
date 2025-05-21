@@ -94,7 +94,7 @@ export default class Chess {
             socket.on('join_game', async (data, state) => {
                 // CHECK IF PLAYER WAS DISCONNECTED AND RETURN EARLY
 
-                const returningPlayer = this.dataSessionManager.restore(data.playerId)
+                const returningPlayer = this.dataSessionManager.restore(data.playerId + data.lobbyCode)
 
                 if (returningPlayer) {
                     logger.info(`player has returned after disconnecting, userId: ${data.playerId}`);
@@ -123,7 +123,7 @@ export default class Chess {
 
                     this.startAllTimersAndIntervals(room.roomID, chessNameSpace);
 
-                    const missedMessage = this.extraSessionManager.restore(returningPlayer.userId);
+                    const missedMessage = this.extraSessionManager.restore(returningPlayer.userId + room.roomID);
 
                     if (missedMessage) {
                         logger.info("sending turn played to opponent");
@@ -309,7 +309,7 @@ export default class Chess {
 
                 logger.info("player is offline, storing player data");
 
-                this.dataSessionManager.store(player.userId, {
+                this.dataSessionManager.store(player.userId + room.roomID, {
                     roomID: room.roomID,
                     socketID: player.socketID,
                     userId: player.userId,
@@ -478,11 +478,11 @@ export default class Chess {
             const playerToCheckOffline = currentRoom.players.find(p => p.socketID != socket.id);
 
             if (playerToCheckOffline) {
-                if (!this.dataSessionManager.sessions.has(playerToCheckOffline.userId)) return;
+                if (!this.dataSessionManager.sessions.has(playerToCheckOffline.userId + currentRoom.roomID)) return;
 
                 logger.info("player is offline while message is sent, storing message");
 
-                this.extraSessionManager.store(playerToCheckOffline.userId, {
+                this.extraSessionManager.store(playerToCheckOffline.userId + currentRoom.roomID, {
                     indexClicked,
                     newPosition,
                     roomID,

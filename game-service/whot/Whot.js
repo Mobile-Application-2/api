@@ -89,7 +89,7 @@ export default class Whot {
 
         logger.info("player is offline, storing player data");
 
-        this.dataSessionManager.store(player.userId, {
+        this.dataSessionManager.store(player.userId + room.room_id, {
           roomID: room.room_id,
           socketID: player.socketId,
           userId: player.userId,
@@ -103,7 +103,7 @@ export default class Whot {
       })
 
       socket.on("join_room", async ({ room_id, storedId, username, avatar, userId, tournamentId }) => {
-        const returningPlayer = this.dataSessionManager.restore(userId)
+        const returningPlayer = this.dataSessionManager.restore(userId + room_id)
 
         if (returningPlayer) {
           logger.info(`player has returned after disconnecting, userId: ${userId}`);
