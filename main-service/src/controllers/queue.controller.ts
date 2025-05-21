@@ -15,7 +15,7 @@ import send_mail from '../utils/nodemailer';
 import NOTIFICATION from '../models/notification.model';
 import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
 import TOURNAMENT from '../models/tournament.model';
-import ADMIN from '../models/admin.model';
+// import ADMIN from '../models/admin.model';
 
 export async function handle_game_won(
   message: amqplib.ConsumeMessage | null,
@@ -149,26 +149,25 @@ export async function handle_game_won(
           // 90% of wager amount should be paid to the winner while the remaining is for the admin
 
           const winnerShare = lastestEscrowInfo.totalAmount * 0.9;
-          const adminShare = lastestEscrowInfo.totalAmount * 0.1;
+          // const adminShare = lastestEscrowInfo.totalAmount * 0.1;
 
-          const adminsArray = await ADMIN.find({}, null, {session})
+          // const adminsArray = await ADMIN.find({}, null, {session})
 
-          if(adminsArray.length < 1) {
-            console.warn("no admin to credit");
-          }
-          else {
-            const admin = adminsArray[0];
+          // if(adminsArray.length < 1) {
+          //   console.warn("no admin to credit");
+          // }
+          // else {
+          //   const admin = adminsArray[0];
 
-            await ADMIN.updateOne(
-              { _id: admin._id },
-              { $inc: { walletBalance: adminShare } },
-              { session }
-            );
+          //   await ADMIN.updateOne(
+          //     { _id: admin._id },
+          //     { $inc: { walletBalance: adminShare } },
+          //   );
 
-            /* admin.walletBalance += adminShare;
+          //   /* admin.walletBalance += adminShare;
 
-            await admin.save({session}) */
-          }
+          //   await admin.save({session}) */
+          // }
 
           await USER.updateOne(
             {_id: winnerId},
