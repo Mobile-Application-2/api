@@ -184,7 +184,7 @@ export async function handle_game_won(
                 fee: 0,
                 ref: uuidV4(),
                 status: 'completed',
-                total: winnerShare,
+                total: lastestEscrowInfo.totalAmount,
                 type: 'deposit',
                 userId: winnerId,
               },
