@@ -453,6 +453,9 @@ export default class Whot {
 
             if (currentRoom.tournamentId) {
               await MainServerLayer.wonTournamentGame(currentRoom.tournamentId, winnerId, room_id);
+              
+              Tournament.emitFixtureEnd(currentRoom.tournamentId, winnerId);
+              Tournament.emitFixtureEnd(currentRoom.tournamentId, loserId);
             }
             else {
               const lobbyId = await MainServerLayer.getLobbyID(room_id);

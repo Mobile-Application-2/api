@@ -184,6 +184,24 @@ export default class Tournament {
 
     /**
      * @param {string} tournamentId
+     * @param {string} playerId
+     */
+    static emitFixtureEnd(tournamentId, playerId) {
+        const tournamentMatcher = this.tournaments.get(tournamentId);
+
+        if (!tournamentMatcher) {
+            logger.info("tournament matcher not found");
+
+            return;
+        }
+
+        tournamentMatcher.emit("playerMatchCompleted", { player: playerId });
+
+        logger.info("tournament fixture completed");
+    }
+
+    /**
+     * @param {string} tournamentId
      */
     static addTournament(tournamentId) {
         if (this.activatedTournaments.has(tournamentId)) {

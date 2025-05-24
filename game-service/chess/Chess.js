@@ -5,6 +5,7 @@ import { emitTimeRemaining } from "../gameUtils.js";
 import MainServerLayer from "../MainServerLayer.js";
 import LOBBY from "../models/lobby.model.js";
 import USER from "../models/user.model.js";
+import Tournament from "../Tournament.js";
 import GameModel from "./models/game.model.js";
 
 export default class Chess {
@@ -284,6 +285,9 @@ export default class Chess {
 
                 if (currentRoom.tournamentId) {
                     await MainServerLayer.wonTournamentGame(currentRoom.tournamentId, winnerId, roomID);
+
+                    Tournament.emitFixtureEnd(currentRoom.tournamentId, winnerId);
+                    Tournament.emitFixtureEnd(currentRoom.tournamentId, loserId);
                 }
                 else {
                     const lobbyId = await MainServerLayer.getLobbyID(roomID);

@@ -1321,7 +1321,10 @@ async function endGame(gameId, reason) {
         MobileLayer.sendGameWon(io, newRooms, winnerId, loserId, gameId);
 
         if (tournamentId) {
-            await MainServerLayer.wonTournamentGame(tournamentId, winnerId, gameId)
+            await MainServerLayer.wonTournamentGame(tournamentId, winnerId, gameId);
+
+            Tournament.emitFixtureEnd(tournamentId, winnerId);
+            Tournament.emitFixtureEnd(tournamentId, loserId);
         }
         else {
             const lobbyId = await MainServerLayer.getLobbyID(gameId);
