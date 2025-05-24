@@ -40,6 +40,7 @@ import { emitTimeRemaining } from './gameUtils.js';
 import ACTIVEUSER from './models/active.model.js';
 import SnookerNamespace from './games/Snooker/SnookerNamespace.js';
 import GameManager from './GameManager.js';
+import RefundLayer from './RefundLayer.js';
 
 const scrabbleDict = JSON.parse(readFileSync(new fileURL("./games/Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
 
@@ -1109,6 +1110,24 @@ wordNamespace.on("connection", (socket) => {
 
         logger.info("updated game state");
 
+        if(Object.keys(game.players).length == 1) {
+            const lobbyID = await MainServerLayer.getLobbyID(gameId);
+
+            RefundLayer.createRefundTimer(lobbyID, (lobbyId) => {
+                const mainFoundRooms = newRooms.filter(room => room.lobbyCode == gameId);
+
+                logger.info("main found rooms", mainFoundRooms);
+
+                logger.info("timed out scrabble");
+
+                const mainServerRooms = mainFoundRooms.map(room => room.socketId);
+
+                logger.info("main server rooms", mainServerRooms);
+
+                io.to(mainServerRooms).emit("timed-out");
+            })
+        }
+
         // Start game if we have 2 players
         if (Object.keys(game.players).length === 2 && !game.active) {
             startGame(gameId);
@@ -1119,6 +1138,8 @@ wordNamespace.on("connection", (socket) => {
             }
             else {
                 const lobbyID = await MainServerLayer.getLobbyID(gameId);
+
+                RefundLayer.stopRefundTimer(lobbyID);
 
                 await MainServerLayer.startGame(lobbyID);
             }
