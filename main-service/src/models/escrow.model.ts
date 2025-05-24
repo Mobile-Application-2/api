@@ -21,6 +21,11 @@ const escrowSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // for refunds
+    refunded: {
+      type: Boolean,
+      default: false,
+    },
   },
   {timestamps: true}
 );
