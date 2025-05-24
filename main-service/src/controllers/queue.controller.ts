@@ -17,6 +17,174 @@ import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
 import TOURNAMENT from '../models/tournament.model';
 // import ADMIN from '../models/admin.model';
 
+// JOSHUA
+export async function handle_game_timed_out(
+  message: amqplib.ConsumeMessage | null,
+  channel: amqplib.Channel
+) {
+  console.log("handle game timed out event came from game server");
+
+  if(!message) {
+    return;
+  }
+
+  try {
+    const {lobbyId} = JSON.parse(
+      message.content.toString()
+    ) as {lobbyId: string};
+
+
+    if (!isValidObjectId(lobbyId)) {
+      Sentry.addBreadcrumb({
+        category: 'game',
+        data: {
+          lobbyId
+        },
+        message: 'Invalid lobbyId provided',
+      });
+
+      Sentry.captureMessage(
+        'A handle game timed out message came in with an invalid lobbyId',
+        'warning'
+      );
+
+      channel.ack(message);
+      return;
+    }
+
+    /* const lobbyInfo = await LOBBY.findOne({_id: lobbyId});
+
+    if(!lobbyInfo) {
+      Sentry.addBreadcrumb({
+        category: 'game',
+        data: {
+          lobbyId
+        },
+        message: 'lobby does not exist',
+      });
+
+      Sentry.captureMessage(
+        'Lobby does not exist',
+        'warning'
+      );      
+
+      return;
+    } */
+
+    const lastestEscrowInfo = await ESCROW.findOne(
+      {lobbyId},
+      {},
+      {sort: {createdAt: -1}}
+    );
+
+    if (lastestEscrowInfo === null) {
+      Sentry.addBreadcrumb({
+        category: 'game',
+        data: {
+          lobbyId,
+        },
+        message: 'Invalid lobbyId provided',
+      });
+
+      Sentry.captureMessage(
+        "A handle game timed out message came in with a lobbyId that doesn't match any escrow document so refund could not be processed",
+        'error'
+      );
+
+      channel.ack(message);
+      return;
+    }
+
+    const session = await mongoose.startSession({
+      defaultTransactionOptions: {
+        writeConcern: {w: 'majority'},
+        readConcern: 'majority',
+      },
+    });
+
+    const paidPlayersToRefund = lastestEscrowInfo.playersThatHavePaid;
+
+    if (!paidPlayersToRefund.length) {
+      console.log("no players to refund");
+      
+      Sentry.captureMessage('No players to refund in timed out lobby', 'info');
+      channel.ack(message);
+      return;
+    }    
+
+    await session.withTransaction(async session => {
+      try {
+        const amountToRefund = lastestEscrowInfo.totalAmount / 2;
+
+        await USER.updateMany(
+          { _id: { $in: paidPlayersToRefund } },
+          { $inc: { walletBalance: amountToRefund } },
+          { session }
+        );
+
+        const transactions = paidPlayersToRefund.map(playerId => ({
+          amount: amountToRefund,
+          description: 'Refund from game',
+          fee: 0,
+          ref: uuidV4(),
+          status: 'completed',
+          total: amountToRefund,
+          type: 'deposit',
+          userId: playerId,
+        }));
+        
+        await TRANSACTION.insertMany(transactions, { session });
+
+        await LOBBY.updateOne(
+          {_id: lobbyId},
+          {$set: {active: false}},
+          {session}
+        );
+
+        // mark escrow as paid
+        await ESCROW.updateOne(
+          {_id: lastestEscrowInfo._id},
+          {$set: {refunded: true}},
+          {session}
+        );
+
+        const notificationsToSend = paidPlayersToRefund.map(playerId => ({
+          userId: playerId,
+          title: 'Refund Processing',
+          body: 'A refund is currently being processed due to a lobby timing out',
+          image: process.env.SKYBOARD_LOGO as string
+        }))
+
+        await NOTIFICATION.insertMany(notificationsToSend, { session });
+
+        /* await send_mail(userInfo.email, 'game-won', 'You won a game', {
+          username: userInfo.username,
+          lobbyCode: lobbyInfo.code,
+          amount: `${(winnerShare / 100).toFixed(2)} naira`,
+        }); */
+
+        // TODO: push notification later
+        await session.commitTransaction();
+        channel.ack(message);
+      } catch (error) {
+        await session.abortTransaction();
+
+        throw error;
+      } finally {
+        await session.endSession();
+      }
+    });
+  }
+  catch(error) {
+    Sentry.captureException(error, {
+      level: 'error',
+      tags: {source: 'handle_game_timed_out function'},
+    });
+
+    if (message) channel.ack(message); 
+  }
+}
+
 export async function handle_game_won(
   message: amqplib.ConsumeMessage | null,
   channel: amqplib.Channel
