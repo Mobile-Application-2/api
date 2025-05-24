@@ -51,7 +51,7 @@ export default class MainServerLayer {
 
             const { username, avatar } = user
 
-            return {username, avatar};
+            return { username, avatar };
         }
         catch (error) {
             logger.error(error)
@@ -78,7 +78,7 @@ export default class MainServerLayer {
 
             const lobbyID = currentLobby.toObject()._id.toString();
 
-            logger.info("lobbyID: ", {lobbyID});
+            logger.info("lobbyID: ", { lobbyID });
 
             return lobbyID;
         }
@@ -96,7 +96,7 @@ export default class MainServerLayer {
                 winnerId: winnerId
             }
 
-            logger.info("info", {data});
+            logger.info("info", { data });
 
             await publish_to_queue("game-info-win", data, true)
 
@@ -112,7 +112,7 @@ export default class MainServerLayer {
                 lobbyId: lobbyId
             }
 
-            logger.info("sending start game to main server, data: ", {data});
+            logger.info("sending start game to main server, data: ", { data });
 
             const response = await postData(url + "/game/start", "PATCH", data)
 
@@ -138,9 +138,9 @@ export default class MainServerLayer {
 
     static async startTournamentGame(fixtureId, joiningCode) {
         try {
-            const f = await TOURNAMENTFIXTURES.findOne({tournamentId: fixtureId, joiningCode: joiningCode});
+            const f = await TOURNAMENTFIXTURES.findOne({ tournamentId: fixtureId, joiningCode: joiningCode });
 
-            if(!f) {
+            if (!f) {
                 logger.warn("fixture not found");
             }
 
@@ -148,7 +148,7 @@ export default class MainServerLayer {
                 fixtureId: f._id
             }
 
-            logger.info("sending start game to main server, data: ", {data});
+            logger.info("sending start game to main server, data: ", { data });
 
             const response = await postData(url + "/tournament/start-fixture-game", "PATCH", data)
 
@@ -170,9 +170,9 @@ export default class MainServerLayer {
 
     static async wonTournamentGame(fixtureId, winnerId, joiningCode) {
         try {
-            const f = await TOURNAMENTFIXTURES.findOne({tournamentId: fixtureId, joiningCode: joiningCode});
+            const f = await TOURNAMENTFIXTURES.findOne({ tournamentId: fixtureId, joiningCode: joiningCode });
 
-            if(!f) {
+            if (!f) {
                 logger.warn("fixture not found");
             }
 
@@ -186,6 +186,22 @@ export default class MainServerLayer {
             await publish_to_queue("tournament-info-win", data, true)
 
             logger.info("winner info sent (tournament)");
+        } catch (error) {
+            logger.error(error);
+        }
+    }
+
+    static async refundPlayers(lobbyId) {
+        try {
+            logger.info(`sending refund event, lobbyId: ${lobbyId}`);
+
+            const data = {
+                lobbyId: lobbyId
+            }
+
+            await publish_to_queue("game-timed-out", data, true)
+
+            logger.info("refund event sent");
         } catch (error) {
             logger.error(error);
         }

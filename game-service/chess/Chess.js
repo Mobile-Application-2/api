@@ -5,6 +5,7 @@ import { emitTimeRemaining } from "../gameUtils.js";
 import MainServerLayer from "../MainServerLayer.js";
 import LOBBY from "../models/lobby.model.js";
 import USER from "../models/user.model.js";
+import RefundLayer from "../RefundLayer.js";
 import Tournament from "../Tournament.js";
 import GameModel from "./models/game.model.js";
 
@@ -69,7 +70,7 @@ export default class Chess {
     static extraSessionManager = new DataSessionManager();
 
     /**
-   * @typedef {Object} GameData
+   * @typedef {Object} NewRoomsGameData
    * @property {string} gameId - The unique identifier for the game.
    * @property {string} playerId - The unique identifier for the player.
    * @property {string} opponentId - The unique identifier for the opponent.
@@ -77,6 +78,7 @@ export default class Chess {
    * @property {string} tournamentId - The unique identifier for tournaments.
    * @property {string} lobbyCode - The unique lobby code for the game.
    * @property {string} gameName - The name of the game.
+   * @property {string} socketId - The main socket id of the player.
    * 
    */
 
@@ -85,7 +87,7 @@ export default class Chess {
      * 
      * @param {import("socket.io").Server} io - The main Socket.IO server instance.
      * @param {import("socket.io").Namespace} chessNameSpace - The specific namespace for the Whot game.
-     * @param {Array<GameData>} mainRooms - A map of active game rooms.
+     * @param {Array<NewRoomsGameData>} mainRooms - A map of active game rooms.
      */
     static async activate(io, chessNameSpace, mainRooms) {
         chessNameSpace.on('connection', socket => {
@@ -163,6 +165,36 @@ export default class Chess {
 
                     logger.info("created game for game session", { lobbyCode })
 
+                    const lobbyID = await MainServerLayer.getLobbyID(lobbyCode);
+
+                    RefundLayer.createRefundTimer(lobbyID, (lobbyId) => {
+                        const interval = this.intervals.get(roomID);
+
+                        if (interval) {
+                            clearInterval(interval);
+                            this.intervals.delete(roomID);
+                        }
+
+                        const g = gameSessionManager.getGame(roomID);
+
+                        if (g) {
+                            g.cancelTimer();
+                            logger.info("cancelled game timer", { roomID })
+                        }
+
+                        const mainFoundRooms = mainRooms.filter(room => room.lobbyCode == roomID);
+
+                        logger.info("main found rooms", mainFoundRooms);
+
+                        logger.info("timed out chess");
+
+                        const mainServerRooms = mainFoundRooms.map(room => room.socketId);
+
+                        logger.info("main server rooms", mainServerRooms);
+
+                        io.to(mainServerRooms).emit("timed-out");
+                    });
+
                     return;
                 }
 
@@ -199,6 +231,8 @@ export default class Chess {
                 }
                 else {
                     const lobbyID = await MainServerLayer.getLobbyID(roomID);
+
+                    RefundLayer.stopRefundTimer(lobbyID);
 
                     await MainServerLayer.startGame(lobbyID);
                 }
@@ -554,7 +588,6 @@ export default class Chess {
      * @property {string} tournamentId - The unique identifier for tournaments.
      * @property {string} lobbyCode - The unique lobby code for the game.
      * @property {string} gameName - The name of the game.
-     * 
      */
 
     // http://localhost:5173/game/my-Chess?lobbyCode=123456&playerId=2178bhjsbdhus

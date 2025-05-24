@@ -39,6 +39,7 @@ import { gameSessionManager } from './GameSessionManager.js';
 import { emitTimeRemaining } from './gameUtils.js';
 import ACTIVEUSER from './models/active.model.js';
 import SnookerNamespace from './games/Snooker/SnookerNamespace.js';
+import GameManager from './GameManager.js';
 
 const scrabbleDict = JSON.parse(readFileSync(new fileURL("./games/Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
 
@@ -100,6 +101,7 @@ rooms.splice(0);
  * @property {string} tournamentId - The unique identifier for tournaments.
  * @property {string} lobbyCode - The unique lobby code for the game.
  * @property {string} gameName - The name of the game.
+ * @property {string} socketId - The main socket id of the player.
  */
 
 /** @type {GameData[]} */
@@ -121,6 +123,9 @@ newRooms.splice(0);
 async function handleError(error) {
     await ErrorModel.create({ error: error.stack })
 }
+
+/**@type {Map<string, GameManager>} */
+const refundTimers = new Map()
 
 io.on('connection', (socket) => {
     logger.info("user connected to general namespace");
@@ -242,6 +247,43 @@ io.on('connection', (socket) => {
             newRooms.push(dataPushed);
 
             logger.info("newrooms after push", { newRooms })
+
+            if (lobby) {
+                const lobbyId = lobby._id.toString();
+
+                if (!refundTimers.has(lobbyId)) {
+                    logger.info("creating timer (10mins)");
+
+                    const gameManager = new GameManager();
+
+                    gameManager.createTimer(1000 * 60 * 10, async () => {
+                        await MainServerLayer.refundPlayers(lobbyId);
+                    })
+
+                    gameManager.startTimer();
+
+                    refundTimers.set(lobbyId, gameManager);
+
+                    logger.info("timer created and started (10mins)");
+                }
+                else {
+                    const gameManager = refundTimers.get(lobbyId);
+
+                    if (!gameManager) {
+                        logger.info(`game manager not present with lobbyId: ${lobbyId}`);
+
+                        return;
+                    }
+
+                    logger.info(`cancelling timer (10mins), time remaining: ${gameManager.getTimeRemaining()}`);
+
+                    gameManager.cancelTimer();
+
+                    logger.info("timer cancelled (10mins)");
+
+                    refundTimers.delete(lobbyId);
+                }
+            }
 
             // socket.emit("game-message-channel", "init-game", {gameId, playerId, opponentId, stakeAmount, tournamentId, gameName: game.name});
         }
