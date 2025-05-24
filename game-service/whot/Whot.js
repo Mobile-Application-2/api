@@ -75,7 +75,7 @@ export default class Whot {
 
         // logger.info(rooms[0].players);
 
-        logger.info(rooms, socket.id);
+        logger.info("" + socket.id);
 
         const room = rooms.find(room => room.players.includes(room.players.find(player => player.socketId == socket.id)));
 
@@ -103,6 +103,8 @@ export default class Whot {
       })
 
       socket.on("join_room", async ({ room_id, storedId, username, avatar, userId, tournamentId }) => {
+        logger.info("user want to join a game", { room_id, storedId, username, avatar, userId, tournamentId });
+
         const returningPlayer = this.dataSessionManager.restore(userId + room_id)
 
         if (returningPlayer) {
@@ -131,6 +133,15 @@ export default class Whot {
           socket.join(room.room_id);
 
           whotNamespace.to(room.room_id).emit('resume');
+
+          const opponent = room.players.find(p => p.userId != returningPlayer.userId);
+
+          if (opponent) {
+            let opponentSocketId = opponent.socketId;
+
+            whotNamespace.to(opponentSocketId).emit("opponentOnlineStateChanged", true);
+          }
+
 
           /* this.startAllTimersAndIntervals(room.roomID, chessNameSpace);
 
@@ -352,12 +363,13 @@ export default class Whot {
       });
 
       socket.on("sendUpdatedState", (updatedState, room_id) => {
-        logger.info("update state", room_id, rooms);
+        // logger.info("update state", room_id, rooms);
+        logger.info("update state");
         const playerOneState = updatedState.player === "one" ? updatedState : reverseState(updatedState);
         const playerTwoState = reverseState(playerOneState);
         rooms = rooms.map((room) => {
           if (room.room_id == room_id) {
-            logger.info("room to update player state", room);
+            // logger.info("room to update player state", room);
             return {
               ...room,
               playerOneState,
@@ -378,14 +390,12 @@ export default class Whot {
 
         logger.info("dispatched update state");
 
-        logger.info("rooms to find current room", rooms.map(room => room.room_id));
+        // logger.info("rooms to find current room", rooms.map(room => room.room_id));
 
         const currentRoom = rooms.find((room) => room.room_id == room_id);
 
         if (!currentRoom) {
-          logger.info(room_id, rooms);
-
-          logger.info("no current room to broadcast too");
+          logger.info("no current room to broadcast too", { room_id });
 
           return;
         }
@@ -453,7 +463,7 @@ export default class Whot {
 
             if (currentRoom.tournamentId) {
               await MainServerLayer.wonTournamentGame(currentRoom.tournamentId, winnerId, room_id);
-              
+
               Tournament.emitFixtureEnd(currentRoom.tournamentId, winnerId);
               Tournament.emitFixtureEnd(currentRoom.tournamentId, loserId);
             }
