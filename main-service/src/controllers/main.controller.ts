@@ -1,22 +1,22 @@
 import TICKET from '../models/ticket.model';
 import USER from '../models/user.model';
-import {handle_error} from '../utils/handle-error';
-import {Request, Response} from 'express';
+import { handle_error } from '../utils/handle-error';
+import { Request, Response } from 'express';
 import send_mail from '../utils/nodemailer';
 import NOTIFICATION from '../models/notification.model';
 import isEmail from 'validator/lib/isEmail';
-import mongoose, {PipelineStage, isValidObjectId} from 'mongoose';
+import mongoose, { PipelineStage, isValidObjectId } from 'mongoose';
 import TRANSACTION from '../models/transaction.model';
 import WAITLIST from '../models/waitlist.model';
 import GAME from '../models/game.model';
 import GAMERATING from '../models/game-rating.model';
-import {generate_lobby_code} from '../utils/generate-lobby-code';
+import { generate_lobby_code } from '../utils/generate-lobby-code';
 import LOBBY from '../models/lobby.model';
 import ESCROW from '../models/escrow.model';
 import REFERRAL from '../models/referral.model';
 import * as Sentry from '@sentry/node';
 const ObjectId = mongoose.Types.ObjectId;
-import {v4 as uuidV4} from 'uuid';
+import { v4 as uuidV4 } from 'uuid';
 import TOURNAMENT from '../models/tournament.model';
 import TOURNAMENTESCROW from '../models/tournament-escrow.model';
 import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
@@ -26,10 +26,10 @@ import { notifyUserBalanceUpdate } from '../services/balance.service';
 
 export async function search_users(req: Request, res: Response) {
   try {
-    const {q: searchQuery} = req.query;
+    const { q: searchQuery } = req.query;
 
     if (typeof searchQuery !== 'string' || searchQuery.trim() === '') {
-      res.status(400).json({mesage: 'Please specify a search query'});
+      res.status(400).json({ mesage: 'Please specify a search query' });
       return;
     }
 
@@ -209,7 +209,7 @@ export async function search_users(req: Request, res: Response) {
     // fetch results based on only usernames
     const users = await USER.aggregate(pipeline);
 
-    res.status(200).json({message: 'Success', data: users});
+    res.status(200).json({ message: 'Success', data: users });
   } catch (error) {
     handle_error(Error, res);
   }
@@ -217,8 +217,8 @@ export async function search_users(req: Request, res: Response) {
 
 export async function create_a_ticket(req: Request, res: Response) {
   try {
-    const {fullName, email, message} = req.body;
-    const {userId} = req;
+    const { fullName, email, message } = req.body;
+    const { userId } = req;
 
     const ticketInfo = await TICKET.create({
       fullName,
@@ -245,7 +245,7 @@ export async function create_a_ticket(req: Request, res: Response) {
       }
     );
 
-    res.status(201).json({message: 'Ticket filed successfully'});
+    res.status(201).json({ message: 'Ticket filed successfully' });
   } catch (error) {
     handle_error(error, res);
   }
@@ -253,15 +253,15 @@ export async function create_a_ticket(req: Request, res: Response) {
 
 export async function refer_a_friend(req: Request, res: Response) {
   try {
-    const {email} = req.body;
-    const {userId} = req;
+    const { email } = req.body;
+    const { userId } = req;
 
     if (!email || isEmail(email) === false) {
-      res.status(400).json({message: 'Please provide a valid email address'});
+      res.status(400).json({ message: 'Please provide a valid email address' });
       return;
     }
 
-    const userInfo = await USER.findOne({_id: userId});
+    const userInfo = await USER.findOne({ _id: userId });
 
     if (!userInfo) {
       res.status(404).json({
@@ -276,7 +276,7 @@ export async function refer_a_friend(req: Request, res: Response) {
     });
 
     if (emailIsAlreadyInUse) {
-      res.status(400).json({message: 'This email is already signed up'});
+      res.status(400).json({ message: 'This email is already signed up' });
       return;
     }
 
@@ -293,7 +293,7 @@ export async function refer_a_friend(req: Request, res: Response) {
       }
     );
 
-    res.status(200).json({message: 'Referral sent successfully'});
+    res.status(200).json({ message: 'Referral sent successfully' });
   } catch (error) {
     handle_error(error, res);
   }
@@ -301,8 +301,8 @@ export async function refer_a_friend(req: Request, res: Response) {
 
 export async function get_notifications(req: Request, res: Response) {
   try {
-    const {userId} = req;
-    const {pageNo} = req.query;
+    const { userId } = req;
+    const { pageNo } = req.query;
 
     const MAX_RESULTS = 250;
     let currentPage;
@@ -315,17 +315,17 @@ export async function get_notifications(req: Request, res: Response) {
 
     const skip = (currentPage - 1) * MAX_RESULTS;
 
-    const notifications = await NOTIFICATION.find({userId})
-      .sort({createdAt: -1})
+    const notifications = await NOTIFICATION.find({ userId })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(MAX_RESULTS);
 
     const notificationIds = notifications.map(notification => notification._id);
 
     // mark all notifications as read
-    await NOTIFICATION.updateMany({_id: {$in: notificationIds}}, {read: true});
+    await NOTIFICATION.updateMany({ _id: { $in: notificationIds } }, { read: true });
 
-    res.status(200).json({message: 'Success', data: notifications});
+    res.status(200).json({ message: 'Success', data: notifications });
   } catch (error) {
     handle_error(error, res);
   }
@@ -333,31 +333,31 @@ export async function get_notifications(req: Request, res: Response) {
 
 export async function delete_notification(req: Request, res: Response) {
   try {
-    const {userId} = req;
-    const {id: notificationId} = req.params;
+    const { userId } = req;
+    const { id: notificationId } = req.params;
 
     if (!isValidObjectId(notificationId)) {
-      res.status(400).json({message: 'Invalid notification id'});
+      res.status(400).json({ message: 'Invalid notification id' });
       return;
     }
 
-    const notification = await NOTIFICATION.findOne({_id: notificationId});
+    const notification = await NOTIFICATION.findOne({ _id: notificationId });
 
     if (!notification) {
-      res.status(404).json({message: 'Notification not found'});
+      res.status(404).json({ message: 'Notification not found' });
       return;
     }
 
     if (!notification.userId.equals(userId)) {
       res
         .status(403)
-        .json({message: 'You are not authorized to delete this notification'});
+        .json({ message: 'You are not authorized to delete this notification' });
       return;
     }
 
-    await notification.deleteOne({_id: notificationId});
+    await notification.deleteOne({ _id: notificationId });
 
-    res.status(200).json({message: 'Notification deleted successfully'});
+    res.status(200).json({ message: 'Notification deleted successfully' });
   } catch (error) {
     handle_error(error, res);
   }
@@ -365,11 +365,11 @@ export async function delete_notification(req: Request, res: Response) {
 
 export async function delete_all_notifications(req: Request, res: Response) {
   try {
-    const {userId} = req;
+    const { userId } = req;
 
-    await NOTIFICATION.deleteMany({userId});
+    await NOTIFICATION.deleteMany({ userId });
 
-    res.status(200).json({message: 'All notifications deleted successfully'});
+    res.status(200).json({ message: 'All notifications deleted successfully' });
   } catch (error) {
     handle_error(error, res);
   }
@@ -377,8 +377,8 @@ export async function delete_all_notifications(req: Request, res: Response) {
 
 export async function get_transactions(req: Request, res: Response) {
   try {
-    const {userId} = req;
-    const {pageNo} = req.query;
+    const { userId } = req;
+    const { pageNo } = req.query;
 
     const MAX_RESULTS = 250;
     let currentPage;
@@ -391,13 +391,13 @@ export async function get_transactions(req: Request, res: Response) {
 
     const skip = (currentPage - 1) * MAX_RESULTS;
 
-    const transactions = await TRANSACTION.find({userId})
-      .sort({createdAt: -1})
+    const transactions = await TRANSACTION.find({ userId })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(MAX_RESULTS);
 
     // not returing the total number of transactions so you can use infinite scroll
-    res.status(200).json({message: 'Success', data: transactions});
+    res.status(200).json({ message: 'Success', data: transactions });
   } catch (error) {
     handle_error(error, res);
   }
@@ -405,35 +405,35 @@ export async function get_transactions(req: Request, res: Response) {
 
 export async function join_waitlist(req: Request, res: Response) {
   try {
-    const {email} = req.body;
+    const { email } = req.body;
 
     if (!email || isEmail(email) === false) {
-      res.status(400).json({message: 'Please provide a valid email address'});
+      res.status(400).json({ message: 'Please provide a valid email address' });
       return;
     }
 
     // check if the email is already in the waitlist or already signed up
-    const userExists = await USER.findOne({email});
+    const userExists = await USER.findOne({ email });
 
     if (userExists) {
-      res.status(400).json({message: 'You are already signed up'});
+      res.status(400).json({ message: 'You are already signed up' });
       return;
     }
 
-    const alreadyInWaitlist = await WAITLIST.findOne({email});
+    const alreadyInWaitlist = await WAITLIST.findOne({ email });
 
     if (alreadyInWaitlist) {
-      res.status(400).json({message: 'You are already in the waitlist'});
+      res.status(400).json({ message: 'You are already in the waitlist' });
       return;
     }
 
-    await WAITLIST.create({email});
+    await WAITLIST.create({ email });
 
     await send_mail(email, 'waitlist', 'You have been added to the waitlist', {
       email,
     });
 
-    res.status(201).json({message: 'You have been added to the waitlist'});
+    res.status(201).json({ message: 'You have been added to the waitlist' });
   } catch (error) {
     handle_error(error, res);
   }
@@ -486,7 +486,7 @@ export async function get_games(_: Request, res: Response) {
 
     const games = await GAME.aggregate(pipeline);
 
-    res.status(200).json({message: 'Success', data: games});
+    res.status(200).json({ message: 'Success', data: games });
   } catch (error) {
     handle_error(error, res);
   }
@@ -494,21 +494,21 @@ export async function get_games(_: Request, res: Response) {
 
 export async function get_game(req: Request, res: Response) {
   try {
-    const {gameId} = req.params;
+    const { gameId } = req.params;
 
     if (!isValidObjectId(gameId)) {
-      res.status(400).json({message: 'Invalid game id'});
+      res.status(400).json({ message: 'Invalid game id' });
       return;
     }
 
-    const game = await GAME.findOne({_id: gameId});
+    const game = await GAME.findOne({ _id: gameId });
 
     if (!game) {
-      res.status(404).json({message: 'Game not found'});
+      res.status(404).json({ message: 'Game not found' });
       return;
     }
 
-    res.status(200).json({message: 'Success', data: game});
+    res.status(200).json({ message: 'Success', data: game });
   } catch (error) {
     handle_error(error, res);
   }
@@ -516,64 +516,64 @@ export async function get_game(req: Request, res: Response) {
 
 export async function rate_a_game(req: Request, res: Response) {
   try {
-    const {gameId, rating} = req.body;
-    const {userId} = req;
+    const { gameId, rating } = req.body;
+    const { userId } = req;
 
     if (!isValidObjectId(gameId)) {
-      res.status(400).json({message: 'Invalid game id'});
+      res.status(400).json({ message: 'Invalid game id' });
       return;
     }
 
     if (typeof rating !== 'number' || rating < 1 || rating > 5) {
-      res.status(400).json({message: 'Invalid rating'});
+      res.status(400).json({ message: 'Invalid rating' });
       return;
     }
 
-    const gameInfo = await GAME.findOne({_id: gameId});
+    const gameInfo = await GAME.findOne({ _id: gameId });
 
     if (!gameInfo) {
-      res.status(404).json({message: 'Game not found'});
+      res.status(404).json({ message: 'Game not found' });
       return;
     }
 
     const session = await mongoose.startSession({
       defaultTransactionOptions: {
-        writeConcern: {w: 'majority'},
-        readConcern: {level: 'majority'},
+        writeConcern: { w: 'majority' },
+        readConcern: { level: 'majority' },
       },
     });
 
     await session.withTransaction(async session => {
       try {
         await GAMERATING.updateOne(
-          {gameId, userId},
-          {rating},
-          {upsert: true, session}
+          { gameId, userId },
+          { rating },
+          { upsert: true, session }
         );
 
         // get new average rating
         const pipeline = [
           {
-            $match: {gameId: gameInfo._id},
+            $match: { gameId: gameInfo._id },
           },
           {
             $group: {
               _id: null,
-              avgRating: {$avg: '$rating'},
+              avgRating: { $avg: '$rating' },
             },
           },
         ];
 
-        const [{avgRating}] = await GAMERATING.aggregate(pipeline);
+        const [{ avgRating }] = await GAMERATING.aggregate(pipeline);
 
         await GAME.updateOne(
-          {_id: gameInfo._id},
-          {averageRating: avgRating},
-          {session}
+          { _id: gameInfo._id },
+          { averageRating: avgRating },
+          { session }
         );
 
         await session.commitTransaction();
-        res.status(201).json({message: 'Game rated successfully'});
+        res.status(201).json({ message: 'Game rated successfully' });
       } catch (error) {
         await session.abortTransaction();
 
@@ -589,18 +589,18 @@ export async function rate_a_game(req: Request, res: Response) {
 
 export async function create_a_lobby(req: Request, res: Response) {
   try {
-    const {userId} = req;
-    const {gameId, wagerAmount} = req.body;
+    const { userId } = req;
+    const { gameId, wagerAmount } = req.body;
 
     if (!isValidObjectId(gameId)) {
-      res.status(400).json({message: 'Invalid game id'});
+      res.status(400).json({ message: 'Invalid game id' });
       return;
     }
 
-    const gameInfo = await GAME.findOne({_id: gameId});
+    const gameInfo = await GAME.findOne({ _id: gameId });
 
     if (!gameInfo) {
-      res.status(404).json({message: 'Game not found'});
+      res.status(404).json({ message: 'Game not found' });
       return;
     }
 
@@ -615,24 +615,24 @@ export async function create_a_lobby(req: Request, res: Response) {
     // find a way to ensure this will not be decimal (fractional) should always be a full integer
     const minWager = 10000; // 1k naira
     if (typeof wagerAmount !== 'number') {
-      res.status(400).json({message: 'Invalid wager amount'});
+      res.status(400).json({ message: 'Invalid wager amount' });
       return;
     }
 
     if (wagerAmount < minWager) {
       res
         .status(400)
-        .json({message: 'Wager amount must be at least 1000 naira'});
+        .json({ message: 'Wager amount must be at least 1000 naira' });
       return;
     }
 
     if (!Number.isInteger(wagerAmount)) {
-      res.status(400).json({message: 'Wager amount must be a whole number'});
+      res.status(400).json({ message: 'Wager amount must be a whole number' });
       return;
     }
 
     // check user's balance
-    const userInfo = await USER.findOne({_id: userId});
+    const userInfo = await USER.findOne({ _id: userId });
 
     if (!userInfo) {
       res.status(404).json({
@@ -642,14 +642,14 @@ export async function create_a_lobby(req: Request, res: Response) {
     }
 
     if (userInfo.walletBalance < wagerAmount) {
-      res.status(400).json({message: 'Insufficient balance'});
+      res.status(400).json({ message: 'Insufficient balance' });
       return;
     }
 
     const session = await mongoose.startSession({
       defaultTransactionOptions: {
-        writeConcern: {w: 'majority'},
-        readConcern: {level: 'majority'},
+        writeConcern: { w: 'majority' },
+        readConcern: { level: 'majority' },
       },
     });
 
@@ -657,9 +657,9 @@ export async function create_a_lobby(req: Request, res: Response) {
       try {
         // deduct the wager amount from the user's wallet
         await USER.updateOne(
-          {_id: userId},
-          {$inc: {walletBalance: -wagerAmount}},
-          {session}
+          { _id: userId },
+          { $inc: { walletBalance: -wagerAmount } },
+          { session }
         );
 
         // create a new transaction entry
@@ -676,7 +676,7 @@ export async function create_a_lobby(req: Request, res: Response) {
               userId: userId,
             },
           ],
-          {session}
+          { session }
         );
 
         // create a new lobby
@@ -692,7 +692,7 @@ export async function create_a_lobby(req: Request, res: Response) {
               participants: [userId],
             },
           ],
-          {session}
+          { session }
         );
 
         // create a new escrow
@@ -704,14 +704,14 @@ export async function create_a_lobby(req: Request, res: Response) {
               playersThatHavePaid: [userId],
             },
           ],
-          {session}
+          { session }
         );
 
         await session.commitTransaction();
 
         res.status(201).json({
           message: 'Lobby created successfully',
-          data: {code: lobbyCode, _id: lobbyInfo[0]._id},
+          data: { code: lobbyCode, _id: lobbyInfo[0]._id },
         });
 
         notifyUserBalanceUpdate(userId as string, userInfo.walletBalance - wagerAmount);
@@ -729,11 +729,11 @@ export async function create_a_lobby(req: Request, res: Response) {
 
 export async function join_lobby(req: Request, res: Response) {
   try {
-    const {userId} = req;
-    const {lobbyCode} = req.body;
+    const { userId } = req;
+    const { lobbyCode } = req.body;
 
     // check user's balance
-    const userInfo = await USER.findOne({_id: userId});
+    const userInfo = await USER.findOne({ _id: userId });
 
     if (!userInfo) {
       res.status(404).json({
@@ -744,18 +744,18 @@ export async function join_lobby(req: Request, res: Response) {
 
     // check lobby code
     if (typeof lobbyCode !== 'string' || lobbyCode.trim() === '') {
-      res.status(400).json({message: 'Invalid lobby code'});
+      res.status(400).json({ message: 'Invalid lobby code' });
       return;
     }
 
-    type updatedGameId = {_id: mongoose.Types.ObjectId; maxPlayers: number};
+    type updatedGameId = { _id: mongoose.Types.ObjectId; maxPlayers: number };
     const lobbyInfo = await LOBBY.findOne({
       code: lobbyCode,
       active: true,
-    }).populate<{gameId: updatedGameId}>('gameId', 'maxPlayers');
+    }).populate<{ gameId: updatedGameId }>('gameId', 'maxPlayers');
 
     if (!lobbyInfo) {
-      res.status(404).json({message: 'No active lobby found with that code'});
+      res.status(404).json({ message: 'No active lobby found with that code' });
       return;
     }
 
@@ -763,13 +763,13 @@ export async function join_lobby(req: Request, res: Response) {
     if (
       lobbyInfo.participants.map(x => x.toString()).includes(userId as string)
     ) {
-      res.status(400).json({message: 'You are already in this lobby'});
+      res.status(400).json({ message: 'You are already in this lobby' });
       return;
     }
 
     // check if max players have been reached
     if (lobbyInfo.participants.length >= lobbyInfo.gameId.maxPlayers) {
-      res.status(400).json({message: 'This lobby is full'});
+      res.status(400).json({ message: 'This lobby is full' });
       return;
     }
 
@@ -784,8 +784,8 @@ export async function join_lobby(req: Request, res: Response) {
 
     const session = await mongoose.startSession({
       defaultTransactionOptions: {
-        writeConcern: {w: 'majority'},
-        readConcern: {level: 'majority'},
+        writeConcern: { w: 'majority' },
+        readConcern: { level: 'majority' },
       },
     });
 
@@ -793,9 +793,9 @@ export async function join_lobby(req: Request, res: Response) {
       try {
         // deduct the wager amount from the user's wallet
         await USER.updateOne(
-          {_id: userId},
-          {$inc: {walletBalance: -lobbyInfo.wagerAmount}},
-          {session}
+          { _id: userId },
+          { $inc: { walletBalance: -lobbyInfo.wagerAmount } },
+          { session }
         );
 
         // create a new transaction entry
@@ -812,31 +812,31 @@ export async function join_lobby(req: Request, res: Response) {
               userId: userId,
             },
           ],
-          {session}
+          { session }
         );
 
         // update the lobby
         await LOBBY.updateOne(
-          {code: lobbyCode, active: true},
-          {$push: {participants: userId}},
-          {session}
+          { code: lobbyCode, active: true },
+          { $push: { participants: userId } },
+          { session }
         );
 
         // update escrow
         await ESCROW.findOneAndUpdate(
-          {lobbyId: lobbyInfo._id},
+          { lobbyId: lobbyInfo._id },
           {
-            $inc: {totalAmount: lobbyInfo.wagerAmount},
-            $push: {playersThatHavePaid: userId},
+            $inc: { totalAmount: lobbyInfo.wagerAmount },
+            $push: { playersThatHavePaid: userId },
           },
-          {session, sort: {createdAt: -1}} // updates the newest escrow record
+          { session, sort: { createdAt: -1 } } // updates the newest escrow record
         );
 
         await session.commitTransaction();
 
         res.status(200).json({
           message: 'You have joined the lobby',
-          data: {code: lobbyCode, _id: lobbyInfo._id},
+          data: { code: lobbyCode, _id: lobbyInfo._id },
         });
 
         notifyUserBalanceUpdate(userId as string, userInfo.walletBalance - lobbyInfo.wagerAmount);
@@ -855,11 +855,11 @@ export async function join_lobby(req: Request, res: Response) {
 
 export async function see_who_i_referred(req: Request, res: Response) {
   try {
-    const {userId} = req;
+    const { userId } = req;
 
     const pipeline: PipelineStage[] = [
       {
-        $match: {referrer: new ObjectId(userId)},
+        $match: { referrer: new ObjectId(userId) },
       },
       {
         $lookup: {
@@ -880,7 +880,7 @@ export async function see_who_i_referred(req: Request, res: Response) {
       },
       {
         $addFields: {
-          referredUser: {$arrayElemAt: ['$referredUser', 0]},
+          referredUser: { $arrayElemAt: ['$referredUser', 0] },
         },
       },
       {
@@ -892,7 +892,7 @@ export async function see_who_i_referred(req: Request, res: Response) {
 
     const referrals = await REFERRAL.aggregate(pipeline);
 
-    res.status(200).json({message: 'Success', data: referrals});
+    res.status(200).json({ message: 'Success', data: referrals });
   } catch (error) {
     handle_error(error, res);
   }
@@ -900,16 +900,16 @@ export async function see_who_i_referred(req: Request, res: Response) {
 
 export async function get_active_lobbies_i_am_in(req: Request, res: Response) {
   try {
-    const {userId} = req;
+    const { userId } = req;
 
     const lobbies = await LOBBY.find({
-      participants: {$in: userId},
+      participants: { $in: userId },
       active: true,
     });
 
     res
       .status(200)
-      .json({message: 'Lobbies retrieved successfully', data: lobbies});
+      .json({ message: 'Lobbies retrieved successfully', data: lobbies });
   } catch (error) {
     handle_error(error, res);
   }
@@ -918,23 +918,23 @@ export async function get_active_lobbies_i_am_in(req: Request, res: Response) {
 // request made from the server
 export async function start_game(req: Request, res: Response) {
   try {
-    const {lobbyId} = req.body;
+    const { lobbyId } = req.body;
 
     if (!isValidObjectId(lobbyId)) {
-      res.status(400).json({message: 'Invalid lobby Id'});
+      res.status(400).json({ message: 'Invalid lobby Id' });
       return;
     }
 
     // no of escrows needs to match the no of games played projected
-    const lobbyInfo = await LOBBY.findOne({_id: lobbyId, active: true});
+    const lobbyInfo = await LOBBY.findOne({ _id: lobbyId, active: true });
 
     if (lobbyInfo === null) {
-      res.status(404).json({message: 'No active lobby found for the given Id'});
+      res.status(404).json({ message: 'No active lobby found for the given Id' });
       return;
     }
 
     // count escrows
-    const noOfEscrows = await ESCROW.countDocuments({lobbyId});
+    const noOfEscrows = await ESCROW.countDocuments({ lobbyId });
 
     // there needs to be an escrow for the new game
     if (noOfEscrows !== lobbyInfo.noOfGamesPlayed + 1) {
@@ -946,9 +946,9 @@ export async function start_game(req: Request, res: Response) {
     }
 
     // update the number of games playes
-    await LOBBY.updateOne({_id: lobbyId}, {$inc: {noOfGamesPlayed: 1}});
+    await LOBBY.updateOne({ _id: lobbyId }, { $inc: { noOfGamesPlayed: 1 } });
 
-    res.status(200).json({message: 'Game started successfully'});
+    res.status(200).json({ message: 'Game started successfully' });
   } catch (error) {
     handle_error(error, res);
   }
@@ -956,10 +956,10 @@ export async function start_game(req: Request, res: Response) {
 
 export async function replay_game(req: Request, res: Response) {
   try {
-    const {userId} = req;
-    const {lobbyId} = req.body;
+    const { userId } = req;
+    const { lobbyId } = req.body;
 
-    const userInfo = await USER.findOne({_id: userId});
+    const userInfo = await USER.findOne({ _id: userId });
 
     if (userInfo === null) {
       res.status(401).json({
@@ -971,14 +971,14 @@ export async function replay_game(req: Request, res: Response) {
 
     // check lobby
     if (!isValidObjectId(lobbyId)) {
-      res.status(400).json({message: 'Invalid lobby Id'});
+      res.status(400).json({ message: 'Invalid lobby Id' });
       return;
     }
 
-    const lobbyInfo = await LOBBY.findOne({_id: lobbyId, active: true});
+    const lobbyInfo = await LOBBY.findOne({ _id: lobbyId, active: true });
 
     if (lobbyInfo === null) {
-      res.status(404).json({message: 'No active lobby found for the given Id'});
+      res.status(404).json({ message: 'No active lobby found for the given Id' });
       return;
     }
 
@@ -998,32 +998,32 @@ export async function replay_game(req: Request, res: Response) {
     if (userInfo.walletBalance < lobbyInfo.wagerAmount) {
       res
         .status(400)
-        .json({message: 'You do not have enough funds to replay this game'});
+        .json({ message: 'You do not have enough funds to replay this game' });
       return;
     }
 
-    const escrowCount = await ESCROW.countDocuments({lobbyId});
+    const escrowCount = await ESCROW.countDocuments({ lobbyId });
 
     // check that I have not attempted to replay already
     if (escrowCount > lobbyInfo.noOfGamesPlayed) {
       const latestEscrow = await ESCROW.findOne(
-        {lobbyId},
+        { lobbyId },
         {},
-        {sort: {createdAt: -1}}
+        { sort: { createdAt: -1 } }
       );
 
       if (latestEscrow === null) {
         Sentry.addBreadcrumb({
           category: 'game',
-          data: {lobbyId, userId},
+          data: { lobbyId, userId },
           level: 'error',
         });
 
         Sentry.captureMessage(
           'While a user was trying to replay a game, the system could not find any escrow payment',
-          {level: 'error'}
+          { level: 'error' }
         );
-        res.status(500).json({message: 'Something went wrong'});
+        res.status(500).json({ message: 'Something went wrong' });
         return;
       }
 
@@ -1050,8 +1050,8 @@ export async function replay_game(req: Request, res: Response) {
 
     const session = await mongoose.startSession({
       defaultTransactionOptions: {
-        writeConcern: {w: 'majority'},
-        readConcern: {level: 'majority'},
+        writeConcern: { w: 'majority' },
+        readConcern: { level: 'majority' },
       },
     });
 
@@ -1059,9 +1059,9 @@ export async function replay_game(req: Request, res: Response) {
       try {
         // deduct the wager amount from the user's wallet
         await USER.updateOne(
-          {_id: userId},
-          {$inc: {walletBalance: -lobbyInfo.wagerAmount}},
-          {session}
+          { _id: userId },
+          { $inc: { walletBalance: -lobbyInfo.wagerAmount } },
+          { session }
         );
 
         // create a new transaction entry
@@ -1078,18 +1078,18 @@ export async function replay_game(req: Request, res: Response) {
               userId: userId,
             },
           ],
-          {session}
+          { session }
         );
 
         // if there are more escrows the other person has clicked replay
         if (escrowCount > lobbyInfo.noOfGamesPlayed) {
           await ESCROW.findOneAndUpdate(
-            {lobbyId: lobbyInfo._id},
+            { lobbyId: lobbyInfo._id },
             {
-              $inc: {totalAmount: lobbyInfo.wagerAmount},
-              $push: {playersThatHavePaid: userId},
+              $inc: { totalAmount: lobbyInfo.wagerAmount },
+              $push: { playersThatHavePaid: userId },
             },
-            {session, sort: {createdAt: -1}} // updates the newest escrow record
+            { session, sort: { createdAt: -1 } } // updates the newest escrow record
           );
         } else if (escrowCount === lobbyInfo.noOfGamesPlayed) {
           await ESCROW.create(
@@ -1100,18 +1100,18 @@ export async function replay_game(req: Request, res: Response) {
                 playersThatHavePaid: [userId],
               },
             ],
-            {session}
+            { session }
           );
         } else {
           Sentry.addBreadcrumb({
             category: 'game',
-            data: {lobbyId, userId},
+            data: { lobbyId, userId },
             level: 'error',
           });
 
           Sentry.captureMessage(
             "While handling a user replay_game request, the number of escrows was less than the number of games played which shouldn't be possible",
-            {level: 'error'}
+            { level: 'error' }
           );
 
           throw Error('Something went wrong');
@@ -1137,19 +1137,19 @@ export async function replay_game(req: Request, res: Response) {
 // request made from the server
 export async function cancel_game(req: Request, res: Response) {
   try {
-    const {userWhoCancelledId, lobbyId} = req.body;
+    const { userWhoCancelledId, lobbyId } = req.body;
 
     if (!isValidObjectId(userWhoCancelledId) || !isValidObjectId(lobbyId)) {
-      res.status(400).json({message: 'Invalid request'});
+      res.status(400).json({ message: 'Invalid request' });
       return;
     }
 
     // check if user who cancelled is in lobby, in this case I don't need to check if lobby is active
     // as the escrow payout will block multiple request from passing
-    const lobbyInfo = await LOBBY.findOne({_id: lobbyId});
+    const lobbyInfo = await LOBBY.findOne({ _id: lobbyId });
 
     if (lobbyInfo === null) {
-      res.status(400).json({message: 'No active lobby found for given Id'});
+      res.status(400).json({ message: 'No active lobby found for given Id' });
       return;
     }
 
@@ -1160,54 +1160,54 @@ export async function cancel_game(req: Request, res: Response) {
     ) {
       res
         .status(400)
-        .json({message: 'This user is not a member of the provided lobby'});
+        .json({ message: 'This user is not a member of the provided lobby' });
       return;
     }
 
     // check latest escrow from lobby
     const latestEscrow = await ESCROW.findOne(
-      {lobbyId},
+      { lobbyId },
       {},
-      {sort: {createdAt: -1}}
+      { sort: { createdAt: -1 } }
     );
 
     if (latestEscrow === null) {
       Sentry.addBreadcrumb({
         category: 'game',
-        data: {lobbyId, userWhoCancelledId},
+        data: { lobbyId, userWhoCancelledId },
         level: 'error',
       });
 
       Sentry.captureMessage(
         'While the game server was cancelling a game, the system could not find any escrow payment',
-        {level: 'error'}
+        { level: 'error' }
       );
-      res.status(500).json({message: 'Something went wrong'});
+      res.status(500).json({ message: 'Something went wrong' });
       return;
     }
 
     if (latestEscrow.paidOut) {
       res
         .status(200)
-        .json({message: 'Escrow has already been paid out to the winner'});
+        .json({ message: 'Escrow has already been paid out to the winner' });
       return;
     }
 
     const session = await mongoose.startSession({
       defaultTransactionOptions: {
-        writeConcern: {w: 'majority'},
-        readConcern: {level: 'majority'},
+        writeConcern: { w: 'majority' },
+        readConcern: { level: 'majority' },
       },
     });
 
     await session.withTransaction(async session => {
       try {
-        const escrowCount = await ESCROW.countDocuments({lobbyId});
+        const escrowCount = await ESCROW.countDocuments({ lobbyId });
 
         // check if both of them have paid and if they have started the game
         if (
           lobbyInfo.participants.length ===
-            latestEscrow.playersThatHavePaid.length &&
+          latestEscrow.playersThatHavePaid.length &&
           lobbyInfo.noOfGamesPlayed === escrowCount
         ) {
           const otherUsers = latestEscrow.playersThatHavePaid.filter(
@@ -1226,8 +1226,8 @@ export async function cancel_game(req: Request, res: Response) {
             // there is going to be 1 admin, but if we do have multiple I'm sorting by createdAt to be safe
             await ADMIN.findOneAndUpdate(
               {},
-              {$inc: {walletBalance: difference}},
-              {session, sort: {createdAt: 1}}
+              { $inc: { walletBalance: difference } },
+              { session, sort: { createdAt: 1 } }
             );
 
             await ADMINTRANSACTION.create(
@@ -1241,14 +1241,14 @@ export async function cancel_game(req: Request, res: Response) {
                     'There was a difference left after spliting the escrow payment to players',
                 },
               ],
-              {session}
+              { session }
             );
           }
 
           await USER.updateMany(
-            {_id: {$in: otherUsers}},
-            {$inc: {walletBalance: amountToCredit}},
-            {session}
+            { _id: { $in: otherUsers } },
+            { $inc: { walletBalance: amountToCredit } },
+            { session }
           );
 
           // create new transactions
@@ -1263,7 +1263,7 @@ export async function cancel_game(req: Request, res: Response) {
               type: 'deposit',
               userId: x._id,
             })),
-            {session}
+            { session }
           );
 
           // insert notification for the other users
@@ -1274,24 +1274,24 @@ export async function cancel_game(req: Request, res: Response) {
               title: 'Earnings from a cancelled game',
               image: process.env.SKYBOARD_LOGO as string,
             })),
-            {session}
+            { session }
           );
 
           await LOBBY.updateOne(
-            {_id: lobbyId},
-            {$push: {winners: otherUsers}},
-            {session}
+            { _id: lobbyId },
+            { $push: { winners: otherUsers } },
+            { session }
           );
         } else if (
           lobbyInfo.participants.length ===
-            latestEscrow.playersThatHavePaid.length &&
+          latestEscrow.playersThatHavePaid.length &&
           lobbyInfo.noOfGamesPlayed < escrowCount
         ) {
           // refund everybody in the latestEscrow.playersThatHavePaid
           await USER.updateMany(
-            {_id: {$in: latestEscrow.playersThatHavePaid}},
-            {$inc: {walletBalance: lobbyInfo.wagerAmount}},
-            {session}
+            { _id: { $in: latestEscrow.playersThatHavePaid } },
+            { $inc: { walletBalance: lobbyInfo.wagerAmount } },
+            { session }
           );
 
           // create new transactions
@@ -1306,18 +1306,18 @@ export async function cancel_game(req: Request, res: Response) {
               type: 'deposit',
               userId: x._id,
             })),
-            {session}
+            { session }
           );
         } else {
           Sentry.addBreadcrumb({
             category: 'game',
-            data: {lobbyId, userWhoCancelledId},
+            data: { lobbyId, userWhoCancelledId },
             level: 'error',
           });
 
           Sentry.captureMessage(
             'while cancelling a game an unhandled condition was met',
-            {level: 'error'}
+            { level: 'error' }
           );
 
           throw Error('Something went wrong');
@@ -1325,20 +1325,20 @@ export async function cancel_game(req: Request, res: Response) {
 
         // update escrow as paid out
         await ESCROW.updateOne(
-          {_id: latestEscrow._id},
-          {$set: {paidOut: true}},
-          {session}
+          { _id: latestEscrow._id },
+          { $set: { paidOut: true } },
+          { session }
         );
 
         // update the lobby as inactive, just to keep things simple
         await LOBBY.updateOne(
-          {_id: lobbyId},
-          {$set: {active: false}},
-          {session}
+          { _id: lobbyId },
+          { $set: { active: false } },
+          { session }
         );
 
         await session.commitTransaction();
-        res.status(200).json({message: 'Game cancelled successfully'});
+        res.status(200).json({ message: 'Game cancelled successfully' });
       } catch (error) {
         await session.abortTransaction();
 
@@ -1356,7 +1356,7 @@ export async function top_games(_: Request, res: Response) {
   try {
     const firstDayOfCurrentWeek = new Date(
       new Date().setHours(0, 0, 0, 0) -
-        new Date().getDay() * 24 * 60 * 60 * 1000
+      new Date().getDay() * 24 * 60 * 60 * 1000
     );
 
     const pipeline: PipelineStage[] = [
@@ -1399,7 +1399,7 @@ export async function top_games(_: Request, res: Response) {
 
     const topGames = await LOBBY.aggregate(pipeline);
 
-    res.status(200).json({message: 'Success', data: topGames});
+    res.status(200).json({ message: 'Success', data: topGames });
   } catch (error) {
     handle_error(error, res);
   }
@@ -1450,6 +1450,11 @@ export async function top_gamers(_: Request, res: Response) {
         },
       },
       {
+        $match: {
+          userInfo: { $ne: null },
+        },
+      },
+      {
         $sort: {
           totalWins: -1,
         },
@@ -1461,7 +1466,7 @@ export async function top_gamers(_: Request, res: Response) {
 
     const topGamers = await LOBBY.aggregate(pipeline);
 
-    res.status(200).json({message: 'Success', data: topGamers});
+    res.status(200).json({ message: 'Success', data: topGamers });
   } catch (error) {
     handle_error(error, res);
   }
@@ -1469,24 +1474,24 @@ export async function top_gamers(_: Request, res: Response) {
 
 export async function get_a_tournament_info(req: Request, res: Response) {
   try {
-    const {tournamentId} = req.params;
+    const { tournamentId } = req.params;
 
     if (!isValidObjectId(tournamentId)) {
-      res.status(400).json({message: 'Invalid tournament id'});
+      res.status(400).json({ message: 'Invalid tournament id' });
       return;
     }
 
     const tournamentInfo = await TOURNAMENT.findOne(
-      {_id: tournamentId},
-      {winners: 0}
+      { _id: tournamentId },
+      { winners: 0 }
     );
 
     if (!tournamentInfo) {
-      res.status(404).json({message: 'Tournament not found'});
+      res.status(404).json({ message: 'Tournament not found' });
       return;
     }
 
-    res.status(200).json({message: 'Success', data: tournamentInfo});
+    res.status(200).json({ message: 'Success', data: tournamentInfo });
   } catch (error) {
     handle_error(error, res);
   }
@@ -1497,7 +1502,7 @@ export async function see_all_tournaments(req: Request, res: Response) {
     // all tournaments still open for registration sorted by participants, prize, date,
     // trending (those with most participants that were created this week) etc.
 
-    const {pageNo, sortBy} = req.query;
+    const { pageNo, sortBy } = req.query;
 
     const MAX_RESULTS = 250;
     let currentPage;
@@ -1563,7 +1568,7 @@ export async function see_all_tournaments(req: Request, res: Response) {
     } else if (sortBy === 'trending') {
       const firstDayOfCurrentWeek = new Date(
         new Date().setHours(0, 0, 0, 0) -
-          new Date().getDay() * 24 * 60 * 60 * 1000
+        new Date().getDay() * 24 * 60 * 60 * 1000
       );
 
       sortPipeline = [
@@ -1600,7 +1605,7 @@ export async function see_all_tournaments(req: Request, res: Response) {
           isFullyCreated: true,
           $expr: {
             $gt: [
-              {$add: ['$endDate', 1000 * 60 * 60 * 6]}, // endDate + 6 hours
+              { $add: ['$endDate', 1000 * 60 * 60 * 6] }, // endDate + 6 hours
               new Date(),
             ],
           },
@@ -1652,7 +1657,7 @@ export async function see_all_tournaments(req: Request, res: Response) {
 
     const tournaments = await TOURNAMENT.aggregate(pipeline);
 
-    res.status(200).json({message: 'Success', data: tournaments});
+    res.status(200).json({ message: 'Success', data: tournaments });
   } catch (error) {
     handle_error(error, res);
   }
@@ -1660,12 +1665,12 @@ export async function see_all_tournaments(req: Request, res: Response) {
 
 export async function join_tournament(req: Request, res: Response) {
   try {
-    const {joiningCode} = req.body;
-    const {userId} = req;
+    const { joiningCode } = req.body;
+    const { userId } = req;
 
     // join a tournament (pay entry fee)
     if (typeof joiningCode !== 'string' || joiningCode.trim() === '') {
-      res.status(400).json({message: 'Invalid joining code'});
+      res.status(400).json({ message: 'Invalid joining code' });
       return;
     }
 
@@ -1676,7 +1681,7 @@ export async function join_tournament(req: Request, res: Response) {
     });
 
     if (!tournamentInfo) {
-      res.status(404).json({message: 'Tournament not found'});
+      res.status(404).json({ message: 'Tournament not found' });
       return;
     }
 
@@ -1686,19 +1691,19 @@ export async function join_tournament(req: Request, res: Response) {
         .map(x => x.toString())
         .includes(userId?.toString() as string)
     ) {
-      res.status(400).json({message: 'You are already in this tournament'});
+      res.status(400).json({ message: 'You are already in this tournament' });
       return;
     }
 
     if (tournamentInfo.registrationDeadline < new Date()) {
       res
         .status(400)
-        .json({message: 'Registration has closed for this tournament'});
+        .json({ message: 'Registration has closed for this tournament' });
       return;
     }
 
     if (tournamentInfo.endDate < new Date()) {
-      res.status(400).json({message: 'This tournament has ended'});
+      res.status(400).json({ message: 'This tournament has ended' });
       return;
     }
 
@@ -1708,7 +1713,7 @@ export async function join_tournament(req: Request, res: Response) {
       tournamentInfo.gateFee &&
       tournamentInfo.gateFee > 0
     ) {
-      const userInfo = await USER.findOne({_id: userId});
+      const userInfo = await USER.findOne({ _id: userId });
 
       if (!userInfo) {
         res.status(404).json({
@@ -1727,8 +1732,8 @@ export async function join_tournament(req: Request, res: Response) {
 
     const session = await mongoose.startSession({
       defaultTransactionOptions: {
-        writeConcern: {w: 'majority'},
-        readConcern: {level: 'majority'},
+        writeConcern: { w: 'majority' },
+        readConcern: { level: 'majority' },
       },
     });
 
@@ -1741,9 +1746,9 @@ export async function join_tournament(req: Request, res: Response) {
         ) {
           // deduct the gate fee from the user's wallet
           await USER.updateOne(
-            {_id: userId},
-            {$inc: {walletBalance: -tournamentInfo.gateFee}},
-            {session}
+            { _id: userId },
+            { $inc: { walletBalance: -tournamentInfo.gateFee } },
+            { session }
           );
 
           // create a new transaction entry
@@ -1760,7 +1765,7 @@ export async function join_tournament(req: Request, res: Response) {
                 userId: userId,
               },
             ],
-            {session}
+            { session }
           );
 
           // create a new escrow if none exists, else update
@@ -1770,25 +1775,25 @@ export async function join_tournament(req: Request, res: Response) {
               isPrize: false,
             },
             {
-              $inc: {totalAmount: tournamentInfo.gateFee},
-              $push: {playersThatHavePaid: userId},
+              $inc: { totalAmount: tournamentInfo.gateFee },
+              $push: { playersThatHavePaid: userId },
             },
-            {upsert: true, session}
+            { upsert: true, session }
           );
         }
 
         // update the tournament
         await TOURNAMENT.updateOne(
-          {_id: tournamentInfo._id},
-          {$push: {participants: userId}},
-          {session}
+          { _id: tournamentInfo._id },
+          { $push: { participants: userId } },
+          { session }
         );
 
         await session.commitTransaction();
 
         res.status(200).json({
           message: 'You have joined the tournament',
-          data: {joiningCode, _id: tournamentInfo._id},
+          data: { joiningCode, _id: tournamentInfo._id },
         });
       } catch (error) {
         await session.abortTransaction();
@@ -1807,11 +1812,11 @@ export async function fetch_my_fixtures_in_tournament(
   res: Response
 ) {
   try {
-    const {userId} = req;
-    const {tournamentId} = req.params;
+    const { userId } = req;
+    const { tournamentId } = req.params;
 
     if (!isValidObjectId(tournamentId)) {
-      res.status(400).json({message: 'Invalid tournament id'});
+      res.status(400).json({ message: 'Invalid tournament id' });
       return;
     }
 
@@ -1823,7 +1828,7 @@ export async function fetch_my_fixtures_in_tournament(
     if (!tournamentInfo) {
       res
         .status(404)
-        .json({message: 'Tournament not found, or you are not in it'});
+        .json({ message: 'Tournament not found, or you are not in it' });
       return;
     }
 
@@ -1900,16 +1905,16 @@ export async function fetch_my_fixtures_in_tournament_lobby_code(
   res: Response
 ) {
   try {
-    const {userId} = req;
-    const {tournamentId, lobbyCode} = req.params;
+    const { userId } = req;
+    const { tournamentId, lobbyCode } = req.params;
 
     if (!isValidObjectId(tournamentId)) {
-      res.status(400).json({message: 'Invalid tournament id'});
+      res.status(400).json({ message: 'Invalid tournament id' });
       return;
     }
 
     if (!lobbyCode) {
-      res.status(400).json({message: 'invalid lobby code'});
+      res.status(400).json({ message: 'invalid lobby code' });
       return;
     }
 
@@ -1921,7 +1926,7 @@ export async function fetch_my_fixtures_in_tournament_lobby_code(
     if (!tournamentInfo) {
       res
         .status(404)
-        .json({message: 'Tournament not found, or you are not in it'});
+        .json({ message: 'Tournament not found, or you are not in it' });
       return;
     }
 
@@ -1998,17 +2003,17 @@ export async function join_tournament_lobby(req: Request, res: Response) {
   try {
     // join a tournament's fixture/lobby no payment
     // when a player joins a lobby for a fixture the other party will be notified
-    const {userId} = req;
-    const {tournamentId, lobbyCode} = req.params;
+    const { userId } = req;
+    const { tournamentId, lobbyCode } = req.params;
 
     if (!userId || !isValidObjectId(userId)) {
       res
         .status(400)
-        .json({message: 'Something went wrong, try to login again'});
+        .json({ message: 'Something went wrong, try to login again' });
       return;
     }
 
-    const userInfo = await USER.findOne({_id: userId});
+    const userInfo = await USER.findOne({ _id: userId });
 
     if (!userInfo) {
       res.status(404).json({
@@ -2018,24 +2023,24 @@ export async function join_tournament_lobby(req: Request, res: Response) {
     }
 
     if (!isValidObjectId(tournamentId)) {
-      res.status(400).json({message: 'Invalid tournament id'});
+      res.status(400).json({ message: 'Invalid tournament id' });
       return;
     }
 
     if (typeof lobbyCode !== 'string' || lobbyCode.trim() === '') {
-      res.status(400).json({message: 'Invalid lobby code'});
+      res.status(400).json({ message: 'Invalid lobby code' });
       return;
     }
 
-    const tournamentInfo = await TOURNAMENT.findOne({_id: tournamentId});
+    const tournamentInfo = await TOURNAMENT.findOne({ _id: tournamentId });
 
     if (!tournamentInfo) {
-      res.status(404).json({message: 'Tournament not found'});
+      res.status(404).json({ message: 'Tournament not found' });
       return;
     }
 
     if (tournamentInfo.endDate < new Date()) {
-      res.status(400).json({message: 'This tournament has ended'});
+      res.status(400).json({ message: 'This tournament has ended' });
       return;
     }
 
@@ -2056,7 +2061,7 @@ export async function join_tournament_lobby(req: Request, res: Response) {
 
     // check if the fixture has started
     if (fixtureInfo.gameStarted) {
-      res.status(400).json({message: 'This fixture has already started'});
+      res.status(400).json({ message: 'This fixture has already started' });
       return;
     }
 
@@ -2065,7 +2070,7 @@ export async function join_tournament_lobby(req: Request, res: Response) {
       x => x.toString() !== userId.toString()
     );
 
-    const otherPlayerInfo = await USER.findOne({_id: otherPlayer});
+    const otherPlayerInfo = await USER.findOne({ _id: otherPlayer });
 
     if (!otherPlayerInfo) {
       res.status(404).json({
@@ -2099,7 +2104,7 @@ export async function join_tournament_lobby(req: Request, res: Response) {
 
 export async function see_all_tournaments_i_am_in(req: Request, res: Response) {
   try {
-    const {userId} = req;
+    const { userId } = req;
 
     const tournaments = await TOURNAMENT.find({
       participants: userId,
@@ -2117,10 +2122,10 @@ export async function see_all_tournaments_i_am_in(req: Request, res: Response) {
 
 export async function start_tournament_game(req: Request, res: Response) {
   try {
-    const {fixtureId} = req.body;
+    const { fixtureId } = req.body;
 
     if (!isValidObjectId(fixtureId)) {
-      res.status(400).json({message: 'Invalid fixture id'});
+      res.status(400).json({ message: 'Invalid fixture id' });
       return;
     }
 
@@ -2129,12 +2134,12 @@ export async function start_tournament_game(req: Request, res: Response) {
     });
 
     if (!fixtureInfo) {
-      res.status(404).json({message: 'Fixture not found'});
+      res.status(404).json({ message: 'Fixture not found' });
       return;
     }
 
     if (fixtureInfo.gameStarted) {
-      res.status(400).json({message: 'This fixture has already started'});
+      res.status(400).json({ message: 'This fixture has already started' });
       return;
     }
 
@@ -2143,21 +2148,21 @@ export async function start_tournament_game(req: Request, res: Response) {
     });
 
     if (!tournamentInfo) {
-      res.status(404).json({message: 'Tournament not found'});
+      res.status(404).json({ message: 'Tournament not found' });
       return;
     }
 
     if (tournamentInfo.endDate < new Date()) {
-      res.status(400).json({message: 'This tournament has ended'});
+      res.status(400).json({ message: 'This tournament has ended' });
       return;
     }
 
     await TOURNAMENTFIXTURES.updateOne(
-      {_id: fixtureInfo._id},
-      {$set: {gameStarted: true}}
+      { _id: fixtureInfo._id },
+      { $set: { gameStarted: true } }
     );
 
-    res.status(200).json({message: 'Game started successfully'});
+    res.status(200).json({ message: 'Game started successfully' });
   } catch (error) {
     handle_error(error, res);
   }
@@ -2165,15 +2170,15 @@ export async function start_tournament_game(req: Request, res: Response) {
 
 export async function cancel_tournament_game(req: Request, res: Response) {
   try {
-    const {fixtureId, playerWhoCancelledId} = req.body;
+    const { fixtureId, playerWhoCancelledId } = req.body;
 
     if (!isValidObjectId(fixtureId)) {
-      res.status(400).json({message: 'Invalid fixture id'});
+      res.status(400).json({ message: 'Invalid fixture id' });
       return;
     }
 
     if (!isValidObjectId(playerWhoCancelledId)) {
-      res.status(400).json({message: 'Invalid player id'});
+      res.status(400).json({ message: 'Invalid player id' });
       return;
     }
 
@@ -2182,19 +2187,19 @@ export async function cancel_tournament_game(req: Request, res: Response) {
     });
 
     if (!fixtureInfo) {
-      res.status(404).json({message: 'Fixture not found'});
+      res.status(404).json({ message: 'Fixture not found' });
       return;
     }
 
     if (!fixtureInfo.gameStarted) {
       res
         .status(400)
-        .json({message: 'You can not cancel a game that has not started'});
+        .json({ message: 'You can not cancel a game that has not started' });
       return;
     }
 
     if (fixtureInfo.winner) {
-      res.status(400).json({message: 'This game has already been won'});
+      res.status(400).json({ message: 'This game has already been won' });
       return;
     }
 
@@ -2212,12 +2217,12 @@ export async function cancel_tournament_game(req: Request, res: Response) {
     });
 
     if (!tournamentInfo) {
-      res.status(404).json({message: 'Tournament not found'});
+      res.status(404).json({ message: 'Tournament not found' });
       return;
     }
 
     if (tournamentInfo.endDate < new Date()) {
-      res.status(400).json({message: 'This tournament has ended'});
+      res.status(400).json({ message: 'This tournament has ended' });
       return;
     }
 
@@ -2226,11 +2231,11 @@ export async function cancel_tournament_game(req: Request, res: Response) {
     );
 
     await TOURNAMENTFIXTURES.updateOne(
-      {_id: fixtureInfo._id},
-      {$set: {winner: otherPlayer[0]}}
+      { _id: fixtureInfo._id },
+      { $set: { winner: otherPlayer[0] } }
     );
 
-    res.status(200).json({message: 'Game cancelled successfully'});
+    res.status(200).json({ message: 'Game cancelled successfully' });
   } catch (error) {
     handle_error(error, res);
   }
@@ -2276,7 +2281,7 @@ export async function get_top_active_games(_: Request, res: Response) {
 
     const topGamesNow = await LOBBY.aggregate(pipeline);
 
-    res.status(200).json({message: 'Success', data: topGamesNow});
+    res.status(200).json({ message: 'Success', data: topGamesNow });
   } catch (error) {
     handle_error(error, res);
   }
@@ -2284,15 +2289,15 @@ export async function get_top_active_games(_: Request, res: Response) {
 
 export async function get_gamers(req: Request, res: Response) {
   try {
-    const {q: query} = req.query;
+    const { q: query } = req.query;
 
     if (typeof query === 'string' && query.length <= 2) {
       res
         .status(400)
-        .json({message: 'Query must be at least 2 characters long'});
+        .json({ message: 'Query must be at least 2 characters long' });
     }
 
-    const filter: {[key: string]: any} = {
+    const filter: { [key: string]: any } = {
       accountIsActive: true, // this ensures the user can play
       isCelebrity: false,
     };
@@ -2304,16 +2309,16 @@ export async function get_gamers(req: Request, res: Response) {
     }
 
     const gamers = await USER.aggregate([
-      {$match: filter},
-      {$project: {_id: 1, username: 1, avatar: 1}},
-      {$limit: 100},
+      { $match: filter },
+      { $project: { _id: 1, username: 1, avatar: 1 } },
+      { $limit: 100 },
       {
         $lookup: {
           from: 'lobbies',
           localField: '_id',
           foreignField: 'winners',
           as: 'winnings',
-          let: {playerInQuestion: '$_id'},
+          let: { playerInQuestion: '$_id' },
           pipeline: [
             {
               $unwind: '$winners',
@@ -2330,7 +2335,7 @@ export async function get_gamers(req: Request, res: Response) {
       },
       {
         $addFields: {
-          numberOfWins: {$size: '$winnings'},
+          numberOfWins: { $size: '$winnings' },
         },
       },
       {
@@ -2340,7 +2345,7 @@ export async function get_gamers(req: Request, res: Response) {
       },
     ]);
 
-    res.status(200).json({message: 'Success', data: gamers});
+    res.status(200).json({ message: 'Success', data: gamers });
   } catch (error) {
     handle_error(error, res);
   }
@@ -2348,48 +2353,48 @@ export async function get_gamers(req: Request, res: Response) {
 
 export async function select_a_user_to_play_with(req: Request, res: Response) {
   try {
-    const {userId} = req;
-    const {playerId, lobbyId} = req.body;
+    const { userId } = req;
+    const { playerId, lobbyId } = req.body;
 
     if (!isValidObjectId(playerId)) {
-      res.status(400).json({message: 'Invalid player id'});
+      res.status(400).json({ message: 'Invalid player id' });
       return;
     }
 
     if (!isValidObjectId(lobbyId)) {
-      res.status(400).json({message: 'Invalid lobby id'});
+      res.status(400).json({ message: 'Invalid lobby id' });
       return;
     }
 
-    const playerInfo = await USER.findOne({_id: playerId});
+    const playerInfo = await USER.findOne({ _id: playerId });
     if (!playerInfo) {
-      res.status(404).json({message: 'Player not found'});
+      res.status(404).json({ message: 'Player not found' });
       return;
     }
 
-    const userInfo = await USER.findOne({_id: userId});
+    const userInfo = await USER.findOne({ _id: userId });
     if (!userInfo) {
       res
         .status(500)
-        .json({message: 'Something went wrong, please contact support'});
+        .json({ message: 'Something went wrong, please contact support' });
       return;
     }
 
-    const lobbyInfo = await LOBBY.findOne({_id: lobbyId});
+    const lobbyInfo = await LOBBY.findOne({ _id: lobbyId });
     if (!lobbyInfo) {
-      res.status(404).json({message: 'Lobby not found'});
+      res.status(404).json({ message: 'Lobby not found' });
       return;
     }
 
     // check that I own the lobby
     if (lobbyInfo.creatorId.toString() !== userId) {
-      res.status(400).json({message: 'You do not own this lobby'});
+      res.status(400).json({ message: 'You do not own this lobby' });
       return;
     }
 
     // check if the player has an active account (not neccesarily online)
     if (!playerInfo.accountIsActive) {
-      res.status(400).json({message: "This player's account is not active"});
+      res.status(400).json({ message: "This player's account is not active" });
       return;
     }
 
