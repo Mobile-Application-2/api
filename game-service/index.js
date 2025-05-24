@@ -167,6 +167,8 @@ io.on('connection', (socket) => {
 
             active = active.filter(obj => obj.socketID != socket.id);
 
+            // REMOVE FROM NEW ROOMS TOO
+
             (async () => {
                 try {
                     await ACTIVEUSER.deleteOne({ socketID: socket.id });
