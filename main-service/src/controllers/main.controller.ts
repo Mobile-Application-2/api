@@ -1407,19 +1407,12 @@ export async function top_games(_: Request, res: Response) {
 
 export async function top_gamers(_: Request, res: Response) {
   try {
-    const firstDayOfCurrentWeek = new Date(
+    /* const firstDayOfCurrentWeek = new Date(
       new Date().setHours(0, 0, 0, 0) -
         new Date().getDay() * 24 * 60 * 60 * 1000
-    );
+    ); */
 
     const pipeline: PipelineStage[] = [
-      {
-        $match: {
-          createdAt: {
-            $gte: firstDayOfCurrentWeek,
-          },
-        },
-      },
       {
         $unwind: {
           path: '$winners',
@@ -1458,9 +1451,12 @@ export async function top_gamers(_: Request, res: Response) {
       },
       {
         $sort: {
-          total: -1,
+          totalWins: -1,
         },
       },
+      {
+        $limit: 5
+      }
     ];
 
     const topGamers = await LOBBY.aggregate(pipeline);
