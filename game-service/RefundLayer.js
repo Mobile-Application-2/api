@@ -1,6 +1,8 @@
 import GameManager from "./GameManager.js"
 import MainServerLayer from "./MainServerLayer.js";
 
+import { logger, logtail } from './config/winston.config.js';
+
 export default class RefundLayer {
     /**@type {Map<string, GameManager>} */
     static refundTimers = new Map()
