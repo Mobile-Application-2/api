@@ -386,6 +386,9 @@ export async function edit_profile(req: Request, res: Response) {
       'notificationPreferences',
       'firstName',
       'lastName',
+      "account_number",
+      "account_name",
+      "bank_name"
     ];
 
     const hasInvalidFields = fieldsFromUpdate.some(
