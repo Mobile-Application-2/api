@@ -118,6 +118,9 @@ const userSchema = new mongoose.Schema(
     lastName: {
       type: String,
     },
+    account_number: String,
+    account_name: String,
+    bank_name: String
   },
   {timestamps: true}
 );

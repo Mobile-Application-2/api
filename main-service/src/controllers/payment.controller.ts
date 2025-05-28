@@ -53,6 +53,8 @@ export async function get_banks(_: Request, res: Response) {
 }
 
 export async function get_user_bank_details(req: Request, res: Response) {
+  const userId = req.userId;
+
   try {
     const {bank, accountNumber} = req.params;
 
@@ -63,7 +65,13 @@ export async function get_user_bank_details(req: Request, res: Response) {
       return;
     }
 
-    const data = await fetch_account_details(accountNumber, bank);
+    const data = await fetch_account_details(accountNumber, bank, userId);
+
+    if(!data) {
+      res.status(400).json({message: "not available"});
+
+      return
+    }
 
     if (data.status === false) {
       res.status(400).json({message: data.message});

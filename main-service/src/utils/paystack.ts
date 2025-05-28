@@ -1,6 +1,7 @@
 import axios from 'axios';
-import {BanksResponse} from '../interfaces/banks';
-import {AccountDetails} from '../interfaces/account-details';
+import { BanksResponse } from '../interfaces/banks';
+import { AccountDetails } from '../interfaces/account-details';
+import USER from '../models/user.model';
 
 const PAYSTACK_SECRET_KEY =
   process.env.NODE_ENV === 'production'
@@ -53,21 +54,42 @@ export async function fetch_banks(): Promise<BanksResponse> {
 
 export async function fetch_account_details(
   accountNumber: string,
-  bank: string
-): Promise<AccountDetails> {
-  const resp = await axios.get(
-    `${process.env.PAYSTACK_BASE_API}/bank/resolve?account_number=${accountNumber}&bank_code=${bank}`,
-    {
-      headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-        'Content-Type': 'application/json',
+  bank: string,
+  userId: string | undefined
+): Promise<AccountDetails | null> {
+  // const resp = await axios.get(
+  //   `${process.env.PAYSTACK_BASE_API}/bank/resolve?account_number=${accountNumber}&bank_code=${bank}`,
+  //   {
+  //     headers: {
+  //       Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+  //       'Content-Type': 'application/json',
+  //     },
+  //   }
+  // );
+
+  // const data = (await resp.data) as AccountDetails;
+
+  if(!userId) return null;
+
+  const user = await USER.findOne({ _id: userId, account_number: accountNumber });
+
+  if(!user) return null;
+
+  if(user.account_name && user.account_number && user.bank_name) {
+    return {
+      data: {
+        account_name: user.account_name,
+        account_number: user.account_number,
+        bank_name: user.bank_name
       },
-    }
-  );
+      message: "success",
+      status: true,
+    } satisfies AccountDetails ;
+  }
+  else {
+    return null
+  }
 
-  const data = (await resp.data) as AccountDetails;
-
-  return data;
 }
 
 export const calculate_charge = function (amount: number) {
