@@ -54,7 +54,7 @@ export async function fetch_banks(): Promise<BanksResponse> {
 
 export async function fetch_account_details(
   accountNumber: string,
-  bank: string,
+  _bank: string,
   userId: string | undefined
 ): Promise<AccountDetails | null> {
   // const resp = await axios.get(
