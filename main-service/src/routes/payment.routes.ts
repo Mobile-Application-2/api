@@ -9,8 +9,10 @@ import {
   initialize_withdraw,
   fake_initialize_deposit,
   fake_initialize_withdraw,
+  handle_fake_deposit_success,
+  handle_fake_withdraw_success,
 } from '../controllers/payment.controller';
-import {is_logged_in} from '../middlewares/auth.middleware';
+import {is_admin, is_logged_in} from '../middlewares/auth.middleware';
 const router = Router();
 
 router.get('/callback', handle_callback);
@@ -33,6 +35,10 @@ router.post('/deposit', is_logged_in, initialize_deposit);
 
 router.post('/fake-deposit', is_logged_in, fake_initialize_deposit);
 
+router.post('/fake-deposit-success', is_admin, handle_fake_deposit_success);
+
 router.post('/fake-withdraw', is_logged_in, fake_initialize_withdraw);
+
+router.post('/fake-withdraw-success', is_admin, handle_fake_withdraw_success);
 
 export default router;

@@ -406,6 +406,114 @@ export async function handle_deposit_success(transactionInfo: any) {
   });
 }
 
+export async function handle_fake_deposit_success(req: Request, res: Response) {
+  const {ref} = req.body;
+  // check if this belongs to a ticket or and account upgrade
+  const transactionInfo = await TRANSACTION.findOne({ref: ref});
+
+  if (transactionInfo === null) {
+    Sentry.addBreadcrumb({
+      category: 'webhook',
+      data: {
+        transactionRef: ref,
+      },
+      level: 'warning',
+      message:
+        "There was an attempt to verify a payment that doesn't exist in the DB",
+    });
+
+    Sentry.captureMessage(
+      "A transaction webhook came in with a reference that didn't match documents in the DB",
+      'warning'
+    );
+    res.status(200).end();
+    return;
+  }
+
+  // if the transaction is already completed or failed, capture in sentry and return
+  if (transactionInfo.status !== 'pending') {
+    Sentry.addBreadcrumb({
+      category: 'transaction',
+      data: {
+        transactionRef: transactionInfo.ref,
+      },
+      message: `Transaction already ${transactionInfo.status}`,
+    });
+
+    Sentry.captureMessage(
+      `A transaction webhook for a deposit came in for a transaction that has already ${transactionInfo.status}`,
+      'warning'
+    );
+
+    res.status(200).end();
+
+    return;
+  }
+
+  const session = await mongoose.startSession({
+    defaultTransactionOptions: {
+      readConcern: {level: 'majority'},
+      writeConcern: {w: 'majority'},
+    },
+  });
+
+  await session.withTransaction(async session => {
+    try {
+      // update the transaction status to success
+      await TRANSACTION.updateOne(
+        {ref: transactionInfo.ref},
+        {status: 'completed'},
+        {session}
+      );
+
+      // update the user's wallet balance
+      const userInfo = await USER.findOneAndUpdate(
+        {_id: transactionInfo.userId},
+        {$inc: {walletBalance: transactionInfo.amount}},
+        {session}
+      );
+
+      // add a notification
+      await NOTIFICATION.create(
+        [
+          {
+            userId: transactionInfo.userId,
+            image: process.env.SKYBOARD_LOGO,
+            title: 'Deposit Successful',
+            body: `Your deposit of ${(transactionInfo.amount / 100).toFixed(
+              2
+            )} naira was successful`,
+          },
+        ],
+        {session}
+      );
+
+      // send a mail notification to the user
+      if (userInfo?.email) {
+        await send_mail(userInfo.email, 'deposit', 'Deposit Successful', {
+          amount: (transactionInfo.amount / 100).toFixed(2),
+          username: userInfo.username,
+        });
+      }
+
+      await session.commitTransaction();
+
+      res.status(200).end();
+    } catch (error) {
+      await session.abortTransaction();
+
+      console.log(error);
+      
+
+      res.status(200).end();
+
+      // throw error;
+    } finally {
+      await session.endSession();
+    }
+  });
+}
+
 export async function initialize_withdraw(req: Request, res: Response) {
   try {
     const {userId} = req;
@@ -626,7 +734,7 @@ export async function fake_initialize_withdraw(req: Request, res: Response) {
   try {
     const {userId} = req;
     let {amount} = req.body;
-    const {bankCode, accountNumber, accountName, description, password} =
+    const { accountNumber, accountName, description, password} =
       req.body;
 
     amount = +amount;
@@ -655,10 +763,10 @@ export async function fake_initialize_withdraw(req: Request, res: Response) {
       return;
     }
 
-    if (typeof bankCode === 'undefined' || bankCode.length === 0) {
+    /* if (typeof bankCode === 'undefined' || bankCode.length === 0) {
       res.status(400).json({message: 'Invalid bank code'});
       return;
-    }
+    } */
 
     const userInfo = await USER.findOne({_id: userId});
 
@@ -906,6 +1014,91 @@ export async function handle_withdraw_success(data: ITransferSuccess) {
         ref: transactionInfo.ref,
       }
     );
+  }
+}
+
+export async function handle_fake_withdraw_success(req: Request, res: Response) {
+  // check that the ref matches a transaction then mark as completed
+  const {ref} = req.body
+  // const {reference} = data;
+
+  const transactionInfo = await TRANSACTION.findOne({ref: ref});
+
+  if (transactionInfo === null) {
+    Sentry.addBreadcrumb({
+      category: 'webhook',
+      data: {
+        transactionRef: ref,
+      },
+      level: 'warning',
+      message:
+        "There was an attempt to mark a withdrawal as completed, that doesn't exist in the DB",
+    });
+
+    Sentry.captureMessage(
+      "A transaction webhook for withdrawal came in with a reference that didn't match documents in the DB",
+      'warning'
+    );
+
+    res.status(200).end();
+
+    return;
+  }
+
+  if (transactionInfo.status !== 'pending') {
+    Sentry.addBreadcrumb({
+      category: 'transaction',
+      data: {
+        transactionRef: ref,
+      },
+      message: `Transaction already ${transactionInfo.status}`,
+    });
+
+    Sentry.captureMessage(
+      `A transaction webhook for a withdrawal came in for a transaction that has already been ${transactionInfo.status}`,
+      'warning'
+    );
+
+    res.status(200).end();
+
+    return;
+  }
+
+  try {
+      await TRANSACTION.updateOne({ref: ref}, {status: 'completed'});
+    
+      // send a notification to the user
+      await NOTIFICATION.create({
+        userId: transactionInfo.userId,
+        image: process.env.SKYBOARD_LOGO,
+        title: 'Withdrawal Completed',
+        body: `Your withdrawal of ${(transactionInfo.amount / 100).toFixed(
+          2
+        )} naira has been completed`,
+      });
+    
+      // send a mail notification to the user
+      const userInfo = await USER.findOne({_id: transactionInfo.userId});
+    
+      if (userInfo?.email) {
+        await send_mail(
+          userInfo.email,
+          'withdrawal-completed',
+          'Withdrawal Completed',
+          {
+            amount: (transactionInfo.amount / 100).toFixed(2),
+            username: userInfo.username,
+            ref: transactionInfo.ref,
+          }
+        );
+      }
+    
+      res.status(200).end();
+  }
+  catch (error) {
+    console.error(error);
+    
+    res.status(200).end();
   }
 }
 
