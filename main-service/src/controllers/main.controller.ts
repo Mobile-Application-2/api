@@ -23,6 +23,7 @@ import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
 import ADMIN from '../models/admin.model';
 import ADMINTRANSACTION from '../models/admin-transaction.model';
 import { notifyUserBalanceUpdate } from '../services/balance.service';
+import { scheduleIdleLobbyCheck } from '../agenda/jobs';
 
 export async function search_users(req: Request, res: Response) {
   try {
@@ -715,6 +716,8 @@ export async function create_a_lobby(req: Request, res: Response) {
         });
 
         notifyUserBalanceUpdate(userId as string, userInfo.walletBalance - wagerAmount);
+
+        scheduleIdleLobbyCheck(lobbyInfo[0]._id.toString());
       } catch (error) {
         await session.abortTransaction();
         throw error;
@@ -752,6 +755,7 @@ export async function join_lobby(req: Request, res: Response) {
     const lobbyInfo = await LOBBY.findOne({
       code: lobbyCode,
       active: true,
+      dead: false
     }).populate<{ gameId: updatedGameId }>('gameId', 'maxPlayers');
 
     if (!lobbyInfo) {
@@ -926,7 +930,7 @@ export async function start_game(req: Request, res: Response) {
     }
 
     // no of escrows needs to match the no of games played projected
-    const lobbyInfo = await LOBBY.findOne({ _id: lobbyId, active: true });
+    const lobbyInfo = await LOBBY.findOne({ _id: lobbyId, active: true, dead: false });
 
     if (lobbyInfo === null) {
       res.status(404).json({ message: 'No active lobby found for the given Id' });

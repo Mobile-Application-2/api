@@ -137,7 +137,7 @@ export async function handle_game_timed_out(
 
         await LOBBY.updateOne(
           {_id: lobbyId},
-          {$set: {active: false}},
+          {$set: {active: false, dead: true}},
           {session}
         );
 

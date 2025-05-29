@@ -7,6 +7,7 @@ import TOURNAMENT from '../models/tournament.model';
 import mongoose from 'mongoose';
 
 import * as Sentry from '@sentry/node';
+import { idleLobbyCheckJob } from './jobs';
 
 const DEV_DB_URI = process.env.DEV_DB_URI as string;
 
@@ -134,5 +135,28 @@ export async function startTournamentLogic(tournamentId: string) {
     }
   }
 }
+
+agenda.define('idle-lobby-check', async (job: Job) => {
+  const { lobbyId } = job.attrs.data;
+
+  try {
+    await idleLobbyCheckJob(lobbyId);
+  }
+  catch (error) {
+    if (process.env.NODE_ENV == "production") {
+      Sentry.captureException(error)
+    }
+  }
+});
+
+agenda.define('fail:idle-lobby-check', () => {
+  console.warn("idle-lobby-check job failed");
+});
+
+agenda.define('success:idle-lobby-check', async (job: Job) => {
+  console.warn("idle-lobby-check job succeeded");
+
+  await job.remove();
+});
 
 export { agenda };

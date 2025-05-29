@@ -39,6 +39,10 @@ const lobbySchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    dead: {
+      type: Boolean,
+      default: false,
+    }
   },
   {timestamps: true}
 );
