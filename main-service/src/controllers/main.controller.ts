@@ -950,7 +950,7 @@ export async function start_game(req: Request, res: Response) {
     }
 
     // update the number of games playes
-    await LOBBY.updateOne({ _id: lobbyId }, { $inc: { noOfGamesPlayed: 1 } });
+    await LOBBY.updateOne({ _id: lobbyId }, { $inc: { noOfGamesPlayed: 1 }, inGame: true });
 
     res.status(200).json({ message: 'Game started successfully' });
   } catch (error) {

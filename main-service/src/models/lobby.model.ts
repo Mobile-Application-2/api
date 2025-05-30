@@ -42,6 +42,10 @@ const lobbySchema = new mongoose.Schema(
     dead: {
       type: Boolean,
       default: false,
+    },
+    inGame: {
+      type: Boolean,
+      default: false,
     }
   },
   {timestamps: true}

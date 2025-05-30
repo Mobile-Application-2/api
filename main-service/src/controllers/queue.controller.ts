@@ -362,7 +362,7 @@ export async function handle_game_won(
 
           await LOBBY.updateOne(
             {_id: lobbyId},
-            {$push: {winners: winnerId}},
+            {$push: {winners: winnerId}, $set: {inGame: false}},
             {session}
           );
 
