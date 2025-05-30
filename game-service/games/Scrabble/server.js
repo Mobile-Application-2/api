@@ -8,6 +8,8 @@ import livereload from "livereload";
 import connectLivereload from "connect-livereload";
 import { watch } from 'fs';
 
+import fs from "fs";
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -73,6 +75,14 @@ const letterPool = {
     'K': { count: 1, value: 5 },
     'Q': { count: 1, value: 10 }
 };
+
+const scrabbleDictionary = JSON.parse(fs.readFileSync(new URL("./games/Scrabble/words_dictionary.json", import.meta.url), "utf-8"));
+
+const finalScrabbleDictionary = new Set(Object.keys(scrabbleDictionary).filter(word => word.length > 2));
+
+function isValidWord(word) {
+    return finalScrabbleDictionary.has(word.toLowerCase());
+}
 
 /**
  * Creates a frequency map of available letters.
@@ -156,12 +166,20 @@ function dealLetters(gameId, playerId, count = 7) {
     const game = games[gameId];
     if (!game) return [];
 
+    const dealer = game.letterPool.slice();
+
     let letters = [];
     for (let i = 0; i < count; i++) {
         if (game.letterPool.length > 0) {
-            const letterObj = game.letterPool.pop();
+            const letterObj = dealer.pop();
             letters.push(letterObj);
         }
+    }
+
+    const possibleWords = generateWordsForLetters(letters, finalScrabbleDictionary);
+
+    if (possibleWords.length < count) {
+        return dealLetters(gameId, playerId, game.letterPool, count);
     }
 
     return letters;
@@ -388,6 +406,12 @@ wordNamespace.on("connection", (socket) => {
         }
 
         // In a real game, you would verify against a dictionary here
+        if (!isValidWord(word)) {
+            console.log("client word rejected ");
+
+            socket.emit('wordRejected', { word, reason: 'Word is not valid' });
+            return;
+        }
 
         // Calculate word score
         let wordScore = 0;
