@@ -168,7 +168,7 @@ router.get('/active-users-in-game/:gameId', is_logged_in, async (req, res) => {
     const lobby = await LOBBY.find({gameId: gameId, inGame: true});
 
     if(lobby.length < 1) {
-      res.status(404).json({message: "lobby not found"});
+      res.status(200).json({message: "successful", data: {count: 0, users: null}});
 
       return;
     }
@@ -180,7 +180,7 @@ router.get('/active-users-in-game/:gameId', is_logged_in, async (req, res) => {
     const firstFourDetails = await Promise.all(firstFour.map(ff => USER.findById(ff, {username: 1, avatar: 1})));
 
     if(firstFourDetails.length < 1) {
-      res.status(200).json({message: "successful", data: {count: allParticipants.length}});
+      res.status(200).json({message: "successful", data: {count: allParticipants.length, users: null}});
     }
     else {
       const finalMap = firstFourDetails.map(ff => {
