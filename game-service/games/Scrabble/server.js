@@ -1,7 +1,7 @@
 // server.js - Node.js server implementation with Socket.io
 import express from 'express';
 import http from 'http';
-import {Server} from 'socket.io';
+import { Server } from 'socket.io';
 import path from 'path';
 
 import livereload from "livereload";
@@ -12,7 +12,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-export {io, server}
+export { io, server }
 
 console.log(import.meta.dirname)
 
@@ -34,7 +34,7 @@ app.use(express.static(path.join(testDirname, 'public')));
 //         liveReloadServer.refresh("/");
 //     }, 100);
 // });
-watch(testDirname + "/public", {recursive: true}, () => {
+watch(testDirname + "/public", { recursive: true }, () => {
     console.log("File changed, refreshing...");
     liveReloadServer.refresh("/");
 })
@@ -74,6 +74,63 @@ const letterPool = {
     'Q': { count: 1, value: 10 }
 };
 
+/**
+ * Creates a frequency map of available letters.
+ * @param {Array<{ letter: string, value: number }>} letters - Array of letter objects with their value.
+ * @returns {Object} A frequency map of available letters (e.g., { A: 2, P: 1, L: 1 }).
+ */
+function getLetterFrequency(letters) {
+    const freq = {};
+    for (const letterObj of letters) {
+        const letter = letterObj.letter.toUpperCase();
+        freq[letter] = (freq[letter] || 0) + 1;
+    }
+    return freq;
+}
+
+/**
+ * Checks if a word can be formed using the available letter frequencies.
+ * @param {string} word - The word to check.
+ * @param {Object} availableFreq - A frequency map of available letters.
+ * @returns {boolean} True if the word can be formed, false otherwise.
+ */
+function canFormWord(word, availableFreq) {
+    const wordFreq = {};
+    for (const char of word.toUpperCase()) {
+        wordFreq[char] = (wordFreq[char] || 0) + 1;
+        if (wordFreq[char] > (availableFreq[char] || 0)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Finds up to `limit` words from the dictionary that can be formed with the given letters.
+ * @param {Array<{ letter: string, value: number }>} letters - The available letters for the game round.
+ * @param {Object<string, number>} dictionary - An object where keys are valid words (e.g., { "apple": 1, "plea": 1 }).
+ * @param {number} [limit=10] - The maximum number of words to return.
+ * @returns {string[]} An array of words that can be formed with the given letters.
+ */
+function generateWordsForLetters(letters, dictionary, limit = 20) {
+    const availableFreq = getLetterFrequency(letters);
+    const validWords = [];
+
+    for (const word of Object.keys(dictionary)) {
+        if (canFormWord(word, availableFreq) && isValidWord(word)) {
+            validWords.push(word);
+        }
+    }
+
+    // Shuffle valid words to introduce randomness
+    for (let i = validWords.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [validWords[i], validWords[j]] = [validWords[j], validWords[i]];
+    }
+
+    return validWords.slice(0, limit);
+}
+
 // Generate letter pool
 function generateLetterPool() {
     let pool = [];
@@ -98,7 +155,7 @@ function shuffleArray(array) {
 function dealLetters(gameId, playerId, count = 7) {
     const game = games[gameId];
     if (!game) return [];
-    
+
     let letters = [];
     for (let i = 0; i < count; i++) {
         if (game.letterPool.length > 0) {
@@ -106,7 +163,7 @@ function dealLetters(gameId, playerId, count = 7) {
             letters.push(letterObj);
         }
     }
-    
+
     return letters;
 }
 
@@ -177,10 +234,10 @@ const wordNamespace = io.of("/word")
 // Socket.io connection handling
 wordNamespace.on("connection", (socket) => {
     console.log('New client connected:', socket.id);
-    
+
     // Create or join a game
     socket.on('joinGame', async ({ gameId, playerName, playerId: playerID, opponentId, stakeAmount, tournamentId, lobbyCode, gameName }) => {
-        console.log("client emitted joinGame", {gameId, id: socket.id, playerName});
+        console.log("client emitted joinGame", { gameId, id: socket.id, playerName });
 
         let game = games[gameId];
 
@@ -195,10 +252,10 @@ wordNamespace.on("connection", (socket) => {
 
             const persistPlayer = persistStore[playerID]
 
-            console.log(`Player data: `, {persistPlayer});
-            
+            console.log(`Player data: `, { persistPlayer });
+
             delete game.players[persistPlayer.id];
-            
+
             persistPlayer.disconnected = false;
 
             game.players[socket.id] = persistPlayer;
@@ -207,12 +264,12 @@ wordNamespace.on("connection", (socket) => {
 
             delete persistStore[playerID];
 
-            console.log("restored data: ", {data: game.players[socket.id]});
+            console.log("restored data: ", { data: game.players[socket.id] });
 
             socket.join(gameId);
 
             console.log("emitting reconnected");
-            
+
             wordNamespace.to(socket.id).emit('reconnected', {
                 gameId,
                 playerId: socket.id,
@@ -231,7 +288,7 @@ wordNamespace.on("connection", (socket) => {
 
             return;
         }
-        
+
         // Check if game is full
         if (Object.keys(game.players).length >= 2) {
             console.log("game is full");
@@ -239,7 +296,7 @@ wordNamespace.on("connection", (socket) => {
             socket.emit('gameError', { message: 'Game is full' });
             return;
         }
-        
+
         // Check if game already started
         if (game.active) {
             console.log("game is active");
@@ -247,7 +304,7 @@ wordNamespace.on("connection", (socket) => {
             socket.emit('gameError', { message: 'Game already in progress' });
             return;
         }
-        
+
         // Add player to game
         const playerId = socket.id;
 
@@ -260,15 +317,15 @@ wordNamespace.on("connection", (socket) => {
             words: [],
             disconnected: false
         };
-        
+
         // Join socket to game room
         socket.join(gameId);
 
         console.log("joined game room");
-        
+
         // Deal initial letters
         game.players[playerId].rack = dealLetters(gameId, playerId);
-        
+
         // Notify player
         socket.emit('gameJoined', {
             gameId,
@@ -278,7 +335,7 @@ wordNamespace.on("connection", (socket) => {
         });
 
         console.log("emitted gameJoined event");
-        
+
         // Update all players in the game
         wordNamespace.to(gameId).emit('gameState', {
             players: Object.values(game.players).map(p => ({
@@ -292,7 +349,7 @@ wordNamespace.on("connection", (socket) => {
         });
 
         console.log("updated game state");
-        
+
         // Start game if we have 2 players
         if (Object.keys(game.players).length === 2 && !game.active) {
             startGame(gameId);
@@ -303,17 +360,17 @@ wordNamespace.on("connection", (socket) => {
             await MainServerLayer.startGame(lobbyID); */
         }
     });
-    
+
     // Submit a word
     socket.on('submitWord', ({ gameId, word }) => {
-        console.log("client submitted word", {gameId, word});
+        console.log("client submitted word", { gameId, word });
 
         const game = games[gameId];
         if (!game || !game.active) {
             console.log("no game or game not active");
             return
         };
-        
+
         const playerId = socket.id;
         const player = game.players[playerId];
         if (!player) {
@@ -321,7 +378,7 @@ wordNamespace.on("connection", (socket) => {
 
             return
         };
-        
+
         // Check if word is valid (not already used and at least 2 letters)
         if (word.length < 2 || game.usedWords.includes(word.toLowerCase())) {
             console.log("client word rejected ");
@@ -329,9 +386,9 @@ wordNamespace.on("connection", (socket) => {
             socket.emit('wordRejected', { word, reason: 'Word is too short or already used' });
             return;
         }
-        
+
         // In a real game, you would verify against a dictionary here
-        
+
         // Calculate word score
         let wordScore = 0;
         for (const letter of word) {
@@ -340,19 +397,19 @@ wordNamespace.on("connection", (socket) => {
                 wordScore += letterInfo.value;
             }
         }
-        
+
         // Update player score
         player.score += wordScore;
         player.words.push({ word, score: wordScore });
         game.usedWords.push(word.toLowerCase());
-        
+
         // Notify player of word acceptance
         socket.emit('wordAccepted', {
             word,
             score: wordScore,
             totalScore: player.score
         });
-        
+
         // Update all players in the game
         wordNamespace.to(gameId).emit('gameState', {
             players: Object.values(game.players).map(p => ({
@@ -371,11 +428,11 @@ wordNamespace.on("connection", (socket) => {
             }
         });
     });
-    
+
     // Handle disconnect
     socket.on('disconnect', () => {
-        console.log('Client disconnected:', {sockerId: socket.id});
-        
+        console.log('Client disconnected:', { sockerId: socket.id });
+
         // Find game with this player
         Object.keys(games).forEach(gameId => {
             const game = games[gameId];
@@ -398,24 +455,24 @@ wordNamespace.on("connection", (socket) => {
 function startGame(gameId) {
     const game = games[gameId];
     if (!game || game.active) return;
-    
+
     game.active = true;
     game.timeRemaining = process.env.NODE_ENV == "production" ? 120 : 30; // 2 minutes
-    
+
     // Start timer
     game.timer = setInterval(() => {
         game.timeRemaining--;
-        
+
         // Update clients with time
         wordNamespace.to(gameId).emit('timeUpdate', { timeRemaining: game.timeRemaining });
-        
+
         if (game.timeRemaining <= 0) {
             endGame(gameId, 'Time expired');
         }
     }, 1000);
 
     game.timer.unref();
-    
+
     // Notify players that game started
     wordNamespace.to(gameId).emit('gameStarted', {
         timeRemaining: game.timeRemaining,
@@ -437,7 +494,7 @@ function startGame(gameId) {
 async function endGame(gameId, reason) {
     const game = games[gameId];
     if (!game) return;
-    
+
     // Stop timer
     if (game.timer) {
         clearInterval(game.timer);
@@ -445,14 +502,14 @@ async function endGame(gameId, reason) {
     }
 
     console.log("game ended");
-    
+
     game.active = false;
-    
+
     // Determine winner
     let winner = null;
     let loser = null;
     let highestScore = -1;
-    
+
     Object.values(game.players).forEach(player => {
         if (player.score > highestScore) {
             highestScore = player.score;
@@ -462,8 +519,8 @@ async function endGame(gameId, reason) {
         }
     });
 
-    console.log("winner", {winner});
-    
+    console.log("winner", { winner });
+
     // Notify players of game end
     wordNamespace.to(gameId).emit('gameEnded', {
         reason,
@@ -484,7 +541,7 @@ async function endGame(gameId, reason) {
     wordNamespace.to(winner.id).emit('you-won')
 
     Object.values(game.players).forEach(player => {
-        if(player.id != winner.id) {
+        if (player.id != winner.id) {
             wordNamespace.to(player.id).emit("you-lost")
             loser = player;
         }
