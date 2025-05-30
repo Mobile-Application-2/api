@@ -39,6 +39,7 @@ import USER from '../models/user.model';
 import ACTIVEUSER from '../models/active.model';
 import { get_leaderboard } from '../controllers/celebrity.controller';
 import LOBBY from '../models/lobby.model';
+import { Types } from 'mongoose';
 const router = Router();
 
 // CHANGE LATER (FROM JOSHUA)
@@ -154,6 +155,48 @@ router.get('/active-users', is_logged_in, async (_req, res) => {
     const activeUsers = await ACTIVEUSER.aggregate(pipeline);
 
     res.status(200).json({message: "successful", data: activeUsers})
+  }
+  catch(error) {
+    handle_error(error, res);
+  }
+})
+
+router.get('/active-users-in-game/:gameId', is_logged_in, async (req, res) => {
+  const {gameId} = req.params;
+
+  try {
+    const lobby = await LOBBY.find({gameId: gameId, inGame: true});
+
+    if(lobby.length < 1) {
+      res.status(404).json({message: "lobby not found"});
+
+      return;
+    }
+
+    const allParticipants = lobby.reduce((prev: Array<Types.ObjectId>, l) => [...prev, ...l.participants], []);
+
+    const firstFour = allParticipants.slice(0, 4);
+
+    const firstFourDetails = await Promise.all(firstFour.map(ff => USER.findById(ff, {username: 1, avatar: 1})));
+
+    if(firstFourDetails.length < 1) {
+      res.status(200).json({message: "successful", data: {count: allParticipants.length}});
+    }
+    else {
+      const finalMap = firstFourDetails.map(ff => {
+        if(ff) {
+          return {
+            username: ff.username,
+            avatar: ff.avatar || "https://game-service-uny2.onrender.com/game/Scrabble/a1.png"
+          }
+        }
+        else {
+          return
+        }
+      });
+
+      res.status(200).json({message: "successful", data: {count: allParticipants.length, users: finalMap}});
+    }
   }
   catch(error) {
     handle_error(error, res);
