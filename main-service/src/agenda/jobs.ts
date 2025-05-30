@@ -96,7 +96,7 @@ export async function handle_game_refund(lobbyId: string) {
 
         await session.withTransaction(async session => {
             try {
-                const amountToRefund = lastestEscrowInfo.totalAmount / 2;
+                const amountToRefund = lastestEscrowInfo.totalAmount;
 
                 await USER.updateMany(
                     { _id: { $in: paidPlayersToRefund } },
