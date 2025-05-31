@@ -230,6 +230,11 @@ export default async function handle_tournament_ending(changeData: any) {
           {session}
         );
 
+        // THE GATE FEE IS THE CELEBRITIES OWN MONEY
+        // IF GATE FEE IS MORE THAN THE TOTAL PRIZES, AFTER CALCULATING THE PROFIT (GATE FEE - TOTAL PRIZES, POSITIVE NUMBER)
+        // TAKE 30% FROM THEIR PROFIT
+        // IF NOT DONT TAKE ANTYHING
+
         // pay the celebrity
         // get the escrow for gateFees
         const escrowInfo = await TOURNAMENTESCROW.findOne({
