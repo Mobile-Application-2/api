@@ -1493,7 +1493,7 @@ app.use('/game/Chess/assets', express.static(path.join(__dirname, "/games/Chess/
 app.use('/game/Ludo/assets', express.static(path.join(__dirname, "/games/Ludo/assets")));
 app.use('/game/Word', express.static(path.join(__dirname, "/games/Word")));
 app.use('/game/Scrabble', express.static(path.join(__dirname, "/games/Scrabble")));
-app.use('/game/WordGames', express.static(path.join(__dirname, "/games/WordGames")));
+app.use('/game/WordGame', express.static(path.join(__dirname, "/games/WordGame")));
 app.use('/game/Snooker', express.static(path.join(__dirname, "/games/Snooker")));
 
 // Game route handler
