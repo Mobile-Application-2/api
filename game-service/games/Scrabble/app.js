@@ -34,7 +34,7 @@ function addWinnerInfo(name, words) {
     winnerName.innerHTML = name;
 
     words.forEach(word => {
-        winnerWords.innerHTML += `<p>${word.word}: ${word.score}</p>`
+        // winnerWords.innerHTML += `<p>${word.word}: ${word.score}</p>`
     })
 }
 
@@ -42,7 +42,7 @@ function addLoserInfo(name, words) {
     loserName.innerHTML = name;
 
     words.forEach(word => {
-        loserWords.innerHTML += `<p>${word.word}: ${word.score}</p>`
+        // loserWords.innerHTML += `<p>${word.word}: ${word.score}</p>`
     })
 }
 
