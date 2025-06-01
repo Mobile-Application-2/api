@@ -1,0 +1,534 @@
+<!-- public/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Word Game</title>
+    <style>
+
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            /* padding: 8px; */
+            background-color: #f5f5f5;
+        }
+
+        .background {
+            background-image: url("/game/Scrabble/background.jpeg");
+            position: relative;
+        }
+
+        .background-dark {
+            background-color: rgba(0,0,0,0.2);
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+
+        /* .game-avatar {
+        } */
+        
+        .game-avatar-div {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .game-avatar-div img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 100%;
+        }
+
+        .player-score {
+            color: white;
+            font-size: 28px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: transparent;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        h1, h2 {
+            text-align: center;
+            color: white;
+        }
+        
+        .join-form {
+            display: flex;
+            flex-direction: column;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .join-form input, 
+        .join-form button {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .join-form button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .waiting-screen {
+            display: block;
+            position: absolute;
+            top: 200px;
+            left: 50%;
+            width: 100%;
+            transform: translate(-50%, 0);
+        }
+
+        .game-screen {
+            display: none;
+        }
+        
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .timer {
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .letter-rack {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            min-height: 60px;
+            padding: 10px;
+            /* border: 2px solid #333; */
+            border-radius: 10px;
+            /* background-color: #f9f9f9; */
+            background-color: transparent;
+        }
+        
+        .word-area {
+            min-height: 60px;
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px dashed #666;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            /* background-color: transparent; */
+            background-image: url("/game/Scrabble/background.jpeg");
+            filter: brightness(2);
+            border: 2px solid black;
+        }
+        
+        .letter-tile {
+            width: 50px;
+            height: 50px;
+            margin: 0 5px;
+            background-color: #f5d742;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 30px;
+            cursor: grab;
+            box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
+        }
+        
+        .submit-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .players-list {
+            margin: 20px 0;
+            padding: 10px;
+            /* border: 1px solid #ddd; */
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .player-item {
+            padding: 5px;
+            /* border-bottom: 1px solid #eee; */
+            color: white;
+        }
+        
+        .current-player {
+            font-weight: bold;
+            /* color: #4CAF50; */
+        }
+        
+        .word-history {
+            height: 150px;
+            overflow-y: auto;
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        
+        .history-item {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .words-container {
+            display: flex;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .words-column {
+            flex: 1;
+            padding: 10px;
+        }
+        
+        .words-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .game-status {
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            /* color: #333; */
+            max-width: 100px;
+            word-wrap: break-word;
+            color: white;
+        }
+        
+        .game-result {
+            text-align: center;
+            font-size: 28px;
+            margin: 30px 0;
+            padding: 15px;
+            background-color: #f0f8ff;
+            border-radius: 10px;
+            border: 2px solid #4CAF50;
+            /* position: absolute;
+            top: 0;
+            height: 100%;
+            width: 100%; */
+        }
+        
+        .final-results {
+            margin: 30px 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+        }
+        
+        .player-result {
+            flex: 1;
+            min-width: 300px;
+            margin: 10px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .share-btn {
+            background-color: #2196F3;
+            margin-top: 20px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .words-container {
+                flex-direction: column;
+            }
+            
+            .words-column {
+                width: 100%;
+            }
+            
+            .letter-tile {
+                width: 50px;
+                height: 50px;
+                font-size: 30px;
+            }
+            
+            .player-result {
+                min-width: 100%;
+            }
+        }
+
+        /* Loading State */
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #4CAF50;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Error Messages */
+        .error-message {
+            display: none;
+            color: #f44336;
+            background-color: #ffebee;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        /* Success Messages */
+        .success-message {
+            display: none;
+            color: #4CAF50;
+            background-color: #E8F5E9;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .my-game-result {
+            display: none;
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("/game/Scrabble/background.jpeg");
+            color: white;
+        }
+
+        .my-game-result-text {
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .my-game-result-wrapper {
+            display: flex;
+        }
+
+        .result-player {
+            flex: 1;
+            text-align: center;
+            max-width: 100px;
+            margin: auto;
+        }
+
+        .result-avatar-main-div {
+            display: flex;
+            justify-content: center;
+        }
+
+        .result-name {
+            word-wrap: break-word;
+        }
+
+        .result-name h2 {
+            color: white;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .result-words {
+            margin-bottom: 1rem;
+        }
+
+        .result-words p {
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .result-result {
+            display: flex;
+            justify-content: center;
+        }
+
+        .result-result .btn {
+            width: 100px;
+            padding: 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .result-result .won {
+            background-color: green;
+        }
+
+        .result-result .lost {
+            background-color: red;
+        }
+
+    </style>
+</head>
+<body class="background">
+    <div class="background-dark">
+    
+    </div>
+    <div class="container" id="game-container">
+        <!-- <h1>Multiplayer Word Game</h1> -->
+        
+        <!-- Messages -->
+        <div id="error-message" class="error-message"></div>
+        <div id="success-message" class="success-message"></div>
+        
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading"></div>
+        
+        <!-- Join Game Form -->
+        <!-- <form id="join-form" class="join-form">
+            <input type="text" id="game-id" placeholder="Enter game ID or leave empty for new game">
+            <input type="text" id="player-name" placeholder="Your name" required>
+            <button type="submit">Join Game</button>
+        </form> -->
+        
+        <!-- Waiting Screen -->
+        <div id="waiting-screen" class="waiting-screen">
+            <h2>Waiting for opponent...</h2>
+            <!-- <p>Share this game ID with a friend: <strong class="game-id-display"></strong></p> -->
+            <!-- <button id="share-game" class="submit-btn share-btn">Copy Game ID</button> -->
+        </div>
+        
+        <!-- Game Screen -->
+        <div id="game-screen" class="game-screen">
+            <div class="game-avatar">
+                <div class="game-avatar-div">
+                    <img id="player-avatar" src="/game/Scrabble/a1.png" />
+                </div>
+            </div>
+            <div class="game-info">
+                <div id="game-status" class="game-status">Game in progress</div>
+                <div id="timer" class="timer">Time: 2:00</div>
+            </div>
+            
+            <div class="players-list" id="players-list">
+                <!-- Players will be listed here -->
+            </div>
+
+            <div class="player-score">
+                <h3>Points: 0</h3>
+            </div>
+            
+            <!-- <h3>Form a Word</h3> -->
+            <div class="word-area" id="word-area">
+                <!-- Dragged letters will appear here -->
+            </div>
+
+            <!-- <h3>Your Rack</h3> -->
+            <div class="letter-rack" id="letter-rack">
+                <!-- Letter tiles will be here -->
+            </div>
+            
+            <button id="submit-word" class="submit-btn">Submit Word</button>
+            
+            <div class="words-container">
+                <div class="words-column">
+                    <h3>Your Words</h3>
+                    <div class="words-list" id="my-words">
+                        <!-- Player's words will be listed here -->
+                    </div>
+                </div>
+                <div class="words-column">
+                    <h3>Word History</h3>
+                    <div class="word-history" id="word-history">
+                        <!-- Game word history will be listed here -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <div class="my-game-result">
+        <div class="my-game-result-wrapper">
+            <div class="result-player" id="winner">
+                <div class="result-avatar-main-div">
+                    <div class="game-avatar-div">
+                        <img id="player-winner-avatar" src="/game/Scrabble/a1.png" />
+                    </div>
+                </div>
+                <div class="result-name">
+                    <h2>@ROUGH</h2>
+                </div>
+                <div class="result-words">
+                </div>
+                <div class="result-result">
+                    <div class="btn won">
+                        <p>YOU WON</p>
+                    </div>
+                </div>
+            </div>
+            <div class="result-player" id="loser">
+                <div class="result-avatar-main-div">
+                    <div class="game-avatar-div">
+                        <img id="player-loser-avatar" src="/game/Scrabble/a1.png" />
+                    </div>
+                </div>
+                <div class="result-name">
+                    <h2>@ROUGH</h2>
+                </div>
+                <div class="result-words">
+                </div>
+                <div class="result-result">
+                    <div class="btn lost">
+                        <p>YOU FAILED</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/game/Scrabble/app.js"></script>
+</body>
+</html>
