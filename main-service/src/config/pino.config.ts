@@ -11,7 +11,18 @@ const pinoLogger = pinoHttp({
         }
     },
     customSuccessMessage: (req, res) => `Handled ${req.method} ${req.url} - ${res.statusCode}`,
-    customErrorMessage: (req, _res, err) => `Error in ${req.method} ${req.url} - ${err.message}`
+    customErrorMessage: (req, _res, err) => `Error in ${req.method} ${req.url} - ${err.message}`,
+    customLogLevel: (_req, res, err) => {
+        if(err || res.statusCode >= 500) {
+            return "error"
+        }
+        else if(res.statusCode >= 400) {
+            return "warn"
+        }
+        else {
+            return "info"
+        }
+    }
 });
 
 export { pinoLogger }

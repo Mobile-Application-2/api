@@ -565,7 +565,8 @@ export async function rate_a_game(req: Request, res: Response) {
           },
         ];
 
-        const [{ avgRating }] = await GAMERATING.aggregate(pipeline);
+        const result = await GAMERATING.aggregate(pipeline);
+        const avgRating = result.length > 0 ? result[0].avgRating : rating;
 
         await GAME.updateOne(
           { _id: gameInfo._id },
