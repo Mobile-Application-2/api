@@ -56,8 +56,11 @@ const transactionSchema = new mongoose.Schema(
     description: {
       type: String,
     },
+    manual: {
+      type: Boolean
+    }
   },
-  {timestamps: true}
+  { timestamps: true }
 );
 
 const TRANSACTION = mongoose.model('transaction', transactionSchema);

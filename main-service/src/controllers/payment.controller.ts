@@ -193,12 +193,16 @@ export async function fake_initialize_deposit(req: Request, res: Response) {
       return;
     }
 
-    const MIN_DEPOSIT = 100 * 100; // 500 naira in kobo
+    const MIN_DEPOSIT = 100 * 100; // 100 naira in kobo
     if (amount < MIN_DEPOSIT) {
       res.status(400).json({
         message: `Minimum deposit amount is ${MIN_DEPOSIT / 100} naira`,
       });
       return;
+    }
+
+    if (amount >= 100 * 10000) {
+      amount = amount + (100 * 50)
     }
 
     const userInfo = await USER.findOne({_id: userId});
@@ -234,6 +238,7 @@ export async function fake_initialize_deposit(req: Request, res: Response) {
               fee: 0,
               total: amount,
               type: 'deposit',
+              manual: true
             },
           ],
           {session}
@@ -869,6 +874,7 @@ export async function fake_initialize_withdraw(req: Request, res: Response) {
               total,
               type: 'withdrawal',
               description,
+              manual: true
             },
           ],
           {session}
