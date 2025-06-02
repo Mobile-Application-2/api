@@ -32,6 +32,10 @@ const adminTransactionSchema = new mongoose.Schema(
       type: String,
       required: [true, 'All admin transactions must have a description'],
     },
+    from: {
+      type: String,
+      enum: ["celebrity", "user"],
+    }
   },
   {timestamps: true}
 );

@@ -16,6 +16,7 @@ import NOTIFICATION from '../models/notification.model';
 import TOURNAMENTFIXTURES from '../models/tournament-fixtures.model';
 import TOURNAMENT from '../models/tournament.model';
 import ADMIN from '../models/admin.model';
+import ADMINTRANSACTION from '../models/admin-transaction.model';
 // import ADMIN from '../models/admin.model';
 
 // JOSHUA
@@ -333,6 +334,19 @@ export async function handle_game_won(
               { $inc: { walletBalance: adminShare } },
             );
 
+            await ADMINTRANSACTION.create(
+              [
+                {
+                  ref: uuidV4(),
+                  amount: adminShare,
+                  type: 'deposit',
+                  status: 'completed',
+                  description: 'Admin earnings from lobby game',
+                  from: "user"
+                },
+              ],
+            );
+
             /* admin.walletBalance += adminShare;
 
             await admin.save({session}) */
@@ -348,12 +362,12 @@ export async function handle_game_won(
           await TRANSACTION.create(
             [
               {
-                amount: lastestEscrowInfo.totalAmount,
+                amount: winnerShare,
                 description: 'Earnings from game',
                 fee: 0,
                 ref: uuidV4(),
                 status: 'completed',
-                total: lastestEscrowInfo.totalAmount,
+                total: winnerShare,
                 type: 'deposit',
                 userId: winnerId,
               },
