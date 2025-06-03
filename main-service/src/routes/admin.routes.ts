@@ -92,6 +92,37 @@ router.get('/transactions-manual', is_admin, async (req: Request, res: Response)
   }
 })
 
+router.get('/transactions-manual/pending-count', is_admin, async (_req: Request, res: Response) => {
+  try {
+    const dQuery: Record<string, any> = {
+      manual: true,
+      status: "pending",
+      type: "deposit"
+    };
+
+    const wQuery: Record<string, any> = {
+      manual: true,
+      status: "pending",
+      type: "withdrawal"
+    };
+
+    const dTransactions = await TRANSACTION.countDocuments(dQuery);
+    const wTransactions = await TRANSACTION.countDocuments(wQuery);
+
+    const total = await TRANSACTION.countDocuments({manual: true});
+
+    res.status(200).json({
+      data: {
+        deposits: dTransactions,
+        withdrawals: wTransactions,
+        total: total
+      },
+    });
+  } catch (error) {
+    handle_error(error, res);
+  }
+})
+
 router.post('/games', is_admin, process_file('image'), create_game);
 
 router.post('/login', admin_login);
