@@ -19,6 +19,9 @@ import {process_file} from '../middlewares/file-upload.middleware';
 import {is_admin} from '../middlewares/auth.middleware';
 import TRANSACTION from '../models/transaction.model';
 import { handle_error } from '../utils/handle-error';
+
+import { PopulateOptions } from 'mongoose';
+
 const router = Router();
 
 router.get('/dashboard', is_admin, get_dashboard_details);
@@ -62,7 +65,13 @@ router.get('/transactions-manual', is_admin, async (req: Request, res: Response)
 
     query.manual = true;
 
+    const populateOptions: PopulateOptions = {
+      path: "userId",
+      select: "username email phoneNumber isCelebrity firstName lastName account_number account_name bank_name",
+    }
+
     const transactions = await TRANSACTION.find(query)
+      .populate(populateOptions)
       .sort({ createdAt: -1 }) // Most recent first
       .skip((pageNumber - 1) * limitNumber)
       .limit(limitNumber);
