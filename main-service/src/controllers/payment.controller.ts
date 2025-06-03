@@ -201,8 +201,13 @@ export async function fake_initialize_deposit(req: Request, res: Response) {
       return;
     }
 
+    // let fiftyCharge = false;
+    let fee = 0;
+
     if (amount >= 100 * 10000) {
-      amount = amount + (100 * 50)
+      amount = amount + (100 * 50);
+      // fiftyCharge = true;
+      fee = fee + (100 * 50);
     }
 
     const userInfo = await USER.findOne({_id: userId});
@@ -234,8 +239,8 @@ export async function fake_initialize_deposit(req: Request, res: Response) {
             {
               ref,
               userId,
-              amount,
-              fee: 0,
+              fee: fee,
+              amount: amount,
               total: amount,
               type: 'deposit',
               manual: true
@@ -474,7 +479,7 @@ export async function handle_fake_deposit_success(req: Request, res: Response) {
       // update the user's wallet balance
       const userInfo = await USER.findOneAndUpdate(
         {_id: transactionInfo.userId},
-        {$inc: {walletBalance: transactionInfo.amount}},
+        {$inc: {walletBalance: transactionInfo.amount - transactionInfo.fee}},
         {session}
       );
 
@@ -485,7 +490,7 @@ export async function handle_fake_deposit_success(req: Request, res: Response) {
             userId: transactionInfo.userId,
             image: process.env.SKYBOARD_LOGO,
             title: 'Deposit Successful',
-            body: `Your deposit of ${(transactionInfo.amount / 100).toFixed(
+            body: `Your deposit of ${((transactionInfo.amount - transactionInfo.fee) / 100).toFixed(
               2
             )} naira was successful`,
           },
@@ -496,7 +501,7 @@ export async function handle_fake_deposit_success(req: Request, res: Response) {
       // send a mail notification to the user
       if (userInfo?.email) {
         await send_mail(userInfo.email, 'deposit', 'Deposit Successful', {
-          amount: (transactionInfo.amount / 100).toFixed(2),
+          amount: ((transactionInfo.amount - transactionInfo.fee) / 100).toFixed(2),
           username: userInfo.username,
         });
       }
