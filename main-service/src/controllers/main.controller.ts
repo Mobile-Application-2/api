@@ -1637,9 +1637,33 @@ export async function see_all_tournaments(req: Request, res: Response) {
         },
       },
       {
+        $lookup: {
+          from: 'users', // assuming your user collection is named 'users'
+          localField: 'creatorId',
+          foreignField: '_id',
+          as: 'creatorInfo',
+          pipeline: [
+            {
+              $project: {
+                // include the fields you want from the user
+                username: 1,
+                avatar: 1,
+                bio: 1,
+                socialMediaHandle: 1,
+                socialMediaPlatform: 1,
+                // add other fields you need
+              },
+            },
+          ],
+        },
+      },
+      {
         $addFields: {
           gameInfo: {
             $arrayElemAt: ['$gameInfo', 0],
+          },
+          creatorInfo: {
+            $arrayElemAt: ['$creatorInfo', 0],
           },
         },
       },
