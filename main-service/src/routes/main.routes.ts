@@ -54,7 +54,19 @@ router.get('/user/:userId', is_logged_in, async (req, res) => {
 
     const userInfo = await USER.findOne(
       {_id: userId},
-      {password: 0, updatedAt: 0}
+      {
+        password: 0, 
+        updatedAt: 0, 
+        createdAt: 0, 
+        notificationPreferences: 0,
+        emailIsVerified: 0,
+        dob: 0,
+        phoneNumber: 0,
+        govermentIDIsVerified: 0,
+        twoFactorAuthenticationEnabled: 0,
+        twoFactorAuthenticationProvider: 0,
+        walletBalance: 0,
+      }
     );
 
     if (userInfo === null) {
