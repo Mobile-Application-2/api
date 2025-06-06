@@ -1,4 +1,4 @@
-import {Router, Request, Response} from 'express';
+import { Router, Request, Response } from 'express';
 import {
   create_game,
   update_game,
@@ -15,12 +15,13 @@ import {
   change_admin_password,
   admin_login,
 } from '../controllers/admin.controller';
-import {process_file} from '../middlewares/file-upload.middleware';
-import {is_admin} from '../middlewares/auth.middleware';
+import { process_file } from '../middlewares/file-upload.middleware';
+import { is_admin } from '../middlewares/auth.middleware';
 import TRANSACTION from '../models/transaction.model';
 import { handle_error } from '../utils/handle-error';
 
 import { PopulateOptions } from 'mongoose';
+import USER from '../models/user.model';
 
 const router = Router();
 
@@ -29,6 +30,27 @@ router.get('/dashboard', is_admin, get_dashboard_details);
 router.get('/users-summary', is_admin, get_users_summary);
 
 router.get('/users', is_admin, get_users);
+
+router.get('/pending-celebrities', is_admin, async (_req: Request, res: Response) => {
+  try {
+    const pendingCelebs = await USER.find({ isCelebrity: true, accountIsActive: false, blocked: false }, {
+      username: 1,
+      email: 1,
+      dob: 1,
+      phoneNumber: 1,
+      phoneNumberIsVerified: 1,
+      socialMediaHandle: 1,
+      socialMediaPlatform: 1,
+      firstName: 1,
+      lastName: 1,
+    }).lean();
+
+    res.status(200).json({ message: "successful", data: pendingCelebs })
+  }
+  catch (error) {
+    handle_error(error, res);
+  }
+});
 
 router.get('/games', is_admin, get_games);
 
@@ -109,7 +131,7 @@ router.get('/transactions-manual/pending-count', is_admin, async (_req: Request,
     const dTransactions = await TRANSACTION.countDocuments(dQuery);
     const wTransactions = await TRANSACTION.countDocuments(wQuery);
 
-    const total = await TRANSACTION.countDocuments({manual: true});
+    const total = await TRANSACTION.countDocuments({ manual: true });
 
     res.status(200).json({
       data: {

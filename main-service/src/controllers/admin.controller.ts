@@ -246,7 +246,7 @@ export async function block_user(req: Request, res: Response) {
       return;
     }
 
-    await USER.updateOne({_id: userId}, {$set: {accountIsActive: false}});
+    await USER.updateOne({_id: userId}, {$set: {accountIsActive: false, blocked: true}});
 
     res.status(200).json({message: 'User blocked successfully'});
   } catch (error) {
@@ -275,7 +275,7 @@ export async function unblock_user(req: Request, res: Response) {
       return;
     }
 
-    await USER.updateOne({_id: userId}, {$set: {accountIsActive: true}});
+    await USER.updateOne({_id: userId}, {$set: {accountIsActive: true, blocked: false}});
 
     res.status(200).json({message: 'User unblocked successfully'});
   } catch (error) {

@@ -164,11 +164,11 @@ export async function register_celebrity(req: Request, res: Response) {
     userInfo['isCelebrity'] = true;
 
     // insert the user
-    const insertInfo = await USER.create(userInfo);
+    await USER.create({...userInfo, accountIsActive: false});
 
-    const tokens = await create_tokens(insertInfo._id.toString(), true);
+    // const tokens = await create_tokens(insertInfo._id.toString(), true);
 
-    res.status(201).json({message: 'Registration successful', data: tokens});
+    res.status(201).json({message: 'Registration successful', data: null});
   } catch (error) {
     handle_error(error, res);
   }

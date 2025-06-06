@@ -120,7 +120,11 @@ const userSchema = new mongoose.Schema(
     },
     account_number: String,
     account_name: String,
-    bank_name: String
+    bank_name: String,
+    blocked: {
+      type: Boolean,
+      default: false,
+    }
   },
   {timestamps: true}
 );
