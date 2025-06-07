@@ -24,6 +24,17 @@ export default async function handle_tournament_ending(changeData: any) {
 
   const {fullDocumentBeforeChange} = changeData;
 
+  Sentry.addBreadcrumb({
+    category: 'tournament',
+    message: 'Tournament End',
+    data: fullDocumentBeforeChange,
+  });
+
+  Sentry.captureMessage(
+    "handle game end function",
+    'info'
+  );
+
   const tournamentInfo = await TOURNAMENT.findOne({
     _id: fullDocumentBeforeChange.tournamentId,
   });
