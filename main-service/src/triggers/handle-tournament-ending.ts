@@ -187,6 +187,109 @@ export default async function handle_tournament_ending(changeData: any) {
 
         const winners = await TOURNAMENTFIXTURES.aggregate(winnersPipeline);
 
+        if(winners.length < 1) {
+          Sentry.captureMessage(
+            'A tournament ended without a winner. (possibly nobody played after joining)',
+            'warning'
+          );
+
+          // refund players if people joined
+          if (tournamentInfo.hasGateFee && tournamentInfo.participants.length) {
+            // get the escrow for gateFees
+            const escrowInfo = await TOURNAMENTESCROW.findOne({
+              tournamentId: tournamentInfo._id,
+              isPrize: false,
+            });
+
+            if (!escrowInfo) {
+              Sentry.addBreadcrumb({
+                category: 'tournament',
+                message: 'Tournament escrow (gate fees) not found',
+                data: tournamentInfo,
+              });
+
+              Sentry.captureMessage(
+                'A handle_tournament_ending trigger came in for a tournament that does not have an escrow for gate fees',
+                'warning'
+              );
+
+              return;
+            }
+
+            const amountToRefund = escrowInfo.totalAmount / escrowInfo.playersThatHavePaid.length;
+
+            await USER.updateMany(
+              {_id: {$in: escrowInfo.playersThatHavePaid}},
+              {$inc: {walletBalance: amountToRefund}},
+              {session}
+            );
+
+            // create new transactions
+            await TRANSACTION.create(
+              escrowInfo.playersThatHavePaid.map(x => ({
+                amount: amountToRefund,
+                description: 'Refund for tournament gate fee',
+                fee: 0,
+                ref: uuidV4(),
+                status: 'completed',
+                total: amountToRefund,
+                type: 'deposit',
+                userId: x._id,
+              })),
+              {session}
+            );
+
+            await TOURNAMENTESCROW.updateOne(
+              {tournamentId: tournamentInfo._id, isPrize: false},
+              {$set: {paidOut: true}},
+              {session}
+            );
+          }
+
+          // refund creator if the creator has set the prizepool
+          if (tournamentInfo.prizes.length) {
+            const totalToRefund = tournamentInfo.prizes.reduce(
+              (acc: number, prize: number) => acc + prize,
+              0
+            );
+
+            // update wallet, add transaction, update the escrow to indicate paidOut
+            await USER.updateOne(
+              {_id: tournamentInfo.creatorId},
+              {
+                $inc: {walletBalance: totalToRefund},
+              },
+              {session}
+            );
+
+            await TRANSACTION.create(
+              [
+                {
+                  amount: totalToRefund,
+                  description: 'Refund for tournament prizes',
+                  fee: 0,
+                  ref: uuidV4(),
+                  status: 'completed',
+                  total: totalToRefund,
+                  type: 'deposit',
+                  userId: tournamentInfo.creatorId,
+                },
+              ],
+              {session}
+            );
+
+            await TOURNAMENTESCROW.updateOne(
+              {tournamentId: tournamentInfo._id, isPrize: true},
+              {$set: {paidOut: true}},
+              {session}
+            );
+          }
+
+          await session.commitTransaction();
+
+          return;
+        }
+
         // add winners to the winners array
         await TOURNAMENT.updateOne(
           {_id: tournamentInfo._id},

@@ -35,6 +35,8 @@ export async function startTournamentLogic(tournamentId: string) {
 
     if (!tournamentInfo) throw new Error('Tournament not found');
 
+    console.log("Starting tournament, Tournament info", JSON.stringify(tournamentInfo, null, 2));
+
     if (tournamentInfo.hasStarted) return;
 
     if (!tournamentInfo.isFullyCreated) throw new Error('Tournament is not fully created');
