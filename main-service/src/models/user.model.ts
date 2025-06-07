@@ -110,7 +110,7 @@ const userSchema = new mongoose.Schema(
     },
     accountIsActive: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     firstName: {
       type: String,

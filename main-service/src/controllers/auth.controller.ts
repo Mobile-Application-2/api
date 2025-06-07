@@ -5,7 +5,7 @@ import {v4 as uuidv4} from 'uuid';
 import jwt from 'jsonwebtoken';
 import redisClient from '../utils/redis';
 import REFERRAL from '../models/referral.model';
-import mongoose from 'mongoose';
+// import mongoose from 'mongoose';
 import {isEmail, isMobilePhone} from 'validator';
 import bcrypt from 'bcrypt';
 import {delete_file, list_directory, upload_file} from '../utils/cloudinary';
@@ -35,6 +35,8 @@ async function create_tokens(userId: string, isCelebrity = false) {
   return {accessToken, refreshToken};
 }
 
+const registering_users: Map<string, any> = new Map();
+
 export async function register_user(req: Request, res: Response) {
   try {
     const userInfo = req.body;
@@ -45,8 +47,8 @@ export async function register_user(req: Request, res: Response) {
     }
 
     // remove and account for referral information
-    const referralCode = userInfo.referralCode;
-    delete userInfo.referralCode;
+    // const referralCode = userInfo.referralCode;
+    // delete userInfo.referralCode;
 
     const allowedFields = [
       'username',
@@ -72,53 +74,76 @@ export async function register_user(req: Request, res: Response) {
       return;
     }
 
-    const session = await mongoose.startSession({
-      defaultTransactionOptions: {
-        writeConcern: {w: 1},
-        readConcern: {level: 'local'},
-      },
-    });
+    const emailExists = await USER.findOne({email: userInfo.email});
 
-    await session.withTransaction(async session => {
-      try {
-        const insertInfo = await USER.create([userInfo], {session});
+    if(emailExists) {
+      res.status(400).json({message: `email already exists`});
+      return;
+    }
 
-        const tokens = await create_tokens(insertInfo[0]._id.toString());
+    registering_users.set(userInfo.email as string, userInfo)
 
-        // account for referral
-        if (referralCode) {
-          await REFERRAL.create(
-            [{referred: insertInfo[0]._id, referrer: referralCode}],
-            {session}
-          );
-
-          // inform the referrer that someone signed up with thier code
-          await NOTIFICATION.create(
-            [
-              {
-                title: 'Referral Notification',
-                body: `${userInfo.username} just joined skyboard using your referral code/link`,
-                image: process.env.SKYBOARD_LOGO as string,
-                userId: referralCode,
-              },
-            ],
-            {session}
-          );
-        }
-
-        await session.commitTransaction();
-
-        res
-          .status(201)
-          .json({message: 'Registration successful', data: tokens});
-      } catch (error) {
-        await session.abortTransaction();
-
-        throw error;
-      } finally {
-        await session.endSession();
+    const timeout = setTimeout(() => {
+      if(registering_users.has(userInfo.email)) {
+        console.log("deleting email that wasn't verified for 10 mins");
+        
+        registering_users.delete(userInfo.email);
       }
-    });
+    }, 10 * 60 * 1000); // e.g. 10 minutes
+
+    timeout.unref();
+
+    res.status(201).json({message: 'Registration successful', data: null});
+
+    // const session = await mongoose.startSession({
+    //   defaultTransactionOptions: {
+    //     writeConcern: {w: 1},
+    //     readConcern: {level: 'local'},
+    //   },
+    // });
+
+    // await session.withTransaction(async session => {
+    //   try {
+    //     /* const insertInfo = await USER.create([userInfo], {session});
+
+    //     const tokens = await create_tokens(insertInfo[0]._id.toString());
+
+    //     // account for referral
+    //     if (referralCode) {
+    //       await REFERRAL.create(
+    //         [{referred: insertInfo[0]._id, referrer: referralCode}],
+    //         {session}
+    //       );
+
+    //       // inform the referrer that someone signed up with thier code
+    //       await NOTIFICATION.create(
+    //         [
+    //           {
+    //             title: 'Referral Notification',
+    //             body: `${userInfo.username} just joined skyboard using your referral code/link`,
+    //             image: process.env.SKYBOARD_LOGO as string,
+    //             userId: referralCode,
+    //           },
+    //         ],
+    //         {session}
+    //       );
+    //     }
+
+    //     await session.commitTransaction(); */
+
+    //     /* registering_users.set(userInfo.email as string, userInfo)
+
+    //     res
+    //       .status(201)
+    //       .json({message: 'Registration successful', data: null}); */
+    //   } catch (error) {
+    //     await session.abortTransaction();
+
+    //     throw error;
+    //   } finally {
+    //     await session.endSession();
+    //   }
+    // });
   } catch (error) {
     handle_error(error, res);
   }
@@ -159,12 +184,31 @@ export async function register_celebrity(req: Request, res: Response) {
       return;
     }
 
+    const emailExists = await USER.findOne({email: userInfo.email});
+
+    if(emailExists) {
+      res.status(400).json({message: `email already exists`});
+      return;
+    }
+
     // update to account for username and isCelebrity
     userInfo['username'] = userInfo['socialMediaHandle'];
     userInfo['isCelebrity'] = true;
 
+    registering_users.set(userInfo.email as string, userInfo)
+
+    const timeout = setTimeout(() => {
+      if(registering_users.has(userInfo.email)) {
+        console.log("deleting email that wasn't verified for 10 mins");
+        
+        registering_users.delete(userInfo.email);
+      }
+    }, 10 * 60 * 1000); // e.g. 10 minutes
+
+    timeout.unref();
+
     // insert the user
-    await USER.create({...userInfo, accountIsActive: false});
+    // await USER.create({...userInfo, accountIsActive: false});
 
     // const tokens = await create_tokens(insertInfo._id.toString(), true);
 
@@ -534,7 +578,8 @@ export async function send_email_otp(req: Request, res: Response) {
     }
 
     // check that email is registered with us
-    const emailExists = await USER.findOne({email});
+    // const emailExists = await USER.findOne({email});
+    const emailExists = registering_users.has(email);
 
     if (emailExists === null) {
       res.status(200).json({
@@ -596,11 +641,58 @@ export async function verify_email_otp(req: Request, res: Response) {
       update['twoFactorAuthenticationProvider'] = 'email';
     }
 
-    await USER.updateOne({email}, update);
+    const finallyRegisteredUser = registering_users.get(email);
+
+    if(!finallyRegisteredUser) {
+      res.status(400).json({message: "invalid email"})
+      return;
+    }
+
+    const referralCode = finallyRegisteredUser.referralCode;
+    delete finallyRegisteredUser.referralCode
+
+    // await USER.updateOne({email, accountIsActive: true}, update);
+    const user = new USER({
+      ...finallyRegisteredUser,
+      ...update,
+    })
+
+    if(user.isCelebrity) {
+      user.accountIsActive = false;
+    }
+    else {
+      user.accountIsActive = true;
+    }
+
+    await user.save();
+
+    // REFERAL
+    const tokens = await create_tokens(user._id.toString());
+
+    // account for referral
+    if (referralCode) {
+      await REFERRAL.create(
+        [{referred: user._id, referrer: referralCode}],
+      );
+
+      // inform the referrer that someone signed up with thier code
+      await NOTIFICATION.create(
+        [
+          {
+            title: 'Referral Notification',
+            body: `${user.username} just joined skyboard using your referral code/link`,
+            image: process.env.SKYBOARD_LOGO as string,
+            userId: referralCode,
+          },
+        ],
+      );
+    }
 
     await redisClient.del(otp);
 
-    res.status(200).json({message: 'OTP verified successfully'});
+    registering_users.delete(email);
+
+    res.status(200).json({message: 'OTP verified successfully', data: tokens});
   } catch (error) {
     handle_error(error, res);
   }
